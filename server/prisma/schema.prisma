@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  roleId    Int
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  leads     Lead[]
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  permissions Permission[] @relation("RolePermissions")
+  users       User[]
+}
+
+model Permission {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // e.g., "manage_leads", "manage_users"
+  roles Role[] @relation("RolePermissions")
+}
+
+model Lead {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?  @unique
+  phone     String?  @unique
+  source    String?
+  status    String   @default("NEW") // NEW, CONTACTED, CONVERTED
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Campaign {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   // EMAIL, SMS, WHATSAPP
+  status    String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MessageTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   String
+  type      String   // EMAIL, SMS, WHATSAPP
+  status    String   @default("PENDING") // PENDING, APPROVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Consent {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  channel   String   // EMAIL, SMS, WHATSAPP
+  status    String   // OPT_IN, OPT_OUT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}
