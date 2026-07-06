@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import type { UserRole } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -22,47 +21,43 @@ export const Login: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // Determine the simulated role based on the email input prefix
-    let role: UserRole = 'agent';
-    const emailLower = email.toLowerCase();
-
-    if (emailLower.includes('admin')) {
-      role = 'admin';
-    } else if (emailLower.includes('manager')) {
-      role = 'manager';
-    } else if (emailLower.includes('agent')) {
-      role = 'agent';
-    } else {
-      setError('Invalid credentials. Use admin@algoconnect.com, manager@algoconnect.com, or agent@algoconnect.com to simulate roles.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      await login(role);
-      if (role === 'agent') {
-        navigate('/leads');
+      await login(email, password);
+      // Navigation based on role happens after user state updates
+      // We read role from the fresh user state through the navigate after state refresh
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { message?: string } } };
+        setError(axiosErr.response?.data?.message || 'Invalid credentials. Please try again.');
       } else {
-        navigate('/dashboard');
+        setError('Unable to connect to server. Please try again.');
       }
-    } catch (err) {
-      setError('Invalid credentials.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Once user is set after login, navigate to role-based destination
+  React.useEffect(() => {
+    if (user) {
+      if (user.role === 'agent') {
+        navigate('/leads', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#F8FAFC] via-[#EFF6FF] to-[#E2E8F0] px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         {/* Brand Logo & Heading */}
         <div className="text-center">
-          {/* Custom SVG Logo representing 'AlgoConnect' (nodes connecting in a modern geometric pattern) */}
           <div className="inline-flex items-center justify-center mb-3">
-            <svg 
-              className="h-16 w-16 text-primary filter drop-shadow-sm" 
-              viewBox="0 0 100 100" 
-              fill="none" 
+            <svg
+              className="h-16 w-16 text-primary filter drop-shadow-sm"
+              viewBox="0 0 100 100"
+              fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               {/* Connection Lines */}
@@ -72,16 +67,15 @@ export const Login: React.FC = () => {
               <line x1="50" y1="75" x2="75" y2="65" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
               <line x1="75" y1="35" x2="75" y2="65" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
               <line x1="50" y1="25" x2="50" y2="75" stroke="currentColor" strokeWidth="3" strokeDasharray="6 4" opacity="0.3" />
-
               {/* Node Circles */}
-              <circle cx="25" cy="50" r="10" fill="currentColor" className="animate-pulse" />
+              <circle cx="25" cy="50" r="10" fill="currentColor" />
               <circle cx="50" cy="25" r="8" fill="#1E293B" />
               <circle cx="50" cy="75" r="8" fill="#1E293B" />
               <circle cx="75" cy="35" r="7" fill="currentColor" />
               <circle cx="75" cy="65" r="7" fill="currentColor" />
             </svg>
           </div>
-          
+
           <h2 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">AlgoConnect</h2>
           <p className="mt-2 text-sm font-medium text-[#64748B]">
             Enterprise B2B Lead Management & Campaign Automation
@@ -94,12 +88,12 @@ export const Login: React.FC = () => {
           <p className="mt-1 text-xs text-[#64748B]">Sign in to access your customized dashboard.</p>
 
           {error && (
-            <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700">
+            <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700 font-medium">
               {error}
             </div>
           )}
 
-          {/* Traditional Credentials Form */}
+          {/* Login Form */}
           <form className="mt-6 space-y-5" onSubmit={handleFormLogin}>
             <div>
               <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#64748B]">
@@ -121,7 +115,9 @@ export const Login: React.FC = () => {
                 <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-[#64748B]">
                   Password
                 </label>
-                <a href="#" className="text-xs font-semibold text-primary hover:underline">Forgot password?</a>
+                <a href="#" className="text-xs font-semibold text-primary hover:underline">
+                  Forgot password?
+                </a>
               </div>
               <input
                 id="password"
@@ -137,20 +133,21 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Sign In</span>
+              <span>{loading ? 'Signing in...' : 'Sign In'}</span>
             </button>
           </form>
 
-          {/* Test Guide helper */}
-          <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-800">
-            <p className="font-bold mb-1">Simulating User Roles:</p>
-            <p className="mb-0.5">• <strong>Admin</strong>: admin@algoconnect.com</p>
-            <p className="mb-0.5">• <strong>Manager</strong>: manager@algoconnect.com</p>
-            <p className="mb-0.5">• <strong>Agent</strong>: agent@algoconnect.com</p>
-            <p className="mt-1 text-[10px] text-blue-600 font-medium">Use any password to sign in.</p>
+          {/* Credentials hint */}
+          <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <p className="text-xs font-bold text-blue-800 mb-1.5">Test Credentials</p>
+            <div className="space-y-1 text-[11px] text-blue-700 font-medium">
+              <p>• <strong>Admin:</strong> admin@algoconnect.com / password123</p>
+              <p>• <strong>Manager:</strong> manager@algoconnect.com / password123</p>
+              <p>• <strong>Agent:</strong> agent@algoconnect.com / password123</p>
+            </div>
           </div>
         </div>
       </div>

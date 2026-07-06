@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/auth.service';
 
 export type UserRole = 'admin' | 'manager' | 'agent';
 
 export interface User {
+  id: number;
   name: string;
   email: string;
   role: UserRole;
@@ -10,7 +12,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -22,38 +24,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for existing session
+    // Restore session from localStorage on page load
     const savedUser = localStorage.getItem('algoconnect_user');
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
-      } catch (e) {
+      } catch {
         localStorage.removeItem('algoconnect_user');
+        localStorage.removeItem('algoconnect_token');
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (role: UserRole): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const response = await authService.login({ email, password });
 
-    const mockUser: User = {
-      name: role === 'admin' ? 'Administrator' : role === 'manager' ? 'Campaign Manager' : 'Sales Agent',
-      email: `${role}@algoconnect.com`,
-      role: role,
-    };
+      // Persist JWT token
+      localStorage.setItem('algoconnect_token', response.token);
 
-    setUser(mockUser);
-    localStorage.setItem('algoconnect_user', JSON.stringify(mockUser));
-    setIsLoading(false);
-    return true;
+      // Persist user info
+      const userData: User = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role as UserRole,
+      };
+      localStorage.setItem('algoconnect_user', JSON.stringify(userData));
+      setUser(userData);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('algoconnect_user');
+    localStorage.removeItem('algoconnect_token');
   };
 
   return (

@@ -31,7 +31,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role.name, // 'admin' | 'manager' | 'agent'
+      role: user.role.name.toLowerCase(), // 'admin' | 'manager' | 'agent'
     },
   });
 });
@@ -49,4 +49,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const newUser = await prisma.user.create({
-    data: {
+    data: { email, password: hashedPassword, name, roleId },
+    include: { role: true },
+  });
+
+  res.status(201).json({
+    message: 'User registered successfully',
+    user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role.name },
+  });
+});

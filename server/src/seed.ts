@@ -1,0 +1,96 @@
+import prisma from './models/prismaClient';
+import bcrypt from 'bcrypt';
+
+async function seed() {
+  console.log('🌱 Seeding database...');
+
+  // 1. Create Roles
+  const adminRole = await prisma.role.upsert({
+    where: { name: 'admin' },
+    update: {},
+    create: { name: 'admin' },
+  });
+
+  const managerRole = await prisma.role.upsert({
+    where: { name: 'manager' },
+    update: {},
+    create: { name: 'manager' },
+  });
+
+  const agentRole = await prisma.role.upsert({
+    where: { name: 'agent' },
+    update: {},
+    create: { name: 'agent' },
+  });
+
+  console.log('✅ Roles created:', { adminRole, managerRole, agentRole });
+
+  // 2. Create Test Users
+  const adminPassword = await bcrypt.hash('password123', 10);
+  const managerPassword = await bcrypt.hash('password123', 10);
+  const agentPassword = await bcrypt.hash('password123', 10);
+
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@algoconnect.com' },
+    update: {},
+    create: {
+      email: 'admin@algoconnect.com',
+      password: adminPassword,
+      name: 'Administrator',
+      roleId: adminRole.id,
+    },
+  });
+
+  const manager = await prisma.user.upsert({
+    where: { email: 'manager@algoconnect.com' },
+    update: {},
+    create: {
+      email: 'manager@algoconnect.com',
+      password: managerPassword,
+      name: 'Campaign Manager',
+      roleId: managerRole.id,
+    },
+  });
+
+  const agent = await prisma.user.upsert({
+    where: { email: 'agent@algoconnect.com' },
+    update: {},
+    create: {
+      email: 'agent@algoconnect.com',
+      password: agentPassword,
+      name: 'Sales Agent',
+      roleId: agentRole.id,
+    },
+  });
+
+  console.log('✅ Users created:', { admin: admin.email, manager: manager.email, agent: agent.email });
+
+  // 3. Create Sample Leads
+  const sampleLeads = [
+    { name: 'Rohan Sharma', email: 'rohan.sharma@tatanova.com', phone: '+919876543210', source: 'LinkedIn', status: 'CONVERTED' },
+    { name: 'Alice Johnson', email: 'alice.j@prismtech.io', phone: '+15550192834', source: 'Web Form', status: 'NEW' },
+    { name: 'Michael Chang', email: 'm.chang@asiapacific.co', phone: '+85290123456', source: 'Cold Outreach', status: 'CONTACTED' },
+    { name: 'Priya Patel', email: 'priya@vistaracapital.in', phone: '+919123456789', source: 'LinkedIn', status: 'CONVERTED' },
+    { name: 'Sarah Connor', email: 's.connor@cyberdyne.org', phone: '+15550149988', source: 'Referral', status: 'NEW' },
+    { name: 'David Miller', email: 'david@millercorp.de', phone: '+498924432190', source: 'Campaign', status: 'CONTACTED' },
+    { name: 'Carlos Estavez', email: 'carlos.e@solaris.es', phone: '+341911234567', source: 'Web Form', status: 'NEW' },
+  ];
+
+  for (const lead of sampleLeads) {
+    await prisma.lead.upsert({
+      where: { email: lead.email },
+      update: {},
+      create: lead,
+    });
+  }
+
+  console.log('✅ Sample leads created:', sampleLeads.length);
+  console.log('\n🎉 Seeding complete!\n');
+  console.log('  Admin:   admin@algoconnect.com   / password123');
+  console.log('  Manager: manager@algoconnect.com / password123');
+  console.log('  Agent:   agent@algoconnect.com   / password123');
+}
+
+seed()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

@@ -3,7 +3,8 @@ import cors from 'cors';
 import authRoutes from './routes/auth.routes';
 import leadRoutes from './routes/lead.routes';
 import userRoutes from './routes/user.routes';
-import userRoutes from './routes/user.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import campaignRoutes from './routes/campaign.routes';
 
 
 const app = express();
@@ -17,6 +18,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -28,4 +31,9 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-import { errorHandler } from './mid
+import { errorHandler } from './middlewares/errorHandler';
+app.use(errorHandler);
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

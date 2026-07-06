@@ -8,6 +8,7 @@ import { Leads } from './pages/Leads';
 import { Campaigns } from './pages/Campaigns';
 import { Settings } from './pages/Settings';
 import { Unauthorized } from './pages/Unauthorized';
+import AdminUsers from './pages/AdminUsers';
 
 const RoleBasedRedirect = () => {
   const { user } = useAuth();
@@ -42,6 +43,7 @@ function App() {
               {/* Admin-only pages: accessible only by Admin */}
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
               </Route>
             </Route>
           </Route>
