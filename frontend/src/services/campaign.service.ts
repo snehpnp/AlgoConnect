@@ -3,12 +3,18 @@ import { apiClient } from './apiClient';
 export interface Campaign {
   id: number;
   name: string;
+  description?: string | null;
   type: string;
+  channels?: string[] | null;
+  schedule?: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
   segmentId?: number | null;
   segment?: { id: number; name: string };
+  emailTemplateId?: number | null;
+  whatsappTemplateId?: number | null;
+  smsTemplateId?: number | null;
   _count?: { leads: number };
 }
 
@@ -20,6 +26,11 @@ export interface GetCampaignsResponse {
 export const campaignService = {
   getCampaigns: async (): Promise<{ data: Campaign[] }> => {
     const response = await apiClient.get<{ data: Campaign[] }>('/campaigns');
+    return response.data;
+  },
+
+  getCampaignById: async (id: number): Promise<{ data: Campaign }> => {
+    const response = await apiClient.get<{ data: Campaign }>(`/campaigns/${id}`);
     return response.data;
   },
 

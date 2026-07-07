@@ -129,6 +129,7 @@ export const ConsentManagement = () => {
                 <tr>
                   <th className="px-6 py-4">Lead Name</th>
                   <th className="px-6 py-4">Contact Info</th>
+                  <th className="px-6 py-4 text-center">Do Not Contact</th>
                   <th className="px-6 py-4 text-center">Email Consent</th>
                   <th className="px-6 py-4 text-center">SMS Consent</th>
                   <th className="px-6 py-4 text-center">WhatsApp Consent</th>
@@ -142,18 +143,35 @@ export const ConsentManagement = () => {
                       <div>{lead.email || 'N/A'}</div>
                       <div className="text-xs mt-0.5">{lead.phone || 'N/A'}</div>
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => toggleConsent(lead.id, 'DNC', getConsentStatus(lead, 'DNC'))}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all border ${
+                          getConsentStatus(lead, 'DNC') === 'OPT_IN'
+                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <AlertCircle className="h-4 w-4" />
+                        {getConsentStatus(lead, 'DNC') === 'OPT_IN' ? 'DNC Active' : 'Allow'}
+                      </button>
+                    </td>
                     {['EMAIL', 'SMS', 'WHATSAPP'].map(channel => {
                       const status = getConsentStatus(lead, channel);
                       const isOptedIn = status === 'OPT_IN';
+                      const isDnc = getConsentStatus(lead, 'DNC') === 'OPT_IN';
                       
                       return (
                         <td key={channel} className="px-6 py-4 text-center">
                           <button
-                            onClick={() => toggleConsent(lead.id, channel, status)}
+                            onClick={() => !isDnc && toggleConsent(lead.id, channel, status)}
+                            disabled={isDnc}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all border ${
-                              isOptedIn
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                              isDnc 
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
+                                : isOptedIn
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                             }`}
                           >
                             {getChannelIcon(channel)}

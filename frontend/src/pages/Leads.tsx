@@ -389,12 +389,19 @@ export const Leads: React.FC = () => {
                             {/* Lead Details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                {/* <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
-                                  {lead.type}
-                                </div> */}
-                                <div>
-                                  <p className="font-semibold text-[#0F172A]">{lead.name}</p>
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
+                                  {lead.type?.includes('(') ? lead.type.split('(')[1].replace(')', '') : lead.type || 'Manual'}
                                 </div>
+                                <div>
+                                  <a
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(lead.name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group block min-w-0"
+                                    title="Click to search on Google"
+                                  >
+                                    {lead.name}
+                                  </a></div>
                               </div>
                             </td>
 
@@ -641,7 +648,7 @@ export const Leads: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-3 min-w-0">
-                  <a 
+                  <a
                     href={`https://www.google.com/search?q=${encodeURIComponent(selectedLead.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"

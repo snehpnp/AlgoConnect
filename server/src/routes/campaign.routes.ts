@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign } from '../controllers/campaign.controller';
+import { getCampaigns, getCampaignById, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign } from '../controllers/campaign.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 router.get('/', authenticate, getCampaigns);
+router.get('/:id', authenticate, getCampaignById);
 router.post('/', authenticate, createCampaign);
 router.put('/:id', authenticate, updateCampaign);
 router.delete('/:id', authenticate, deleteCampaign);

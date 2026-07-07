@@ -15,8 +15,25 @@ export const getCampaigns = asyncHandler(async (req: Request, res: Response) => 
   res.status(200).json({ data: campaigns, message: 'Campaigns retrieved successfully' });
 });
 
+export const getCampaignById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: parseInt(id as string) },
+    include: {
+      segment: { select: { id: true, name: true } },
+      automations: true,
+      _count: { select: { leads: true } }
+    }
+  });
+
+  if (!campaign) {
+    throw new Error('Campaign not found');
+  }
+  res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
+});
+
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
-  const { name, type, status, segmentId } = req.body;
+  const { name, type, status, segmentId, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
   if (!name || !type) {
     throw new Error('Name and type are required');
@@ -25,9 +42,15 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
   const newCampaign = await prisma.campaign.create({
     data: { 
       name, 
+      description,
       type, 
+      channels,
       status: status || 'DRAFT',
-      segmentId: segmentId ? parseInt(segmentId) : null
+      schedule: schedule ? new Date(schedule) : null,
+      segmentId: segmentId ? parseInt(segmentId) : null,
+      emailTemplateId: emailTemplateId ? parseInt(emailTemplateId) : null,
+      whatsappTemplateId: whatsappTemplateId ? parseInt(whatsappTemplateId) : null,
+      smsTemplateId: smsTemplateId ? parseInt(smsTemplateId) : null
     },
     include: {
       segment: { select: { id: true, name: true } }
@@ -39,12 +62,16 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
 
 export const updateCampaign = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, type, status, segmentId } = req.body;
+  const { name, type, status, segmentId, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
-  const dataToUpdate: any = { name, type, status };
+  const dataToUpdate: any = { name, type, status, description, channels };
+  if (schedule !== undefined) dataToUpdate.schedule = schedule ? new Date(schedule) : null;
   if (segmentId !== undefined) {
     dataToUpdate.segmentId = segmentId ? parseInt(segmentId) : null;
   }
+  if (emailTemplateId !== undefined) dataToUpdate.emailTemplateId = emailTemplateId ? parseInt(emailTemplateId) : null;
+  if (whatsappTemplateId !== undefined) dataToUpdate.whatsappTemplateId = whatsappTemplateId ? parseInt(whatsappTemplateId) : null;
+  if (smsTemplateId !== undefined) dataToUpdate.smsTemplateId = smsTemplateId ? parseInt(smsTemplateId) : null;
 
   const campaign = await prisma.campaign.update({
     where: { id: parseInt(id as string) },

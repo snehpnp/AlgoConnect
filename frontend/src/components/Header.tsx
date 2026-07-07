@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Bell, 
-  Search, 
-  ChevronDown, 
-  User as UserIcon, 
+import {
+  Bell,
+  Search,
+  ChevronDown,
+  User as UserIcon,
   LogOut,
   Settings
 } from 'lucide-react';
@@ -41,7 +41,7 @@ export const Header: React.FC = () => {
 
         {/* User Dropdown */}
         <div className="relative">
-          <button 
+          <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-3.5 rounded-lg p-1.5 text-left hover:bg-[#F8FAFC] transition-colors"
           >
@@ -58,19 +58,19 @@ export const Header: React.FC = () => {
           {dropdownOpen && (
             <>
               {/* Overlay to close on click outside */}
-              <div 
-                className="fixed inset-0 z-10" 
+              <div
+                className="fixed inset-0 z-10"
                 onClick={() => setDropdownOpen(false)}
               ></div>
-              
+
               <div className="absolute right-0 mt-2.5 w-56 origin-top-right rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-20">
                 <div className="border-b border-[#E2E8F0] px-3.5 py-2.5">
                   <p className="text-xs text-[#64748B]">Signed in as</p>
                   <p className="truncate text-sm font-medium text-[#0F172A]">{user.email}</p>
                 </div>
-                
+
                 <div className="py-1">
-                  <button 
+                  <button
                     onClick={() => {
                       setDropdownOpen(false);
                       navigate('/profile');
@@ -81,7 +81,7 @@ export const Header: React.FC = () => {
                     <span>My Profile</span>
                   </button>
                   {user.role === 'System Admin' && (
-                    <button 
+                    <button
                       onClick={() => {
                         setDropdownOpen(false);
                         navigate('/settings/integrations');
@@ -92,12 +92,12 @@ export const Header: React.FC = () => {
                       <span>Integrations</span>
                     </button>
                   )}
-                  <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
+                  {/* <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
                     <Settings className="h-4.5 w-4.5" />
                     <span>Account Settings</span>
-                  </div>
+                  </div> */}
                 </div>
-                
+
                 <div className="border-t border-[#E2E8F0] pt-1">
                   <button
                     onClick={() => {
