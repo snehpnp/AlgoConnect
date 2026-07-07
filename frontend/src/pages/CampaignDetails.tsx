@@ -93,9 +93,9 @@ export const CampaignDetails = () => {
             <h1 className="text-3xl font-bold tracking-tight text-[#0F172A]">
               {campaign.name}
             </h1>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ml-2 ${
-              campaign.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'
-            }`}>
+            <span className={`badge-${
+              campaign.status === 'ACTIVE' ? 'success' : 'neutral'
+            } ml-2`}>
               {campaign.status}
             </span>
           </div>
@@ -110,7 +110,7 @@ export const CampaignDetails = () => {
         
         {/* Left Column: Details */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          <div className="card">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4 uppercase tracking-wider">Campaign Info</h3>
             <div className="space-y-4">
               <div>
@@ -135,7 +135,7 @@ export const CampaignDetails = () => {
 
         {/* Right Column: Automations */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
+          <div className="card !p-0 overflow-hidden">
             <div className="border-b border-[#E2E8F0] p-5 bg-[#F8FAFC] flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
@@ -146,7 +146,7 @@ export const CampaignDetails = () => {
               </div>
               <button 
                 onClick={() => { setCurrentAutomation({ status: 'ACTIVE' }); setIsFormOpen(true); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600"
+                className="btn-primary"
               >
                 <Plus className="h-4 w-4" />
                 Add Step
@@ -251,7 +251,7 @@ export const CampaignDetails = () => {
                   placeholder="e.g. Day 3 Follow-up"
                   value={currentAutomation.name || ''} 
                   onChange={(e) => setCurrentAutomation({ ...currentAutomation, name: e.target.value })} 
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary" 
+                  className="input-base" 
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">

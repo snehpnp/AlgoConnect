@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Bell,
@@ -13,22 +13,32 @@ import {
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (!user) return null;
 
   return (
-    <header className="fixed top-0 right-0 left-[280px] z-10 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white px-8">
-      {/* Search Input */}
-      <div className="relative w-80">
-        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-          <Search className="h-4.5 w-4.5 text-[#64748B]" />
-        </span>
-        <input
-          type="text"
-          placeholder="Search leads, campaigns, settings..."
-          className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pr-4 pl-10 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
-        />
+    <header className="fixed top-0 right-0 left-[280px] z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-8 shadow-sm">
+      <div className="flex items-center gap-6 w-full max-w-xl">
+        {/* Dynamic Breadcrumb based on path */}
+        <div className="hidden sm:flex items-center text-sm font-semibold capitalize text-[#0F172A]">
+          <span className="text-[#64748B]">Home</span>
+          <span className="mx-2 text-[#CBD5E1]">/</span>
+          <span>{location.pathname === '/' ? 'Dashboard' : location.pathname.split('/')[1]}</span>
+        </div>
+
+        {/* Search Input */}
+        <div className="relative w-full max-w-xs">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+            <Search className="h-4 w-4 text-[#64748B]" />
+          </span>
+          <input
+            type="text"
+            placeholder="Search leads, campaigns..."
+            className="w-full rounded-full border border-[#E2E8F0] bg-[#F8FAFC]/50 py-2 pr-4 pl-9 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300"
+          />
+        </div>
       </div>
 
       {/* Right Section */}

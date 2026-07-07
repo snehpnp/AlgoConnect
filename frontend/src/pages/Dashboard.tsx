@@ -141,7 +141,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm lg:col-span-2">
+        <div className="card lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-[#0F172A]">Lead Generation Analytics</h2>
@@ -153,7 +153,7 @@ export const Dashboard: React.FC = () => {
               <div key={idx} className="group flex flex-1 flex-col items-center gap-3">
                 <div className="relative w-full rounded-t-lg bg-slate-100 transition-all hover:bg-slate-200" style={{ height: '200px' }}>
                   <div 
-                    className="absolute bottom-0 w-full rounded-t-lg bg-gradient-to-t from-primary/80 to-primary transition-all group-hover:from-primary group-hover:to-blue-600" 
+                    className="absolute bottom-0 w-full rounded-t-lg bg-gradient-to-t from-primary/80 to-primary transition-all group-hover:from-primary group-hover:to-blue-600 shadow-md shadow-primary/20" 
                     style={{ height: bar.value }}
                   >
                     <span className="absolute -top-7 left-1/2 -translate-x-1/2 rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
@@ -167,7 +167,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+        <div className="card">
           <h2 className="text-base font-bold text-[#0F172A]">Sales Pipeline</h2>
           <p className="text-xs text-[#64748B]">Categorized by sales stage</p>
           <div className="mt-6 space-y-4">

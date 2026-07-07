@@ -120,7 +120,7 @@ export const Campaigns: React.FC = () => {
         </div>
         <button 
           onClick={() => { setCurrentCampaign({ type: 'EMAIL', status: 'DRAFT' }); setIsFormOpen(true); }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600"
+          className="btn-primary"
         >
           <Plus className="h-4.5 w-4.5" />
           Create Campaign
@@ -132,15 +132,15 @@ export const Campaigns: React.FC = () => {
           { label: 'Active Campaigns', value: `${activeCount} Running` },
           { label: 'Total Campaigns', value: campaigns.length.toString() },
           { label: 'Latest Update', value: campaigns.length > 0 ? new Date(campaigns[0].updatedAt).toLocaleDateString() : 'N/A' },
-        ].map((card, i) => (
-          <div key={i} className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider">{card.label}</p>
-            <p className="text-2xl font-extrabold text-[#0F172A] mt-1.5">{card.value}</p>
+        ].map((crd, i) => (
+          <div key={i} className="card group">
+            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider group-hover:text-primary transition-colors">{crd.label}</p>
+            <p className="text-2xl font-extrabold text-[#0F172A] mt-1.5">{crd.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
+      <div className="card !p-0 overflow-hidden">
         <div className="border-b border-[#E2E8F0] p-4.5 bg-[#F8FAFC] flex items-center justify-between">
           <h3 className="text-sm font-bold text-[#0F172A]">All Campaigns</h3>
           <div className="relative w-64">
@@ -150,7 +150,7 @@ export const Campaigns: React.FC = () => {
               placeholder="Search campaigns..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-[#E2E8F0] bg-white py-1.5 pr-4 pl-9 text-xs outline-none focus:border-primary"
+              className="input-base !pl-9"
             />
           </div>
         </div>
@@ -190,14 +190,14 @@ export const Campaigns: React.FC = () => {
                     </td>
                     <td className="py-4 px-6"><span className="text-sm font-semibold text-[#0F172A]">{camp.type}</span></td>
                     <td className="py-4 px-6">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                        camp.status === 'ACTIVE' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'
+                      <span className={`badge-${
+                        camp.status === 'ACTIVE' ? 'success' : 'neutral'
                       }`}>
                         {camp.status}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
                         <Users className="w-3.5 h-3.5" />
                         {camp._count?.leads || 0}
                       </span>

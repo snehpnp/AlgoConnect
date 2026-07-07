@@ -1,10 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3b82f6;
+  --color-primary: #2563EB;
 }
 
-body {
-  background-color: #f3f4f6;
-  color: #1f2937;
+@layer base {
+  body {
+    @apply bg-[#F1F5F9] text-[#0F172A] antialiased;
+  }
+}
+
+@layer components {
+  /* Unified Cards */
+  .card {
+    @apply rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+
+  /* Unified Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Unified Inputs */
+  .input-base {
+    @apply w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300;
+  }
+
+  /* Unified Status Badges */
+  .badge-success {
+    @apply inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-emerald-700 uppercase;
+  }
+  .badge-warning {
+    @apply inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-700 uppercase;
+  }
+  .badge-danger {
+    @apply inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-red-700 uppercase;
+  }
+  .badge-neutral {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-slate-700 uppercase;
+  }
+
+  /* Custom Scrollbar for sidebar/tables */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
 }

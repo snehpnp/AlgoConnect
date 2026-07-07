@@ -99,14 +99,14 @@ export const ConsentManagement = () => {
               placeholder="Search leads..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-64 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pr-4 pl-9 text-sm outline-none transition-all focus:border-primary focus:bg-white"
+              className="input-base !pl-9 w-64"
             />
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
+      <div className="card !p-0 overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

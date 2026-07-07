@@ -252,18 +252,18 @@ export const Leads: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => navigate('/leads/import')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors"
+              className="btn-secondary"
             >
               <Upload className="h-4 w-4" />
               Import CSV/Excel
             </button>
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors">
+            <button className="btn-secondary">
               <Download className="h-4 w-4" />
               Export
             </button>
             <button
               onClick={() => handleOpenForm()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 transition-colors"
+              className="btn-primary"
             >
               <Plus className="h-4 w-4" />
               Add Lead
@@ -389,9 +389,7 @@ export const Leads: React.FC = () => {
                             {/* Lead Details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
-                                  {lead.type?.includes('(') ? lead.type.split('(')[1].replace(')', '') : lead.type || 'Manual'}
-                                </div>
+
                                 <div>
                                   <a
                                     href={`https://www.google.com/search?q=${encodeURIComponent(lead.name)}`}
