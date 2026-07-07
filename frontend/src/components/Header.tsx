@@ -7,10 +7,15 @@ import {
   ChevronDown,
   User as UserIcon,
   LogOut,
-  Settings
+  Settings,
+  Menu
 } from 'lucide-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  setIsSidebarOpen: (val: boolean) => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,8 +24,14 @@ export const Header: React.FC = () => {
   if (!user) return null;
 
   return (
-    <header className="fixed top-0 right-0 left-[280px] z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-8 shadow-sm">
-      <div className="flex items-center gap-6 w-full max-w-xl">
+    <header className="fixed top-0 right-0 left-0 lg:left-[280px] z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-4 sm:px-8 shadow-sm transition-all duration-300">
+      <div className="flex items-center gap-2 sm:gap-6 w-full max-w-xl">
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
         {/* Dynamic Breadcrumb based on path */}
         <div className="hidden sm:flex items-center text-sm font-semibold capitalize text-[#0F172A]">
           <span className="text-[#64748B]">Home</span>
