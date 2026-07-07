@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -22,6 +23,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
@@ -73,7 +75,15 @@ export const Leads: React.FC = () => {
 
   // Row action menu (3-dot dropdown)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close menu on scroll
+  useEffect(() => {
+    const handleScroll = () => setOpenMenuId(null);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, []);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -366,8 +376,7 @@ export const Leads: React.FC = () => {
                         return (
                           <tr
                             key={lead.id}
-                            onClick={() => handleRowClick(lead)}
-                            className={`cursor-pointer hover:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
+                            className={`hover:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
                               }`}
                           >
                             <td className="py-4 px-6">
@@ -462,6 +471,13 @@ export const Leads: React.FC = () => {
                             <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="relative flex justify-end gap-2">
                                 <button
+                                  onClick={() => handleRowClick(lead)}
+                                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
                                   onClick={() => handleOpenForm(lead)}
                                   className="rounded-lg p-1.5 text-blue-500 hover:bg-blue-50 transition-colors"
                                   title="Edit Lead"
@@ -469,17 +485,26 @@ export const Leads: React.FC = () => {
                                   <Edit2 className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => setOpenMenuId(openMenuId === lead.id ? null : lead.id)}
+                                  onClick={(e) => {
+                                    if (openMenuId === lead.id) {
+                                      setOpenMenuId(null);
+                                    } else {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                      setOpenMenuId(lead.id);
+                                    }
+                                  }}
                                   className={`rounded-lg p-1.5 transition-colors ${openMenuId === lead.id ? 'bg-slate-100 text-[#0F172A]' : 'text-slate-400 hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
                                 >
                                   <MoreVertical className="h-4 w-4" />
                                 </button>
 
                                 {/* Dropdown Menu */}
-                                {openMenuId === lead.id && (
+                                {openMenuId === lead.id && createPortal(
                                   <div
                                     ref={menuRef}
-                                    className="absolute right-0 top-full z-20 mt-1 w-52 rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-lg"
+                                    style={{ top: menuPos.top, right: menuPos.right }}
+                                    className="fixed z-50 mt-1 w-52 rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-lg"
                                   >
                                     <button
                                       onClick={() => { setOpenMenuId(null); handleRowClick(lead); }}
@@ -526,7 +551,8 @@ export const Leads: React.FC = () => {
                                       <Trash2 className="h-3.5 w-3.5" />
                                       Delete lead
                                     </button>
-                                  </div>
+                                  </div>,
+                                  document.body
                                 )}
                               </div>
                             </td>
@@ -609,19 +635,31 @@ export const Leads: React.FC = () => {
             </div>
 
             {/* Profile Section */}
-            <div className="mt-6 flex flex-col items-center pb-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl mb-3">
-                {selectedLead.name.split(' ').map((n) => n[0]).join('')}
+            <div className="mt-4 flex items-center gap-4 pb-5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-xl ring-1 ring-inset ring-blue-100">
+                {selectedLead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
               </div>
-              <h3 className="text-lg font-bold text-[#0F172A]">{selectedLead.name}</h3>
-              <p className="text-xs text-[#64748B] mt-0.5">Lead ID: {selectedLead.id}</p>
-              <div className="flex gap-2 mt-2.5">
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${selectedLead.salesStage === 'New' ? 'bg-emerald-100 text-emerald-700' : selectedLead.salesStage === 'Client Won' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {selectedLead.salesStage}
-                </span>
-                <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
-                  {selectedLead.verificationStatus}
-                </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-3 min-w-0">
+                  <a 
+                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedLead.name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block min-w-0"
+                    title="Click to search on Google"
+                  >
+                    <h3 className="text-lg font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors cursor-pointer">{selectedLead.name}</h3>
+                  </a>
+                  <div className="flex gap-2 shrink-0">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${selectedLead.salesStage === 'New' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10' : selectedLead.salesStage === 'Client Won' ? 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10' : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/10'}`}>
+                      {selectedLead.salesStage}
+                    </span>
+                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/10">
+                      {selectedLead.verificationStatus}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[13px] text-slate-500 mt-1">Lead ID: <span className="font-medium text-slate-700">{selectedLead.id}</span></p>
               </div>
             </div>
 
@@ -642,86 +680,131 @@ export const Leads: React.FC = () => {
             </div>
 
             {activeTab === 'details' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 bg-slate-50/50 rounded-xl p-5 border border-slate-100">
                 <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <Mail className="h-4 w-4 text-slate-400 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email</p>
-                    <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedLead.email || '—'}</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Email</p>
+                    <p className="text-sm font-medium text-slate-900 truncate mt-0.5">{selectedLead.email || '—'}</p>
                     {selectedLead.email2 && (
-                      <p className="text-sm font-semibold text-[#0F172A] truncate mt-1">{selectedLead.email2}</p>
+                      <p className="text-sm font-medium text-slate-900 truncate mt-1">{selectedLead.email2}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
-                  <div>
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Phone</p>
-                    <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.phone || '—'}</p>
-                    {selectedLead.phone2 && (
-                      <p className="text-sm font-semibold text-[#0F172A] mt-1">{selectedLead.phone2}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Type</p>
-                    <span className="inline-block mt-0.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                      {selectedLead.type || 'Manual'}
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Phone</p>
+                    <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.phone || '—'}</p>
+                    {selectedLead.phone2 && (
+                      <p className="text-sm font-medium text-slate-900 mt-1">{selectedLead.phone2}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Type</p>
+                    <span className="inline-flex items-center mt-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                      {selectedLead.type?.includes('(') ? selectedLead.type.split('(')[1].replace(')', '') : selectedLead.type || 'Manual'}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Source & Reg No.</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Source & Reg No.</p>
                     {selectedLead.registrationNo && (
-                      <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 mb-1 mt-0.5">
+                      <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 mt-1 mb-1 ring-1 ring-inset ring-indigo-700/10">
                         {selectedLead.registrationNo}
                       </span>
                     )}
-                    <p className="text-sm font-semibold text-[#0F172A] mt-0.5">{selectedLead.source || 'Manual'}</p>
+                    <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.source || 'Manual'}</p>
                   </div>
                 </div>
 
                 {(selectedLead.address || selectedLead.city) && (
                   <div className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
+                    <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Address</p>
-                      <p className="text-sm font-medium text-[#0F172A]">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Address</p>
+                      <p className="text-sm font-medium text-slate-900 mt-0.5 leading-relaxed">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
                     </div>
                   </div>
                 )}
 
                 {selectedLead.contactPerson && (
                   <div className="flex items-start gap-3">
-                    <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                    <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contact Person</p>
-                      <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.contactPerson}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Contact Person</p>
+                      <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.contactPerson}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(selectedLead.exchangeName || selectedLead.tradeName) && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Trade Details</p>
+                      {selectedLead.exchangeName && <p className="text-sm font-medium text-slate-900 mt-0.5">Exchange: {selectedLead.exchangeName}</p>}
+                      {selectedLead.tradeName && <p className="text-sm font-medium text-slate-900 mt-0.5">Trade Name: {selectedLead.tradeName}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {selectedLead.fax && (
+                  <div className="flex items-start gap-3">
+                    <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Fax</p>
+                      <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.fax}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedLead.validity && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-4 w-4 text-slate-400 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Validity</p>
+                      <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.validity}</p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex items-start gap-3">
-                  <Clock className="h-4 w-4 text-[#64748B] mt-0.5" />
-                  <div>
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Created At</p>
-                    <p className="text-sm font-semibold text-[#0F172A]">{formatDate(selectedLead.createdAt)}</p>
+                  <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">System Statuses</p>
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      {selectedLead.status && <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-500/10">Base: {selectedLead.status}</span>}
+                      {selectedLead.engagementStatus && <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-500/10">Engagement: {selectedLead.engagementStatus}</span>}
+                      {selectedLead.consentStatus && <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-500/10">Consent: {selectedLead.consentStatus}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Clock className="h-4 w-4 text-slate-400 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Timeline</p>
+                    <p className="text-[13px] font-medium text-slate-900 mt-0.5">Created: {formatDate(selectedLead.createdAt)}</p>
+                    {selectedLead.updatedAt && <p className="text-[13px] font-medium text-slate-900 mt-0.5">Updated: {formatDate(selectedLead.updatedAt)}</p>}
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <Sparkles className="h-4 w-4 text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Lead Score</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="h-2 w-full rounded-full bg-slate-100">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Lead Score</p>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-xs font-bold text-slate-700 w-5">{getLeadScore(selectedLead.salesStage)}</span>
+                      <div className="h-1.5 w-full rounded-full bg-slate-200">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
                           style={{ width: `${getLeadScore(selectedLead.salesStage)}%` }}

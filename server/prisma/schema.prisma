@@ -118,3 +118,18 @@ model Segment {
   updatedAt   DateTime   @updatedAt
   campaigns   Campaign[]
 }
+
+model IntegrationSetting {
+  id          Int      @id @default(autoincrement())
+  type        String   @unique // 'EMAIL', 'SMS', 'WHATSAPP'
+  provider    String   // 'SMTP', 'TWILIO', 'META', etc.
+  apiKey      String?
+  apiSecret   String?
+  senderId    String?
+  host        String?
+  port        Int?
+  secure      Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -80,6 +80,18 @@ export const Header: React.FC = () => {
                     <UserIcon className="h-4.5 w-4.5" />
                     <span>My Profile</span>
                   </button>
+                  {user.role === 'System Admin' && (
+                    <button 
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate('/settings/integrations');
+                      }}
+                      className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2 text-sm text-[#0F172A]"
+                    >
+                      <Settings className="h-4.5 w-4.5" />
+                      <span>Integrations</span>
+                    </button>
+                  )}
                   <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
                     <Settings className="h-4.5 w-4.5" />
                     <span>Account Settings</span>
