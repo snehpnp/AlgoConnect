@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Search } from 'lucide-react';
+import { BookOpen, Search, Target, Users, Shield, Briefcase, Zap, CheckCircle2, ShieldCheck, Database, Megaphone, Settings } from 'lucide-react';
 
 interface StatusDefinition {
   name: string;
@@ -28,7 +28,7 @@ const statusDefinitions: StatusDefinition[] = [
   { name: 'Duplicate', category: 'Verification', englishMeaning: 'Found as a duplicate of an existing lead.', hindiMeaning: 'सिस्टम में पहले से मौजूद लीड की कॉपी (डुप्लीकेट) मिली है।' },
 
   // Engagement
-  { name: 'Not Engaged', category: 'Engagement', englishMeaning: 'No interactions recorded yet.', hindiMeaning: 'अभी तक कोई इंटरेक्शन (बातचीत/क्लिक) रिकॉर्ड नहीं हुआ है।' },
+  { name: 'Not Engaged', category: 'Engagement', englishMeaning: 'No interactions recorded yet.', hindiMeaning: 'अभी तक कोई इंटरेक्शन (बातचीत/क्लिक) रिकॉर्ड expanded नहीं हुआ है।' },
   { name: 'Sent', category: 'Engagement', englishMeaning: 'Message/Email has been sent to the lead.', hindiMeaning: 'लीड को मैसेज या ईमेल भेज दिया गया है।' },
   { name: 'Delivered', category: 'Engagement', englishMeaning: 'Message/Email successfully reached the lead\'s inbox.', hindiMeaning: 'मैसेज/ईमेल सफलतापूर्वक लीड के इनबॉक्स में पहुँच गया है।' },
   { name: 'Opened', category: 'Engagement', englishMeaning: 'Lead opened the sent communication.', hindiMeaning: 'लीड ने भेजा गया ईमेल/मैसेज खोल कर देखा है।' },
@@ -44,10 +44,11 @@ const statusDefinitions: StatusDefinition[] = [
 ];
 
 export default function StatusDictionary() {
+  const [activeTab, setActiveTab] = useState<'status' | 'docs'>('docs');
   const [search, setSearch] = useState('');
 
-  const filteredStatuses = statusDefinitions.filter(status => 
-    status.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredStatuses = statusDefinitions.filter(status =>
+    status.name.toLowerCase().includes(search.toLowerCase()) ||
     status.category.toLowerCase().includes(search.toLowerCase()) ||
     status.englishMeaning.toLowerCase().includes(search.toLowerCase()) ||
     status.hindiMeaning.includes(search)
@@ -56,8 +57,9 @@ export default function StatusDictionary() {
   const categories = Array.from(new Set(filteredStatuses.map(s => s.category)));
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
@@ -65,62 +67,242 @@ export default function StatusDictionary() {
             </div>
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight text-[#0F172A]">
-                Status Dictionary
+                Dictionary & Documentation
               </h1>
               <p className="mt-1 text-sm font-medium text-[#64748B]">
-                Understand what each lead status means in English and Hindi.
+                Understand system workflows, user roles, and lead status definitions.
               </p>
             </div>
           </div>
         </div>
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search status or meaning..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-          />
-        </div>
       </div>
 
-      <div className="space-y-10">
-        {categories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl border border-slate-200">
-            <BookOpen className="h-10 w-10 mb-3 text-slate-300" />
-            <p className="text-sm font-bold text-slate-600">No definitions found for "{search}"</p>
-          </div>
-        ) : (
-          categories.map(category => (
-            <div key={category} className="space-y-4">
-              <h2 className="text-lg font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                {category} Statuses
-              </h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredStatuses.filter(s => s.category === category).map((status, index) => (
-                  <div key={index} className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
-                    <div className="mb-4">
-                      <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-800 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
-                        {status.name}
-                      </span>
-                    </div>
-                    <div className="flex-1 space-y-4">
-                      <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">English Meaning</p>
-                        <p className="text-sm font-medium text-slate-700 leading-relaxed">{status.englishMeaning}</p>
-                      </div>
-                      <div className="pt-3 border-t border-slate-100">
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">Hindi Meaning (हिंदी में मतलब)</p>
-                        <p className="text-sm font-medium text-slate-800 leading-relaxed font-sans">{status.hindiMeaning}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('docs')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'docs'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+            }`}
+        >
+          System Documentation
+        </button>
+        <button
+          onClick={() => setActiveTab('status')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'status'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+            }`}
+        >
+          Lead Status Definitions
+        </button>
+      </div>
+
+      {/* Content Area */}
+      <div>
+        {/* TAB 1: System Documentation */}
+        {activeTab === 'docs' && (
+          <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* 1. What and Why */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                  <Target className="h-5 w-5 text-indigo-500" />
+                  What is AlgoConnect?
+                </h2>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  AlgoConnect is a powerful B2B outbound marketing and CRM platform designed specifically to target financial intermediaries in India, such as SEBI Research Analysts (RAs), Investment Advisors (IAs), and NSE Sub-brokers. It aggregates raw market data, enriches it to verify activity, and facilitates multi-channel outreach (Email, SMS, WhatsApp).
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  Why was this project created?
+                </h2>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Acquiring and engaging financial intermediaries is highly manual and compliance-heavy. AlgoConnect was built to automate lead aggregation, filter out inactive entities via enrichment, group them into smart segments, and launch strictly compliant, scalable messaging campaigns to generate warm leads for the sales team.
+                </p>
               </div>
             </div>
-          ))
+
+            {/* 2. Roles in the App */}
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                <Users className="h-5 w-5 text-emerald-500" />
+                User Roles & Permissions
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                    <h3 className="font-bold text-blue-900">System Admin</h3>
+                  </div>
+                  <p className="text-sm text-blue-800/80 leading-relaxed">
+                    Has unrestricted access to the entire platform. Responsible for creating other user accounts, configuring API integrations, webhooks, and setting up the communication gateways (SMTP, Twilio) in System Settings.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-purple-50/50 border border-purple-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Megaphone className="h-5 w-5 text-purple-600" />
+                    <h3 className="font-bold text-purple-900">Growth Operator</h3>
+                  </div>
+                  <p className="text-sm text-purple-800/80 leading-relaxed">
+                    The primary marketer. They import lead lists (CSV/XLSX), run enrichment jobs to verify leads, build targeted Segments (e.g. "Active RAs in Delhi"), and launch outbound Campaigns to engage those segments.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShieldCheck className="h-5 w-5 text-amber-600" />
+                    <h3 className="font-bold text-amber-900">Compliance Admin</h3>
+                  </div>
+                  <p className="text-sm text-amber-800/80 leading-relaxed">
+                    Ensures all operations are legally compliant. They approve or reject message templates to ensure they meet DLT/TRAI standards, monitor audit logs, and enforce global "Do Not Contact" (DND) consent lists.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Briefcase className="h-5 w-5 text-emerald-600" />
+                    <h3 className="font-bold text-emerald-900">Sales Rep</h3>
+                  </div>
+                  <p className="text-sm text-emerald-800/80 leading-relaxed">
+                    The closer. They have restricted access, primarily viewing leads that have engaged with campaigns and have been marked as "warm" or "qualified", allowing them to focus purely on outreach and sales conversions.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Page Dictionary */}
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                <BookOpen className="h-5 w-5 text-primary" />
+                Page Dictionary & Workflows
+              </h2>
+
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><Database className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">Lead Management</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      The central database for all contacts. This page allows you to import raw lists from SEBI/NSE, trigger enrichment jobs to verify if the business is active, and view detailed profiles and engagement history for every single lead.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><Target className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">Segments</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Instead of blasting all 10,000 leads, Segments allow you to build dynamic, rule-based filters (e.g., "Lead Score `{">"}` 80" + "Region: Maharashtra"). You create segments here before attaching them to a campaign.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><Megaphone className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">Campaigns</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      The core execution engine. Here, you take a Segment, attach a pre-approved Message Template, select your channels (Email, SMS, WhatsApp), and schedule the outbound delivery. It also displays open, click, and reply analytics.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><ShieldCheck className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">Consent Management</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      A highly critical compliance page. It tracks exactly who has Opted-In or Opted-Out for each specific channel. If a user is marked as Opted-Out here, the system will physically block campaigns from messaging them.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><Users className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">User Management</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Restricted to System Admins. Allows the business to onboard new employees, edit their details, and strictly assign them a role (Growth Operator, Compliance, Sales) which controls what pages they can see.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0 mt-1"><Settings className="h-5 w-5 text-slate-400" /></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">System & Integration Settings</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      The technical backbone page. Used to connect AlgoConnect to the outside world—entering SendGrid API keys for email, Twilio credentials for SMS/WhatsApp, and configuring incoming webhooks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: Status Definitions */}
+        {activeTab === 'status' && (
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex justify-end">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search status or meaning..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-10">
+              {categories.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                  <BookOpen className="h-10 w-10 mb-3 text-slate-300" />
+                  <p className="text-sm font-bold text-slate-600">No definitions found for "{search}"</p>
+                </div>
+              ) : (
+                categories.map(category => (
+                  <div key={category} className="space-y-4">
+                    <h2 className="text-lg font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                      {category} Statuses
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredStatuses.filter(s => s.category === category).map((status, index) => (
+                        <div key={index} className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
+                          <div className="mb-4">
+                            <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-800 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
+                              {status.name}
+                            </span>
+                          </div>
+                          <div className="flex-1 space-y-4">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">English Meaning</p>
+                              <p className="text-sm font-medium text-slate-700 leading-relaxed">{status.englishMeaning}</p>
+                            </div>
+                            <div className="pt-3 border-t border-slate-100">
+                              <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">Hindi Meaning (हिंदी में मतलब)</p>
+                              <p className="text-sm font-medium text-slate-800 leading-relaxed font-sans">{status.hindiMeaning}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

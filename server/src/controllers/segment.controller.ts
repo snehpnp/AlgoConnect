@@ -34,15 +34,17 @@ export const previewSegment = asyncHandler(async (req: Request, res: Response) =
   // This is a basic implementation to be expanded upon based on rules structure.
   const whereClause: any = {};
   
-  if (rules.region) whereClause.state = rules.region; // Assuming region maps to state
-  if (rules.activityStatus) whereClause.verificationStatus = rules.activityStatus;
-  if (rules.status) whereClause.engagementStatus = rules.status;
+  if (rules.entityType && rules.entityType !== 'All') whereClause.type = rules.entityType;
+  if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
+  if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
+  if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
   
-  const count = await prisma.lead.count({
-    where: whereClause
-  });
+  const [count, leads] = await Promise.all([
+    prisma.lead.count({ where: whereClause }),
+    prisma.lead.findMany({ where: whereClause, take: 50, orderBy: { createdAt: 'desc' } })
+  ]);
 
-  res.status(200).json({ data: { count }, message: 'Segment size calculated successfully' });
+  res.status(200).json({ data: { count, leads }, message: 'Segment size calculated successfully' });
 });
 
 export const deleteSegment = asyncHandler(async (req: Request, res: Response) => {
@@ -53,4 +55,32 @@ export const deleteSegment = asyncHandler(async (req: Request, res: Response) =>
   });
   
   res.status(200).json({ message: 'Segment deleted successfully' });
+});
+
+export const getSegmentLeads = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const segment = await prisma.segment.findUnique({
+    where: { id: parseInt(id as string) }
+  });
+  
+  if (!segment) {
+    throw new Error('Segment not found');
+  }
+
+  const rules = segment.rules as any || {};
+  const whereClause: any = {};
+  
+  if (rules.entityType && rules.entityType !== 'All') whereClause.type = rules.entityType;
+  if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
+  if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
+  if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
+  
+  const leads = await prisma.lead.findMany({
+    where: whereClause,
+    take: 50, // preview limit
+    orderBy: { createdAt: 'desc' }
+  });
+
+  res.status(200).json({ data: leads, message: 'Segment leads retrieved' });
 });

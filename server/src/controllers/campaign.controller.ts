@@ -6,6 +6,7 @@ export const getCampaigns = asyncHandler(async (req: Request, res: Response) => 
   const campaigns = await prisma.campaign.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
+      segment: { select: { id: true, name: true } },
       _count: {
         select: { leads: true }
       }
@@ -15,14 +16,22 @@ export const getCampaigns = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
-  const { name, type, status } = req.body;
+  const { name, type, status, segmentId } = req.body;
 
   if (!name || !type) {
     throw new Error('Name and type are required');
   }
 
   const newCampaign = await prisma.campaign.create({
-    data: { name, type, status: status || 'DRAFT' }
+    data: { 
+      name, 
+      type, 
+      status: status || 'DRAFT',
+      segmentId: segmentId ? parseInt(segmentId) : null
+    },
+    include: {
+      segment: { select: { id: true, name: true } }
+    }
   });
 
   res.status(201).json({ message: 'Campaign created successfully', data: newCampaign });
@@ -30,12 +39,18 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
 
 export const updateCampaign = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, type, status } = req.body;
+  const { name, type, status, segmentId } = req.body;
+
+  const dataToUpdate: any = { name, type, status };
+  if (segmentId !== undefined) {
+    dataToUpdate.segmentId = segmentId ? parseInt(segmentId) : null;
+  }
 
   const campaign = await prisma.campaign.update({
     where: { id: parseInt(id as string) },
-    data: { name, type, status },
+    data: dataToUpdate,
     include: {
+      segment: { select: { id: true, name: true } },
       _count: { select: { leads: true } }
     }
   });

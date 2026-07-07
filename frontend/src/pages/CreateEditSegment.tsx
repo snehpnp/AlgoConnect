@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Filter, Save, ArrowLeft, Loader2, Target, Zap, BarChart } from 'lucide-react';
+import { Users, Filter, Save, ArrowLeft, Loader2, Target, Zap, BarChart, Eye, X, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { SegmentRule } from '../services/segment.service';
 import { segmentService } from '../services/segment.service';
+import { leadsService } from '../services/leads.service';
 
 export const CreateEditSegment = () => {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewLeads, setPreviewLeads] = useState<any[]>([]);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -18,10 +21,47 @@ export const CreateEditSegment = () => {
     entityType: 'All',
     activityStatus: 'All',
     region: 'All',
+    city: 'All',
     leadScore: 'All',
     existingProduct: 'All',
     market: 'All',
   });
+
+  const [dbOptions, setDbOptions] = useState<{ states: string[]; cities: string[]; types: string[] }>({ states: [], cities: [], types: [] });
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const res = await leadsService.getFilterOptions();
+        setDbOptions(prev => ({ ...prev, states: res.states, types: res.types }));
+      } catch (err) {
+        console.error('Failed to load filter options');
+      } finally {
+        setIsLoadingOptions(false);
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  useEffect(() => {
+    if (rules.region && rules.region !== 'All') {
+      const fetchCities = async () => {
+        try {
+          const res = await leadsService.getFilterOptions(rules.region);
+          setDbOptions(prev => ({ ...prev, cities: res.cities }));
+        } catch (err) {
+          console.error('Failed to load cities');
+        }
+      };
+      fetchCities();
+    } else {
+      setDbOptions(prev => ({ ...prev, cities: [] }));
+      if (rules.city !== 'All') {
+        setRules(prev => ({ ...prev, city: 'All' }));
+      }
+    }
+  }, [rules.region]);
 
   const handleRuleChange = (key: keyof SegmentRule, value: string) => {
     setRules((prev) => ({ ...prev, [key]: value }));
@@ -31,10 +71,10 @@ export const CreateEditSegment = () => {
   const handlePreview = async () => {
     setIsPreviewing(true);
     try {
-      // In a real app we'd strip 'All' before sending, but backend handles basic logic
       const activeRules = Object.fromEntries(Object.entries(rules).filter(([_, v]) => v !== 'All'));
-      const count = await segmentService.previewSegment(activeRules);
+      const { count, leads } = await segmentService.previewSegment(activeRules);
       setPreviewCount(count);
+      setPreviewLeads(leads || []);
       toast.success('Segment preview updated');
     } catch (err: any) {
       toast.error('Failed to generate preview');
@@ -123,32 +163,61 @@ export const CreateEditSegment = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               
               <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Entity Type</label>
+                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5 flex justify-between">
+                  Entity Type
+                  {isLoadingOptions && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                </label>
                 <select
                   value={rules.entityType}
                   onChange={(e) => handleRuleChange('entityType', e.target.value)}
                   className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white"
                 >
                   <option value="All">Any Entity Type</option>
-                  <option value="RA">Research Analyst (RA)</option>
-                  <option value="IA">Investment Advisor (IA)</option>
-                  <option value="Sub Broker">Sub Broker</option>
+                  {dbOptions.types.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                  {/* Fallbacks if DB is empty */}
+                  {dbOptions.types.length === 0 && !isLoadingOptions && (
+                    <>
+                      <option value="Research Analyst (RA)">Research Analyst (RA)</option>
+                      <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
+                      <option value="Sub Broker">Sub Broker</option>
+                    </>
+                  )}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Region / State</label>
+                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5 flex justify-between">
+                  Region / State
+                  {isLoadingOptions && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                </label>
                 <select
                   value={rules.region}
                   onChange={(e) => handleRuleChange('region', e.target.value)}
                   className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white"
                 >
                   <option value="All">Any Region</option>
-                  <option value="Maharashtra">Maharashtra</option>
-                  <option value="Delhi">Delhi</option>
-                  <option value="Gujarat">Gujarat</option>
-                  <option value="Karnataka">Karnataka</option>
-                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  {dbOptions.states.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5 flex justify-between">
+                  City
+                </label>
+                <select
+                  value={rules.city}
+                  onChange={(e) => handleRuleChange('city', e.target.value)}
+                  disabled={!rules.region || rules.region === 'All'}
+                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white disabled:opacity-50"
+                >
+                  <option value="All">Any City</option>
+                  {dbOptions.cities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
                 </select>
               </div>
 
@@ -244,6 +313,16 @@ export const CreateEditSegment = () => {
               {isPreviewing ? 'Calculating...' : 'Preview Segment Size'}
             </button>
 
+            {previewCount !== null && previewCount > 0 && (
+              <button
+                onClick={() => setShowPreviewModal(true)}
+                className="w-full mb-3 inline-flex items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Eye className="h-4 w-4 text-blue-500" />
+                View Matched Leads
+              </button>
+            )}
+
             <button
               onClick={handleSave}
               disabled={isSaving || !name.trim()}
@@ -255,6 +334,60 @@ export const CreateEditSegment = () => {
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] p-6">
+              <div>
+                <h3 className="text-lg font-bold text-[#0F172A]">Previewing Leads in "{name || 'Untitled Segment'}"</h3>
+                <p className="text-xs text-[#64748B] mt-1">Showing top matches for this segment's targeting rules.</p>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="rounded-lg p-1.5 text-[#64748B] hover:bg-[#F8FAFC] hover:text-slate-900 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="overflow-auto flex-1 p-6">
+              {previewLeads.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <AlertCircle className="h-8 w-8 mb-3" />
+                  <p className="text-sm font-medium">No leads currently match this segment.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-[#E2E8F0]">
+                  <table className="w-full text-left whitespace-nowrap text-sm">
+                    <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                      <tr>
+                        <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">Entity Name</th>
+                        <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">Type</th>
+                        <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">Email</th>
+                        <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">Phone</th>
+                        <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">State/Region</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E2E8F0]">
+                      {previewLeads.map((lead, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-4 font-semibold text-[#0F172A]">{lead.name}</td>
+                          <td className="py-2.5 px-4 text-slate-600">{lead.type || '-'}</td>
+                          <td className="py-2.5 px-4 text-slate-600">{lead.email || '-'}</td>
+                          <td className="py-2.5 px-4 text-slate-600">{lead.phone || '-'}</td>
+                          <td className="py-2.5 px-4 text-slate-600">{lead.state || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

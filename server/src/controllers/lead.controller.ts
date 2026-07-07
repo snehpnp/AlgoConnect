@@ -23,6 +23,10 @@ export const importLeads = asyncHandler(async (req: Request, res: Response) => {
       city: lead.city,
       state: lead.state,
       pincode: lead.pincode,
+      fax: lead.fax,
+      validity: lead.validity,
+      exchangeName: lead.exchangeName,
+      tradeName: lead.tradeName,
       source: lead.source || 'IMPORT',
       type: lead.type || 'Manual',
       salesStage: lead.salesStage || 'New',
@@ -101,7 +105,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, source, type } = req.body;
+  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type } = req.body;
   const userId = req.user?.id;
 
   if (!name) {
@@ -110,7 +114,7 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
 
   const newLead = await prisma.lead.create({
     data: {
-      name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, 
+      name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, 
       source: source || 'MANUAL', 
       type: type || 'Manual',
       salesStage: salesStage || 'New',
@@ -136,7 +140,7 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
 
 export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, source, type } = req.body;
+  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type } = req.body;
   const userId = req.user?.id;
 
   if (!id) {
@@ -153,7 +157,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const updatedLead = await prisma.lead.update({
     where: { id: leadId },
     data: {
-      name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, source, type
+      name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type
     }
   });
 
@@ -225,4 +229,253 @@ export const getLeadLogs = asyncHandler(async (req: Request, res: Response) => {
   });
 
   res.status(200).json({ data: logs, message: 'Logs retrieved successfully' });
+});
+
+export const getFilterOptions = asyncHandler(async (req: Request, res: Response) => {
+  const stateQuery = req.query.state as string;
+
+  // Fetch distinct states
+  const statesObj = await prisma.lead.findMany({
+    where: { state: { not: null } },
+    select: { state: true },
+    distinct: ['state'],
+    orderBy: { state: 'asc' }
+  });
+  
+  // Fetch distinct cities
+  const citiesObj = await prisma.lead.findMany({
+    where: { 
+      city: { not: null },
+      ...(stateQuery && stateQuery !== 'All' ? { state: stateQuery } : {})
+    },
+    select: { city: true },
+    distinct: ['city'],
+    orderBy: { city: 'asc' }
+  });
+  
+  // Fetch distinct types (Entity Types)
+  const typesObj = await prisma.lead.findMany({
+    select: { type: true },
+    distinct: ['type'],
+    orderBy: { type: 'asc' }
+  });
+
+  const states = statesObj.map(s => s.state).filter(Boolean);
+  const cities = citiesObj.map(c => c.city).filter(Boolean);
+  const types = typesObj.map(t => t.type).filter(Boolean);
+
+  res.status(200).json({ data: { states, cities, types }, message: 'Filter options retrieved' });
+});
+
+import fs from 'fs';
+import path from 'path';
+import * as ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
+
+export const uploadChunk = asyncHandler(async (req: Request, res: Response) => {
+  const file = req.file;
+  const { filename, chunkIndex, totalChunks } = req.body;
+
+  if (!file) throw new Error('Chunk file missing');
+  
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  const tempFilePath = path.join(uploadDir, `${filename}.tmp`);
+  
+  // Append chunk to temp file
+  const chunkData = fs.readFileSync(file.path);
+  fs.appendFileSync(tempFilePath, chunkData);
+  fs.unlinkSync(file.path); // Delete multer's uploaded chunk
+
+  if (Number(chunkIndex) === Number(totalChunks) - 1) {
+    // Final chunk
+    const finalFilePath = path.join(uploadDir, filename);
+    fs.renameSync(tempFilePath, finalFilePath);
+    res.status(200).json({ message: 'File upload complete', filename });
+  } else {
+    res.status(200).json({ message: 'Chunk received' });
+  }
+});
+
+export const processFile = asyncHandler(async (req: Request, res: Response) => {
+  const { filename, entityType, mappings } = req.body;
+  const userId = req.user?.id;
+  const filePath = path.join(process.cwd(), 'uploads', filename);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error('File not found on server');
+  }
+
+  // Determine file type (CSV, XLS, or XLSX)
+  const lowerName = filename.toLowerCase();
+  const isCsv = lowerName.endsWith('.csv');
+  const isXls = lowerName.endsWith('.xls');
+
+  let importedCount = 0;
+  let batch: any[] = [];
+  const BATCH_SIZE = 5000;
+
+  const insertBatch = async () => {
+    if (batch.length > 0) {
+      const result = await prisma.lead.createMany({
+        data: batch,
+        skipDuplicates: true
+      });
+      importedCount += result.count;
+      batch = [];
+    }
+  };
+
+  try {
+    if (isCsv) {
+      throw new Error('CSV stream parsing not yet implemented, please use XLSX or XLS.');
+    } else if (isXls) {
+      // Old .xls files cannot be streamed (binary OLE format). We must use SheetJS in memory.
+      const workbook = XLSX.readFile(filePath);
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      
+      let isHeaderFound = false;
+      let headerRowNumber = 1;
+      
+      for (let i = 0; i < rawJson.length; i++) {
+        const rowValues = rawJson[i];
+        
+        if (!isHeaderFound) {
+          if (rowValues && rowValues.length > 0) {
+            const rowStrings = rowValues.map(v => String(v || '').trim().toLowerCase());
+            if (rowStrings.some(c => c.includes('name') || c.includes('email') || c.includes('registration'))) {
+              isHeaderFound = true;
+              headerRowNumber = i;
+            }
+          }
+          continue;
+        }
+        
+        // Map row using indices provided by frontend
+        const getVal = (idx?: number) => idx !== undefined && rowValues[idx] ? String(rowValues[idx]).trim() : undefined;
+        
+        const name = getVal(mappings.nameCol);
+        if (!name || name === 'Unknown Entity' || name === '') continue; // Skip empty rows
+        
+        batch.push({
+          name,
+          registrationNo: getVal(mappings.regNoCol),
+          contactPerson: getVal(mappings.contactPersonCol),
+          email: getVal(mappings.emailCol),
+          phone: getVal(mappings.phoneCol),
+          city: getVal(mappings.cityCol),
+          state: getVal(mappings.stateCol),
+          pincode: getVal(mappings.pincodeCol),
+          address: getVal(mappings.addressCol),
+          fax: getVal(mappings.faxCol),
+          validity: getVal(mappings.validityCol),
+          exchangeName: getVal(mappings.exchangeNameCol),
+          tradeName: getVal(mappings.tradeNameCol),
+          source: 'IMPORT',
+          type: entityType || 'Manual',
+          salesStage: 'New',
+          verificationStatus: 'Imported',
+          engagementStatus: 'Not Engaged',
+          consentStatus: 'Unknown'
+        });
+
+        if (batch.length >= BATCH_SIZE) {
+          await insertBatch();
+        }
+      }
+      
+      // Insert remaining
+      await insertBatch();
+
+    } else {
+      // .xlsx processing using streaming
+      const options = {
+        sharedStrings: 'cache',
+        hyperlinks: 'ignore',
+        worksheets: 'emit'
+      };
+      
+      const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(filePath, options as any);
+      
+      let isHeaderFound = false;
+      let headerRowNumber = 1;
+      
+      for await (const worksheetReader of workbookReader) {
+        for await (const row of worksheetReader) {
+          if (!isHeaderFound) {
+            // Check if this row looks like the header based on mappings
+            const rowValues = row.values as any[];
+            if (rowValues && rowValues.length > 0) {
+              const rowStrings = rowValues.map(v => String(v || '').trim().toLowerCase());
+              if (rowStrings.some(c => c.includes('name') || c.includes('email') || c.includes('registration'))) {
+                isHeaderFound = true;
+                headerRowNumber = row.number;
+              }
+            }
+            continue;
+          }
+          
+          if (row.number > headerRowNumber) {
+            const rowValues = row.values as any[];
+            
+            // Map row using indices provided by frontend
+            const getVal = (idx?: number) => idx !== undefined && rowValues[idx + 1] ? String(rowValues[idx + 1]).trim() : undefined;
+            
+            const name = getVal(mappings.nameCol);
+            if (!name || name === 'Unknown Entity' || name === '') continue; // Skip empty rows
+            
+            batch.push({
+              name,
+              registrationNo: getVal(mappings.regNoCol),
+              contactPerson: getVal(mappings.contactPersonCol),
+              email: getVal(mappings.emailCol),
+              phone: getVal(mappings.phoneCol),
+              city: getVal(mappings.cityCol),
+              state: getVal(mappings.stateCol),
+              pincode: getVal(mappings.pincodeCol),
+              address: getVal(mappings.addressCol),
+              fax: getVal(mappings.faxCol),
+              validity: getVal(mappings.validityCol),
+              exchangeName: getVal(mappings.exchangeNameCol),
+              tradeName: getVal(mappings.tradeNameCol),
+              source: 'IMPORT',
+              type: entityType || 'Manual',
+              salesStage: 'New',
+              verificationStatus: 'Imported',
+              engagementStatus: 'Not Engaged',
+              consentStatus: 'Unknown'
+            });
+
+            if (batch.length >= BATCH_SIZE) {
+              await insertBatch();
+            }
+          }
+        }
+        break; // Only parse the first worksheet
+      }
+      
+      // Insert remaining
+      await insertBatch();
+    }
+  } catch (error: any) {
+    throw new Error(`Failed to process streaming file: ${error.message}`);
+  } finally {
+    // Delete file to save space
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  if (userId && importedCount > 0) {
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: 'IMPORTED_LEADS',
+        details: `Imported ${importedCount} leads via streaming file upload`,
+      }
+    });
+  }
+
+  res.status(200).json({ message: 'File processed and leads imported successfully', count: importedCount });
 });

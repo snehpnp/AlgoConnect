@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2 } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
+import { segmentService, type Segment } from '../services/segment.service';
 import toast from 'react-hot-toast';
 
 export const Campaigns: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -24,10 +26,14 @@ export const Campaigns: React.FC = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const response = await campaignService.getCampaigns();
-      setCampaigns(response.data || []);
+      const [campRes, segRes] = await Promise.all([
+        campaignService.getCampaigns(),
+        segmentService.getSegments()
+      ]);
+      setCampaigns(campRes.data || []);
+      setSegments(segRes || []);
     } catch (error) {
-      toast.error('Failed to load campaigns');
+      toast.error('Failed to load campaigns and segments');
     } finally {
       setLoading(false);
     }
@@ -154,6 +160,7 @@ export const Campaigns: React.FC = () => {
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Campaign Name</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Target Segment</th>
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Type</th>
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Status</th>
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider text-center">Connected Leads</th>
@@ -175,6 +182,11 @@ export const Campaigns: React.FC = () => {
                         </div>
                         <p className="text-sm font-bold text-[#0F172A]">{camp.name}</p>
                       </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm text-[#475569] bg-slate-100 px-2 py-1 rounded-md font-medium">
+                        {camp.segment?.name || 'Manual Selection'}
+                      </span>
                     </td>
                     <td className="py-4 px-6"><span className="text-sm font-semibold text-[#0F172A]">{camp.type}</span></td>
                     <td className="py-4 px-6">
@@ -241,6 +253,15 @@ export const Campaigns: React.FC = () => {
                   <option value="EMAIL">Email</option>
                   <option value="SMS">SMS</option>
                   <option value="WHATSAPP">WhatsApp</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Target Segment</label>
+                <select value={currentCampaign.segmentId || ''} onChange={(e) => setCurrentCampaign({ ...currentCampaign, segmentId: e.target.value ? Number(e.target.value) : undefined })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
+                  <option value="">-- Manual Selection --</option>
+                  {segments.map(seg => (
+                    <option key={seg.id} value={seg.id}>{seg.name}</option>
+                  ))}
                 </select>
               </div>
               <div>

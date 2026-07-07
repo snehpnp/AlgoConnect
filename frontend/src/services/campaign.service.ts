@@ -7,6 +7,8 @@ export interface Campaign {
   status: string;
   createdAt: string;
   updatedAt: string;
+  segmentId?: number | null;
+  segment?: { id: number; name: string };
   _count?: { leads: number };
 }
 

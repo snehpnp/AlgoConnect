@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Upload,
@@ -25,28 +26,7 @@ import {
 import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
-import * as XLSX from 'xlsx';
 
-// Map API status to display badge style
-const getStatusStyle = (status: Lead['status']) => {
-  switch (status) {
-    case 'CONVERTED':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'CONTACTED':
-      return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'NEW':
-    default:
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  }
-};
-
-const getStatusLabel = (status: Lead['status']) => {
-  switch (status) {
-    case 'CONVERTED': return 'Converted';
-    case 'CONTACTED': return 'Contacted';
-    case 'NEW': return 'New';
-  }
-};
 
 // Compute a pseudo lead score from salesStage
 const getLeadScore = (stage: string): number => {
@@ -75,6 +55,7 @@ const buildPageList = (current: number, total: number): (number | 'ellipsis')[] 
 };
 
 export const Leads: React.FC = () => {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,12 +69,10 @@ export const Leads: React.FC = () => {
   const PAGE_SIZE = 50;
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Row action menu (3-dot dropdown)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Form State
@@ -175,9 +154,9 @@ export const Leads: React.FC = () => {
       const response = await leadsService.getLeads({
         page,
         limit: PAGE_SIZE,
-        search: searchQuery,
-        salesStage: salesStageFilter,
-        type: typeFilter
+        search: searchQuery || undefined,
+        salesStage: salesStageFilter === 'All' ? undefined : salesStageFilter,
+        type: typeFilter === 'All' ? undefined : typeFilter
       });
       setLeads(response.data);
       if (response.pagination) {
@@ -237,83 +216,7 @@ export const Leads: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    setIsImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const fileData = evt.target?.result;
-        const wb = XLSX.read(fileData, { type: 'array' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-        let headerRowIndex = 0;
-        // Search first 20 rows to find actual header row
-        for (let i = 0; i < Math.min(20, rawData.length); i++) {
-          const row = rawData[i] || [];
-          if (row.some(cell => typeof cell === 'string' && (cell.toLowerCase() === 'name' || cell.toLowerCase() === 'registration no.' || cell.toLowerCase() === 'email'))) {
-            headerRowIndex = i;
-            break;
-          }
-        }
-
-        const headerCounts: Record<string, number> = {};
-        const headers = (rawData[headerRowIndex] || []).map((header: any) => {
-          if (!header || typeof header !== 'string') return '';
-          const trimmed = header.trim();
-          headerCounts[trimmed] = (headerCounts[trimmed] || 0) + 1;
-          return headerCounts[trimmed] > 1 ? `${trimmed}_${headerCounts[trimmed]}` : trimmed;
-        });
-
-        const data = rawData.slice(headerRowIndex + 1).map(row => {
-          const obj: any = {};
-          headers.forEach((header, index) => {
-            if (header) {
-              obj[header] = row[index];
-            }
-          });
-          return obj;
-        });
-
-        const formattedLeads = data
-          .map((row) => ({
-            name: row.Name || row['Full Name'] || row.name || 'Unknown',
-            email: row['Email-Id'] || row.Email || row['Email ID'] || row.email || undefined,
-            email2: row['Email-Id_2'] || row.Email_2 || row['Email ID_2'] || row.email_2 || undefined,
-            phone: row.Telephone || row.Phone || row['Contact'] || row.phone || row['Phone Number'] ? String(row.Telephone || row.Phone || row['Contact'] || row.phone || row['Phone Number']) : undefined,
-            phone2: row.Telephone_2 || row.Phone_2 || row['Contact_2'] || row.phone_2 || row['Phone Number_2'] ? String(row.Telephone_2 || row.Phone_2 || row['Contact_2'] || row.phone_2 || row['Phone Number_2']) : undefined,
-            registrationNo: row['Registration No.'] || undefined,
-            contactPerson: row['Contact Person'] || undefined,
-            address: row.Address || row['Correspondence Address'] || undefined,
-            city: row.City || undefined,
-            state: row.State || undefined,
-            pincode: row.Pincode || undefined,
-            source: 'SEBI Sheet Import'
-          }))
-          .filter(lead => lead.name !== 'Unknown' || lead.registrationNo);
-
-        if (formattedLeads.length > 0) {
-          await leadsService.importLeads(formattedLeads);
-          await fetchLeads();
-          toast.success(`Successfully imported ${formattedLeads.length} leads!`);
-        } else {
-          toast.error('No valid data found in the file.');
-        }
-      } catch (err: any) {
-        console.error('Error importing file:', err);
-        const errMsg = err?.response?.data?.message || err?.message || 'Failed to parse the file. Please ensure it is a valid Excel/CSV file.';
-        toast.error(errMsg);
-      } finally {
-        setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -337,20 +240,12 @@ export const Leads: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              className="hidden"
-            />
             <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors disabled:opacity-50"
+              onClick={() => navigate('/leads/import')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors"
             >
-              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {isImporting ? 'Importing...' : 'Import CSV/Excel'}
+              <Upload className="h-4 w-4" />
+              Import CSV/Excel
             </button>
             <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors">
               <Download className="h-4 w-4" />
@@ -387,9 +282,9 @@ export const Leads: React.FC = () => {
             >
               <option value="All">All Types</option>
               <option value="Manual">Manual</option>
-              <option value="IA">IA</option>
+              <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
               <option value="Sub Broker">Sub Broker</option>
-              <option value="RA">RA</option>
+              <option value="Research Analyst (RA)">Research Analyst (RA)</option>
             </select>
 
             <select
@@ -446,15 +341,16 @@ export const Leads: React.FC = () => {
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                      <th className="py-4 px-6">Name</th>
-                      <th className="py-4 px-6">Email</th>
-                      <th className="py-4 px-6">Type</th>
-                      <th className="py-4 px-6">Reg No.</th>
-                      <th className="py-4 px-6 text-center">Sales Stage</th>
-                      <th className="py-4 px-6 text-center">Verification</th>
-                      <th className="py-4 px-6">Lead Score</th>
-                      <th className="py-4 px-6">Created</th>
-                      <th className="py-4 px-6 text-right">Actions</th>
+                      <th className="py-4 px-6 w-[8%] min-w-[80px]">Id</th>
+                      <th className="py-4 px-6 w-[18%] min-w-[200px]">Name</th>
+                      <th className="py-4 px-6 w-[20%] min-w-[220px]">Email</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[120px]">Type</th>
+                      <th className="py-4 px-6 w-[12%] min-w-[130px]">Reg No.</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Sales Stage</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Verification</th>
+                      <th className="py-4 px-6 w-[12%] min-w-[140px]">Lead Score</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[100px]">Created</th>
+                      <th className="py-4 px-6 w-[5%] min-w-[80px] text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]">
@@ -474,15 +370,21 @@ export const Leads: React.FC = () => {
                             className={`cursor-pointer hover:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
                               }`}
                           >
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-3">
+                                <p className="text-xs text-slate-500">ID: {lead.id}</p>
+
+                              </div>
+
+                            </td>
                             {/* Lead Details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
+                                {/* <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
                                   {lead.type}
-                                </div>
+                                </div> */}
                                 <div>
                                   <p className="font-semibold text-[#0F172A]">{lead.name}</p>
-                                  <p className="text-xs text-slate-500">ID: {lead.id}</p>
                                 </div>
                               </div>
                             </td>
@@ -502,27 +404,27 @@ export const Leads: React.FC = () => {
 
                             {/* Type */}
                             <td className="py-4 px-6">
-                              <span className="rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 block w-fit">
-                                {lead.type || 'Manual'}
+                              <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                {lead.type?.includes('(') ? lead.type.split('(')[1].replace(')', '') : lead.type || 'Manual'}
                               </span>
                             </td>
 
                             {/* Source and Reg No */}
                             <td className="py-4 px-6">
                               {lead.registrationNo ? (
-                                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 block w-fit mb-1">
+                                <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
                                   {lead.registrationNo}
                                 </span>
-                              ) : null}
+                              ) : <span className="text-slate-400">—</span>}
 
                             </td>
 
                             <td className="py-4 px-6 text-center">
                               <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${lead.salesStage === 'New'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : lead.salesStage === 'Client Won'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-amber-100 text-amber-700'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : lead.salesStage === 'Client Won'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-amber-100 text-amber-700'
                                 }`}>
                                 {lead.salesStage}
                               </span>
@@ -741,94 +643,94 @@ export const Leads: React.FC = () => {
 
             {activeTab === 'details' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="flex items-start gap-3">
-                <Mail className="h-4 w-4 text-[#64748B] mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email</p>
-                  <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedLead.email || '—'}</p>
-                  {selectedLead.email2 && (
-                    <p className="text-sm font-semibold text-[#0F172A] truncate mt-1">{selectedLead.email2}</p>
-                  )}
+                <div className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email</p>
+                    <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedLead.email || '—'}</p>
+                    {selectedLead.email2 && (
+                      <p className="text-sm font-semibold text-[#0F172A] truncate mt-1">{selectedLead.email2}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
-                <div>
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Phone</p>
-                  <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.phone || '—'}</p>
-                  {selectedLead.phone2 && (
-                    <p className="text-sm font-semibold text-[#0F172A] mt-1">{selectedLead.phone2}</p>
-                  )}
+                <div className="flex items-start gap-3">
+                  <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Phone</p>
+                    <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.phone || '—'}</p>
+                    {selectedLead.phone2 && (
+                      <p className="text-sm font-semibold text-[#0F172A] mt-1">{selectedLead.phone2}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Type</p>
-                  <span className="inline-block mt-0.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                    {selectedLead.type || 'Manual'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Source & Reg No.</p>
-                  {selectedLead.registrationNo && (
-                    <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 mb-1 mt-0.5">
-                      {selectedLead.registrationNo}
-                    </span>
-                  )}
-                  <p className="text-sm font-semibold text-[#0F172A] mt-0.5">{selectedLead.source || 'Manual'}</p>
-                </div>
-              </div>
-
-              {(selectedLead.address || selectedLead.city) && (
                 <div className="flex items-start gap-3">
                   <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Address</p>
-                    <p className="text-sm font-medium text-[#0F172A]">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Type</p>
+                    <span className="inline-block mt-0.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      {selectedLead.type || 'Manual'}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {selectedLead.contactPerson && (
                 <div className="flex items-start gap-3">
-                  <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contact Person</p>
-                    <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.contactPerson}</p>
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Source & Reg No.</p>
+                    {selectedLead.registrationNo && (
+                      <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 mb-1 mt-0.5">
+                        {selectedLead.registrationNo}
+                      </span>
+                    )}
+                    <p className="text-sm font-semibold text-[#0F172A] mt-0.5">{selectedLead.source || 'Manual'}</p>
                   </div>
                 </div>
-              )}
 
-              <div className="flex items-start gap-3">
-                <Clock className="h-4 w-4 text-[#64748B] mt-0.5" />
-                <div>
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Created At</p>
-                  <p className="text-sm font-semibold text-[#0F172A]">{formatDate(selectedLead.createdAt)}</p>
+                {(selectedLead.address || selectedLead.city) && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Address</p>
+                      <p className="text-sm font-medium text-[#0F172A]">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedLead.contactPerson && (
+                  <div className="flex items-start gap-3">
+                    <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contact Person</p>
+                      <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.contactPerson}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <Clock className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Created At</p>
+                    <p className="text-sm font-semibold text-[#0F172A]">{formatDate(selectedLead.createdAt)}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3">
-                <Sparkles className="h-4 w-4 text-primary mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Lead Score</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="h-2 w-full rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
-                        style={{ width: `${getLeadScore(selectedLead.salesStage)}%` }}
-                      />
+                <div className="flex items-start gap-3">
+                  <Sparkles className="h-4 w-4 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Lead Score</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="h-2 w-full rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                          style={{ width: `${getLeadScore(selectedLead.salesStage)}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
             ) : (
               <div className="space-y-4">
                 {logs.length === 0 ? (

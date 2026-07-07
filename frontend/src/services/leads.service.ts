@@ -9,13 +9,21 @@ export interface Lead {
   phone2: string | null;
   source: string | null;
   type: string;
-  status: 'NEW' | 'CONTACTED' | 'CONVERTED';
+  status?: 'NEW' | 'CONTACTED' | 'CONVERTED' | string;
+  salesStage: string;
+  verificationStatus: string;
+  engagementStatus: string;
+  consentStatus: string;
   registrationNo?: string | null;
   contactPerson?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  fax?: string | null;
+  validity?: string | null;
+  exchangeName?: string | null;
+  tradeName?: string | null;
   userId: number | null;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +54,10 @@ export interface ImportLeadInput {
   city?: string;
   state?: string;
   pincode?: string;
+  fax?: string;
+  validity?: string;
+  exchangeName?: string;
+  tradeName?: string;
 }
 
 export interface ImportLeadsResponse {
@@ -59,8 +71,29 @@ export const leadsService = {
     return response.data;
   },
 
+  getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[] }> => {
+    const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[] } }>('/leads/filters/options', {
+      params: { state }
+    });
+    return response.data.data;
+  },
+
   importLeads: async (leads: Partial<Lead>[]): Promise<{ message: string; count: number }> => {
     const response = await apiClient.post<{ message: string; count: number }>('/leads/import', { leads });
+    return response.data;
+  },
+
+  uploadChunk: async (formData: FormData): Promise<{ message: string; filename?: string }> => {
+    const response = await apiClient.post('/leads/upload-chunk', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  processFile: async (payload: { filename: string; entityType: string; mappings: any }): Promise<{ message: string; count: number }> => {
+    const response = await apiClient.post('/leads/process-file', payload);
     return response.data;
   },
 
