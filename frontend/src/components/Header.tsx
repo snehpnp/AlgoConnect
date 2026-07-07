@@ -8,7 +8,8 @@ import {
   User as UserIcon,
   LogOut,
   Settings,
-  Menu
+  Menu,
+  ShieldCheck
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -21,13 +22,14 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
   if (!user) return null;
 
   return (
     <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[280px]'} z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-4 sm:px-8 shadow-sm transition-all duration-300`}>
       <div className="flex items-center gap-2 sm:gap-6 w-full max-w-xl">
-        <button 
+        <button
           onClick={() => setIsSidebarOpen(true)}
           className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
         >
@@ -40,31 +42,84 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
           <span>{location.pathname === '/' ? 'Dashboard' : location.pathname.split('/')[1]}</span>
         </div>
 
-        {/* Search Input */}
-        <div className="relative w-full max-w-xs">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-            <Search className="h-4 w-4 text-[#64748B]" />
-          </span>
-          <input
-            type="text"
-            placeholder="Search leads, campaigns..."
-            className="w-full rounded-full border border-[#E2E8F0] bg-[#F8FAFC]/50 py-2 pr-4 pl-9 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300"
-          />
-        </div>
+
       </div>
 
       {/* Right Section */}
       <div className="flex items-center gap-6">
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => {
+              setNotificationOpen(!notificationOpen);
+              setDropdownOpen(false); // close user menu if open
+            }}
+            className={`relative rounded-xl p-2.5 transition-all duration-200 ${notificationOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+          >
+            <Bell className={`h-5 w-5 ${notificationOpen ? 'fill-blue-100' : ''}`} />
+            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span>
+            </span>
+          </button>
+
+          {notificationOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setNotificationOpen(false)}
+              ></div>
+              <div className="absolute right-0 mt-3 w-80 origin-top-right rounded-2xl border border-[#E2E8F0] bg-white shadow-xl ring-1 ring-black/5 z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between border-b border-[#E2E8F0] bg-slate-50/50 px-4 py-3">
+                  <h3 className="font-bold text-[#0F172A]">Notifications</h3>
+                  <button className="text-xs font-semibold text-primary hover:text-blue-700 transition-colors">
+                    Mark all read
+                  </button>
+                </div>
+                
+                <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                  {/* Dummy Notification 1 */}
+                  <div className="flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer bg-blue-50/30">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      <Search className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 leading-snug">New Lead Assigned</p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">You have been assigned a new high-priority lead from the "Q3 Marketing" campaign.</p>
+                      <p className="text-[10px] font-bold text-blue-600 mt-1.5 uppercase tracking-wide">2 minutes ago</p>
+                    </div>
+                  </div>
+
+                  {/* Dummy Notification 2 */}
+                  <div className="flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 leading-snug">System Update</p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">Consent management synchronization completed successfully across all channels.</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1.5 uppercase tracking-wide">1 hour ago</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#E2E8F0] p-2 bg-slate-50/50">
+                  <button className="w-full rounded-lg py-2 text-center text-sm font-bold text-slate-600 hover:bg-slate-200/50 hover:text-slate-900 transition-colors">
+                    View all notifications
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* User Dropdown */}
         <div className="relative">
           <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={() => {
+              setDropdownOpen(!dropdownOpen);
+              setNotificationOpen(false); // close notifications if open
+            }}
             className="flex items-center gap-3.5 rounded-lg p-1.5 text-left hover:bg-[#F8FAFC] transition-colors"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E2E8F0] text-[#0F172A] font-bold">

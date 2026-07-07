@@ -3,9 +3,13 @@ import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
 import { segmentService, type Segment } from '../services/segment.service';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export const Campaigns: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'System Admin';
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +72,20 @@ export const Campaigns: React.FC = () => {
       fetchCampaigns();
     } catch (err) {
       toast.error('Failed to delete campaign');
+    }
+    setOpenMenuId(null);
+  };
+
+  const toggleCampaignStatus = async (campaign: Campaign) => {
+    const newStatus = campaign.status === 'ACTIVE' ? 'DRAFT' : 'ACTIVE';
+    try {
+      // Optimistic UI update
+      setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: newStatus } : c));
+      await campaignService.updateCampaign(campaign.id, { status: newStatus });
+      toast.success(`Campaign marked as ${newStatus}`);
+    } catch (error) {
+      toast.error('Failed to update campaign status');
+      fetchCampaigns(); // Revert
     }
     setOpenMenuId(null);
   };
@@ -212,6 +230,12 @@ export const Campaigns: React.FC = () => {
 
                       {openMenuId === camp.id && (
                         <div className="absolute right-8 top-10 z-10 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                          {isAdmin && (
+                            <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
+                              <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                              {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                            </button>
+                          )}
                           <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
                           </button>
