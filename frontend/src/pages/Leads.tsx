@@ -277,10 +277,10 @@ export const Leads: React.FC = () => {
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
-              placeholder="Search by name, email or ID..."
+              placeholder="Search by name, email, ID, city, or state..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pr-4 pl-9 text-sm outline-none transition-all focus:border-primary focus:bg-white"
+              className="input-base !pl-9"
             />
           </div>
 
@@ -322,7 +322,7 @@ export const Leads: React.FC = () => {
         </div>
 
         {/* Leads Table */}
-        <div className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white shadow-sm">
+        <div className="card !p-0 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -371,7 +371,7 @@ export const Leads: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      leads.map((lead) => {
+                      leads.map((lead, index) => {
                         const score = getLeadScore(lead.salesStage);
                         return (
                           <tr
@@ -381,10 +381,10 @@ export const Leads: React.FC = () => {
                           >
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <p className="text-xs text-slate-500">ID: {lead.id}</p>
-
+                                <p className="text-xs font-bold text-slate-500">
+                                  #{rangeStart + index}
+                                </p>
                               </div>
-
                             </td>
                             {/* Lead Details */}
                             <td className="py-4 px-6">
@@ -395,7 +395,7 @@ export const Leads: React.FC = () => {
                                     href={`https://www.google.com/search?q=${encodeURIComponent(lead.name)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="group block min-w-0"
+                                    className="font-semibold text-primary hover:underline group block min-w-0"
                                     title="Click to search on Google"
                                   >
                                     {lead.name}

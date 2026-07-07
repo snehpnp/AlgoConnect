@@ -13,9 +13,10 @@ import {
 
 interface HeaderProps {
   setIsSidebarOpen: (val: boolean) => void;
+  isSidebarCollapsed: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen }) => {
+export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarCollapsed }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen }) => {
   if (!user) return null;
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-[280px] z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-4 sm:px-8 shadow-sm transition-all duration-300">
+    <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[280px]'} z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-4 sm:px-8 shadow-sm transition-all duration-300`}>
       <div className="flex items-center gap-2 sm:gap-6 w-full max-w-xl">
         <button 
           onClick={() => setIsSidebarOpen(true)}

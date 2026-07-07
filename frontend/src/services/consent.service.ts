@@ -18,13 +18,13 @@ export interface LeadWithConsents {
 }
 
 export const consentService = {
-  getConsents: async (search?: string) => {
+  getConsents: async (params?: { search?: string; page?: number; limit?: number; dncFilter?: string }) => {
     const token = localStorage.getItem('algoconnect_token');
     const response = await axios.get(API_URL, {
-      params: { search },
+      params,
       headers: { Authorization: `Bearer ${token}` }
     });
-    return response.data.data as LeadWithConsents[];
+    return response.data as { data: LeadWithConsents[], pagination: { total: number; page: number; limit: number; totalPages: number } };
   },
 
   updateConsent: async (leadId: number, channel: string, status: string) => {

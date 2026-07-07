@@ -78,7 +78,9 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       { email2: { contains: search, mode: 'insensitive' } },
       { phone: { contains: search, mode: 'insensitive' } },
       { phone2: { contains: search, mode: 'insensitive' } },
-      { registrationNo: { contains: search, mode: 'insensitive' } }
+      { registrationNo: { contains: search, mode: 'insensitive' } },
+      { city: { contains: search, mode: 'insensitive' } },
+      { state: { contains: search, mode: 'insensitive' } }
     ];
   }
 
