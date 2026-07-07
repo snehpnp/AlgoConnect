@@ -5,6 +5,8 @@ import leadRoutes from './routes/lead.routes';
 import userRoutes from './routes/user.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import campaignRoutes from './routes/campaign.routes';
+import segmentRoutes from './routes/segment.routes';
+import consentRoutes from './routes/consent.routes';
 
 
 const app = express();
@@ -20,6 +22,8 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/segments', segmentRoutes);
+app.use('/api/consents', consentRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

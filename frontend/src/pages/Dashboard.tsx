@@ -4,14 +4,20 @@ import {
   TrendingUp, 
   Target, 
   Activity,
-  Sparkles
+  Sparkles,
+  UserCheck,
+  AlertCircle,
+  MessageCircle,
+  PhoneCall
 } from 'lucide-react';
 import { dashboardService } from '../services/dashboard.service';
 import type { DashboardResponse } from '../services/dashboard.service';
+import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,51 +34,79 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+    return <div className="p-8 text-center text-slate-500">Loading Dashboard...</div>;
   }
 
-  const stats = data?.stats || { totalLeads: 0, qualifiedLeads: 0, pendingLeads: 0, closedLeads: 0, activeCampaigns: 0 };
+  const stats = data?.stats || { 
+    totalLeads: 0, newLeads: 0, contactedLeads: 0, qualifiedLeads: 0, 
+    convertedLeads: 0, unverifiedLeads: 0, activeLeads: 0, 
+    engagedLeads: 0, activeCampaigns: 0 
+  };
   const analytics = data?.analytics || [];
 
   const statCards = [
     { 
       name: 'Total Leads', 
       value: stats.totalLeads, 
-      change: '+0%', 
-      positive: true, 
       icon: <Users className="h-5 w-5 text-blue-600" />, 
-      bg: 'bg-blue-50' 
+      bg: 'bg-blue-50',
+      action: () => navigate('/leads')
     },
     { 
-      name: 'Qualified Leads', 
+      name: 'New Leads', 
+      value: stats.newLeads, 
+      icon: <Sparkles className="h-5 w-5 text-indigo-600" />, 
+      bg: 'bg-indigo-50',
+      action: () => navigate('/leads')
+    },
+    { 
+      name: 'Contacted', 
+      value: stats.contactedLeads, 
+      icon: <PhoneCall className="h-5 w-5 text-amber-600" />, 
+      bg: 'bg-amber-50',
+      action: () => navigate('/leads')
+    },
+    { 
+      name: 'Qualified', 
       value: stats.qualifiedLeads, 
-      change: '+0%', 
-      positive: true, 
       icon: <Target className="h-5 w-5 text-emerald-600" />, 
-      bg: 'bg-emerald-50' 
+      bg: 'bg-emerald-50',
+      action: () => navigate('/leads')
+    },
+    { 
+      name: 'Client Won', 
+      value: stats.convertedLeads, 
+      icon: <UserCheck className="h-5 w-5 text-green-600" />, 
+      bg: 'bg-green-50',
+      action: () => navigate('/leads')
+    },
+    { 
+      name: 'Engaged Leads', 
+      value: stats.engagedLeads, 
+      icon: <MessageCircle className="h-5 w-5 text-purple-600" />, 
+      bg: 'bg-purple-50',
+      action: () => navigate('/leads')
+    },
+    { 
+      name: 'Unverified', 
+      value: stats.unverifiedLeads, 
+      icon: <AlertCircle className="h-5 w-5 text-rose-600" />, 
+      bg: 'bg-rose-50',
+      action: () => navigate('/leads')
     },
     { 
       name: 'Active Campaigns', 
       value: stats.activeCampaigns, 
-      change: '0%', 
-      positive: true, 
-      icon: <TrendingUp className="h-5 w-5 text-indigo-600" />, 
-      bg: 'bg-indigo-50' 
-    },
-    { 
-      name: 'Conversion Rate', 
-      value: stats.totalLeads > 0 ? `${Math.round((stats.closedLeads / stats.totalLeads) * 100)}%` : '0%', 
-      change: '0%', 
-      positive: false, 
-      icon: <Activity className="h-5 w-5 text-amber-600" />, 
-      bg: 'bg-amber-50' 
+      icon: <TrendingUp className="h-5 w-5 text-cyan-600" />, 
+      bg: 'bg-cyan-50',
+      action: () => navigate('/campaigns')
     },
   ];
 
-  const totalDist = stats.qualifiedLeads + stats.pendingLeads + stats.closedLeads;
+  const totalDist = stats.newLeads + stats.contactedLeads + stats.qualifiedLeads + stats.convertedLeads;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">Dashboard Overview</h1>
@@ -86,16 +120,17 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 8 Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, i) => (
-          <div key={i} className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          <div 
+            key={i} 
+            onClick={stat.action}
+            className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+          >
             <div className="flex items-center justify-between">
-              <div className={`rounded-xl p-3 ${stat.bg}`}>{stat.icon}</div>
-              <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-xs font-semibold ${
-                stat.positive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
-              }`}>
-                {stat.change}
-              </span>
+              <div className={`rounded-xl p-3 ${stat.bg} group-hover:scale-110 transition-transform`}>{stat.icon}</div>
+              <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">View &rarr;</span>
             </div>
             <div className="mt-4">
               <h3 className="text-sm font-medium text-[#64748B]">{stat.name}</h3>
@@ -133,21 +168,22 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-          <h2 className="text-base font-bold text-[#0F172A]">Lead Distribution</h2>
-          <p className="text-xs text-[#64748B]">Categorized by current pipeline state</p>
+          <h2 className="text-base font-bold text-[#0F172A]">Sales Pipeline</h2>
+          <p className="text-xs text-[#64748B]">Categorized by sales stage</p>
           <div className="mt-6 space-y-4">
             {[
-              { label: 'New Leads', count: stats.qualifiedLeads, color: 'bg-emerald-500', percent: totalDist ? (stats.qualifiedLeads/totalDist)*100 : 0 },
-              { label: 'Contacted', count: stats.pendingLeads, color: 'bg-amber-500', percent: totalDist ? (stats.pendingLeads/totalDist)*100 : 0 },
-              { label: 'Converted', count: stats.closedLeads, color: 'bg-blue-600', percent: totalDist ? (stats.closedLeads/totalDist)*100 : 0 },
+              { label: 'New', count: stats.newLeads, color: 'bg-indigo-400', percent: totalDist ? (stats.newLeads/totalDist)*100 : 0 },
+              { label: 'Contacted', count: stats.contactedLeads, color: 'bg-amber-400', percent: totalDist ? (stats.contactedLeads/totalDist)*100 : 0 },
+              { label: 'Qualified', count: stats.qualifiedLeads, color: 'bg-emerald-500', percent: totalDist ? (stats.qualifiedLeads/totalDist)*100 : 0 },
+              { label: 'Client Won', count: stats.convertedLeads, color: 'bg-blue-600', percent: totalDist ? (stats.convertedLeads/totalDist)*100 : 0 },
             ].map((item, idx) => (
               <div key={idx} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-700">{item.label}</span>
                   <span className="font-bold text-[#0F172A]">{item.count}</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.percent}%` }}></div>
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full rounded-full ${item.color} transition-all duration-1000`} style={{ width: `${item.percent}%` }}></div>
                 </div>
               </div>
             ))}

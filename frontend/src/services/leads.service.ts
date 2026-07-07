@@ -8,6 +8,7 @@ export interface Lead {
   phone: string | null;
   phone2: string | null;
   source: string | null;
+  type: string;
   status: 'NEW' | 'CONTACTED' | 'CONVERTED';
   registrationNo?: string | null;
   contactPerson?: string | null;
@@ -38,6 +39,7 @@ export interface ImportLeadInput {
   phone?: string;
   phone2?: string;
   source?: string;
+  type?: string;
   registrationNo?: string;
   contactPerson?: string;
   address?: string;
@@ -52,23 +54,32 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; type?: string }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
 
-  importLeads: async (leads: ImportLeadInput[]): Promise<ImportLeadsResponse> => {
-    const response = await apiClient.post<ImportLeadsResponse>('/leads/import', { leads });
+  importLeads: async (leads: Partial<Lead>[]): Promise<{ message: string; count: number }> => {
+    const response = await apiClient.post<{ message: string; count: number }>('/leads/import', { leads });
     return response.data;
   },
 
-  createLead: async (lead: ImportLeadInput): Promise<{ message: string; data: Lead }> => {
+  createLead: async (lead: Partial<Lead>): Promise<Lead> => {
     const response = await apiClient.post<{ message: string; data: Lead }>('/leads', lead);
-    return response.data;
+    return response.data.data;
   },
 
-  updateLead: async (id: number, lead: Partial<ImportLeadInput>): Promise<{ message: string; data: Lead }> => {
+  updateLead: async (id: number, lead: Partial<Lead>): Promise<Lead> => {
     const response = await apiClient.put<{ message: string; data: Lead }>(`/leads/${id}`, lead);
-    return response.data;
+    return response.data.data;
   },
+
+  deleteLead: async (id: number): Promise<void> => {
+    await apiClient.delete(`/leads/${id}`);
+  },
+
+  getLeadLogs: async (id: number): Promise<any[]> => {
+    const response = await apiClient.get<{ message: string; data: any[] }>(`/leads/${id}/logs`);
+    return response.data.data;
+  }
 };

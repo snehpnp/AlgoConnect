@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Bell, 
@@ -11,6 +12,7 @@ import {
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (!user) return null;
@@ -68,10 +70,16 @@ export const Header: React.FC = () => {
                 </div>
                 
                 <div className="py-1">
-                  <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
+                  <button 
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      navigate('/profile');
+                    }}
+                    className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2 text-sm text-[#0F172A]"
+                  >
                     <UserIcon className="h-4.5 w-4.5" />
                     <span>My Profile</span>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
                     <Settings className="h-4.5 w-4.5" />
                     <span>Account Settings</span>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Users, Search, Edit, Trash2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 interface Role {
   id: number;
@@ -26,7 +27,7 @@ const AdminUsers = () => {
   // Modals state
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'ADD' | 'EDIT'>('ADD');
-  
+
   // Form state
   const [formData, setFormData] = useState({ id: 0, name: '', email: '', password: '', roleId: '' });
   const [formError, setFormError] = useState('');
@@ -86,13 +87,16 @@ const AdminUsers = () => {
     try {
       if (modalMode === 'ADD') {
         await axios.post('http://localhost:7700/api/users', formData, axiosConfig);
+        toast.success('User added successfully');
       } else {
         await axios.put(`http://localhost:7700/api/users/${formData.id}`, formData, axiosConfig);
+        toast.success('User updated successfully');
       }
       await fetchUsers();
       setShowModal(false);
     } catch (error: any) {
       setFormError(error.response?.data?.message || 'Something went wrong');
+      toast.error(error.response?.data?.message || 'Something went wrong');
     } finally {
       setFormLoading(false);
     }
@@ -102,10 +106,12 @@ const AdminUsers = () => {
     if (!userToDelete) return;
     try {
       await axios.delete(`http://localhost:7700/api/users/${userToDelete.id}`, axiosConfig);
+      toast.success('User deleted successfully');
       await fetchUsers();
       setShowDeleteModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
+      toast.error(error.response?.data?.message || 'Error deleting user');
     }
   };
 
@@ -137,6 +143,7 @@ const AdminUsers = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase">S No.</th>
                   <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Name</th>
                   <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Email</th>
                   <th className="py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Role</th>
@@ -150,15 +157,17 @@ const AdminUsers = () => {
                 ) : users.length === 0 ? (
                   <tr><td colSpan={5} className="py-8 text-center text-gray-400">No users found.</td></tr>
                 ) : (
-                  users.map((user) => (
+                  users.map((user, index) => (
                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-6 font-medium text-gray-900">{index + 1}</td>
                       <td className="py-4 px-6 font-medium text-gray-900">{user.name}</td>
                       <td className="py-4 px-6 text-gray-500">{user.email}</td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium 
-                          ${user.role?.name === 'Admin' ? 'bg-purple-100 text-purple-700' : 
-                            user.role?.name === 'Manager' ? 'bg-blue-100 text-blue-700' : 
-                            'bg-green-100 text-green-700'}`}>
+                          ${user.role?.name === 'System Admin' ? 'bg-purple-100 text-purple-700' :
+                            user.role?.name === 'Growth Operator' ? 'bg-blue-100 text-blue-700' :
+                              user.role?.name === 'Compliance Admin' ? 'bg-amber-100 text-amber-700' :
+                                'bg-green-100 text-green-700'}`}>
                           {user.role?.name || 'Unknown'}
                         </span>
                       </td>
@@ -190,25 +199,25 @@ const AdminUsers = () => {
             </div>
             <form onSubmit={handleFormSubmit} className="p-5">
               {formError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</div>}
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                  <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {modalMode === 'ADD' ? 'Password' : 'New Password (Optional)'}
                   </label>
-                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select required value={formData.roleId} onChange={e => setFormData({...formData, roleId: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <select required value={formData.roleId} onChange={e => setFormData({ ...formData, roleId: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="" disabled>Select a role</option>
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.name}</option>

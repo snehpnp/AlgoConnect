@@ -13,6 +13,10 @@ const files = [
 async function runImport() {
   let totalImported = 0;
 
+  console.log('Clearing old leads...');
+  await prisma.lead.deleteMany({});
+  console.log('Old leads cleared successfully.');
+
   for (const file of files) {
     const filePath = path.resolve(__dirname, file);
     console.log(`\nProcessing file: ${path.basename(filePath)}`);
@@ -51,6 +55,11 @@ async function runImport() {
         return obj;
       });
 
+      let leadType = 'Manual';
+      if (file.includes('Investment Adviser')) leadType = 'IA';
+      else if (file.includes('Registered Stock Brokers')) leadType = 'Sub Broker';
+      else if (file.includes('Research Analyst')) leadType = 'RA';
+
       const formattedLeads = data
         .map((row) => ({
           name: row.Name || row['Full Name'] || row.name || 'Unknown',
@@ -64,7 +73,8 @@ async function runImport() {
           city: row.City || null,
           state: row.State || null,
           pincode: row.Pincode || null,
-          source: 'SEBI Sheet Automated Import'
+          source: 'SEBI Sheet Automated Import',
+          type: leadType
         }))
         .filter(lead => lead.name !== 'Unknown' || lead.registrationNo);
 

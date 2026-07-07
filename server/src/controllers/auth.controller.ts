@@ -31,7 +31,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role.name.toLowerCase(), // 'admin' | 'manager' | 'agent'
+      role: user.role.name,
     },
   });
 });
@@ -57,4 +57,26 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     message: 'User registered successfully',
     user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role.name },
   });
+});
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!userId) throw new Error('Unauthorized');
+  if (!currentPassword || !newPassword) throw new Error('Current and new passwords are required');
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('User not found');
+
+  const isValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isValid) throw new Error('Incorrect current password');
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashedPassword }
+  });
+
+  res.status(200).json({ message: 'Password updated successfully' });
 });

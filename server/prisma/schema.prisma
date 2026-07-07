@@ -14,9 +14,10 @@ model User {
   name      String
   roleId    Int
   role      Role     @relation(fields: [roleId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  leads     Lead[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  leads        Lead[]
+  activityLogs ActivityLog[]
 }
 
 model Role {
@@ -40,7 +41,11 @@ model Lead {
   phone           String?
   phone2          String?
   source          String?
-  status          String   @default("NEW") // NEW, CONTACTED, CONVERTED
+  type               String   @default("Manual")
+  salesStage         String   @default("New")
+  verificationStatus String   @default("Unverified")
+  engagementStatus   String   @default("Not Engaged")
+  consentStatus      String   @default("Unknown")
   registrationNo  String?
   contactPerson   String?
   address         String?
@@ -48,9 +53,12 @@ model Lead {
   state           String?
   pincode         String?
   userId          Int?
-  user            User?    @relation(fields: [userId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  user            User?         @relation(fields: [userId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  activityLogs    ActivityLog[]
+  campaigns       Campaign[]
+  consents        Consent[]
 }
 
 model Campaign {
@@ -60,6 +68,9 @@ model Campaign {
   status    String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  leads     Lead[]
+  segmentId Int?
+  segment   Segment? @relation(fields: [segmentId], references: [id])
 }
 
 model MessageTemplate {
@@ -75,6 +86,7 @@ model MessageTemplate {
 model Consent {
   id        Int      @id @default(autoincrement())
   leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   channel   String   // EMAIL, SMS, WHATSAPP
   status    String   // OPT_IN, OPT_OUT
   createdAt DateTime @default(now())
@@ -84,7 +96,21 @@ model Consent {
 model ActivityLog {
   id        Int      @id @default(autoincrement())
   userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  leadId    Int?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
   action    String
   details   String?
+  changes   String?  // JSON string or summary of old vs new values
   createdAt DateTime @default(now())
+}
+
+model Segment {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  rules       Json       // Stores conditions like { "region": "Maharashtra", "leadScore": { "gt": 80 } }
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  campaigns   Campaign[]
 }

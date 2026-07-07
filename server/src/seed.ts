@@ -67,21 +67,24 @@ async function seed() {
 
   // 3. Create Sample Leads
   const sampleLeads = [
-    { name: 'Rohan Sharma', email: 'rohan.sharma@tatanova.com', phone: '+919876543210', source: 'LinkedIn', status: 'CONVERTED' },
-    { name: 'Alice Johnson', email: 'alice.j@prismtech.io', phone: '+15550192834', source: 'Web Form', status: 'NEW' },
-    { name: 'Michael Chang', email: 'm.chang@asiapacific.co', phone: '+85290123456', source: 'Cold Outreach', status: 'CONTACTED' },
-    { name: 'Priya Patel', email: 'priya@vistaracapital.in', phone: '+919123456789', source: 'LinkedIn', status: 'CONVERTED' },
-    { name: 'Sarah Connor', email: 's.connor@cyberdyne.org', phone: '+15550149988', source: 'Referral', status: 'NEW' },
-    { name: 'David Miller', email: 'david@millercorp.de', phone: '+498924432190', source: 'Campaign', status: 'CONTACTED' },
-    { name: 'Carlos Estavez', email: 'carlos.e@solaris.es', phone: '+341911234567', source: 'Web Form', status: 'NEW' },
+    { name: 'Rohan Sharma', email: 'rohan.sharma@tatanova.com', phone: '+919876543210', source: 'LinkedIn', salesStage: 'Client Won' },
+    { name: 'Alice Johnson', email: 'alice.j@prismtech.io', phone: '+15550192834', source: 'Web Form', salesStage: 'New' },
+    { name: 'Michael Chang', email: 'm.chang@asiapacific.co', phone: '+85290123456', source: 'Cold Outreach', salesStage: 'Contacted' },
+    { name: 'Priya Patel', email: 'priya@vistaracapital.in', phone: '+919123456789', source: 'LinkedIn', salesStage: 'Client Won' },
+    { name: 'Sarah Connor', email: 's.connor@cyberdyne.org', phone: '+15550149988', source: 'Referral', salesStage: 'New' },
+    { name: 'David Miller', email: 'david@millercorp.de', phone: '+498924432190', source: 'Campaign', salesStage: 'Contacted' },
+    { name: 'Carlos Estavez', email: 'carlos.e@solaris.es', phone: '+341911234567', source: 'Web Form', salesStage: 'New' },
   ];
 
   for (const lead of sampleLeads) {
-    await prisma.lead.upsert({
-      where: { email: lead.email },
-      update: {},
-      create: lead,
+    const existingLead = await prisma.lead.findFirst({
+      where: { email: lead.email }
     });
+    if (!existingLead) {
+      await prisma.lead.create({
+        data: lead,
+      });
+    }
   }
 
   console.log('✅ Sample leads created:', sampleLeads.length);

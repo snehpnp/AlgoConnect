@@ -12,7 +12,7 @@ async function main() {
   console.log('Seeding database with roles and users...');
 
   // 1. Create Roles
-  const roleNames = ['Admin', 'Manager', 'Agent'];
+  const roleNames = ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'];
   const createdRoles: Record<string, number> = {};
 
   for (const roleName of roleNames) {
@@ -32,22 +32,28 @@ async function main() {
   // 3. User Data
   const users = [
     {
-      name: 'Super Admin',
+      name: 'System Admin',
       email: 'admin@algoconnect.com',
       password: hashedPassword,
-      roleId: createdRoles['Admin'],
+      roleId: createdRoles['System Admin'],
     },
     {
-      name: 'System Manager',
-      email: 'manager@algoconnect.com',
+      name: 'Growth Operator',
+      email: 'growth@algoconnect.com',
       password: hashedPassword,
-      roleId: createdRoles['Manager'],
+      roleId: createdRoles['Growth Operator'],
     },
     {
-      name: 'Sales Agent',
-      email: 'agent@algoconnect.com',
+      name: 'Compliance Admin',
+      email: 'compliance@algoconnect.com',
       password: hashedPassword,
-      roleId: createdRoles['Agent'],
+      roleId: createdRoles['Compliance Admin'],
+    },
+    {
+      name: 'Sales Rep',
+      email: 'sales@algoconnect.com',
+      password: hashedPassword,
+      roleId: createdRoles['Sales Rep'],
     },
   ];
 
@@ -55,7 +61,7 @@ async function main() {
   for (const userData of users) {
     const user = await prisma.user.upsert({
       where: { email: userData.email },
-      update: {},
+      update: { roleId: userData.roleId },
       create: userData,
     });
     console.log(`✅ User ready: ${user.name} | Email: ${user.email} | Password: ${simplePassword}`);

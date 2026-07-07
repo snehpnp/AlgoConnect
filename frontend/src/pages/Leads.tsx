@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   Upload,
@@ -13,10 +13,16 @@ import {
   Sparkles,
   ArrowRight,
   Edit2,
+  Trash2,
+  PhoneCall,
+  CheckCircle2,
   Loader2,
   AlertCircle,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
 import * as XLSX from 'xlsx';
@@ -42,30 +48,53 @@ const getStatusLabel = (status: Lead['status']) => {
   }
 };
 
-// Compute a pseudo lead score from status
-const getLeadScore = (status: Lead['status']): number => {
-  switch (status) {
-    case 'CONVERTED': return 90 + Math.floor(Math.random() * 10);
-    case 'CONTACTED': return 50 + Math.floor(Math.random() * 25);
-    case 'NEW': return 10 + Math.floor(Math.random() * 30);
+// Compute a pseudo lead score from salesStage
+const getLeadScore = (stage: string): number => {
+  switch (stage) {
+    case 'Client Won': return 90 + Math.floor(Math.random() * 10);
+    case 'Negotiation': return 70 + Math.floor(Math.random() * 20);
+    case 'Qualified': return 60 + Math.floor(Math.random() * 10);
+    case 'Contacted': return 40 + Math.floor(Math.random() * 15);
+    case 'New': default: return 10 + Math.floor(Math.random() * 30);
   }
+};
+
+// Build a compact page list with ellipses, e.g. 1 … 4 5 [6] 7 8 … 20
+const buildPageList = (current: number, total: number): (number | 'ellipsis')[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>([1, 2, total - 1, total, current - 1, current, current + 1]);
+  const sorted = Array.from(pages).filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const result: (number | 'ellipsis')[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (prev && p - prev > 1) result.push('ellipsis');
+    result.push(p);
+    prev = p;
+  }
+  return result;
 };
 
 export const Leads: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  
+  const [salesStageFilter, setSalesStageFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+
   // Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  
+  const PAGE_SIZE = 50;
+
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Row action menu (3-dot dropdown)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -74,17 +103,45 @@ export const Leads: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    status: 'NEW',
-    source: 'MANUAL',
+    salesStage: 'New',
+    verificationStatus: 'Unverified',
+    engagementStatus: 'Not Engaged',
+    consentStatus: 'Unknown',
+    type: 'Manual',
     registrationNo: '',
   });
+
+  const [logs, setLogs] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
+
+  useEffect(() => {
+    if (selectedLead) {
+      leadsService.getLeadLogs(selectedLead.id)
+        .then(setLogs)
+        .catch(err => console.error('Error fetching logs', err));
+      setActiveTab('details');
+    } else {
+      setLogs([]);
+    }
+  }, [selectedLead]);
+
+  // Close the row action menu when clicking anywhere outside it
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleOpenForm = (lead?: Lead) => {
     if (lead) {
       setFormData(lead);
     } else {
       setFormData({
-        name: '', email: '', phone: '', status: 'NEW', source: 'MANUAL', registrationNo: '',
+        name: '', email: '', phone: '', status: 'NEW', source: 'MANUAL', type: 'Manual', registrationNo: '',
       });
     }
     setIsFormOpen(true);
@@ -92,20 +149,20 @@ export const Leads: React.FC = () => {
 
   const handleSaveLead = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return alert('Name is required');
+    if (!formData.name) return toast.error('Name is required');
     setIsSubmitting(true);
     try {
       if (formData.id) {
         await leadsService.updateLead(formData.id, formData as any);
-        alert('Lead updated successfully');
+        toast.success('Lead updated successfully');
       } else {
         await leadsService.createLead(formData as any);
-        alert('Lead created successfully');
+        toast.success('Lead created successfully');
       }
       setIsFormOpen(false);
       fetchLeads();
     } catch (err: any) {
-      alert(err.message || 'Failed to save lead');
+      toast.error(err.message || 'Failed to save lead');
     } finally {
       setIsSubmitting(false);
     }
@@ -115,11 +172,12 @@ export const Leads: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await leadsService.getLeads({ 
-        page, 
-        limit: 50, 
-        search: searchQuery, 
-        status: statusFilter 
+      const response = await leadsService.getLeads({
+        page,
+        limit: PAGE_SIZE,
+        search: searchQuery,
+        salesStage: salesStageFilter,
+        type: typeFilter
       });
       setLeads(response.data);
       if (response.pagination) {
@@ -136,7 +194,7 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, statusFilter]);
+  }, [page, searchQuery, salesStageFilter, typeFilter]);
 
   // Handle Debounce for Search and Filters
   useEffect(() => {
@@ -149,11 +207,34 @@ export const Leads: React.FC = () => {
   // Reset to page 1 on search or filter change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, salesStageFilter, typeFilter]);
 
 
   const handleRowClick = (lead: Lead) => {
     setSelectedLead(lead);
+  };
+
+  const handleDeleteLead = async (lead: Lead) => {
+    setOpenMenuId(null);
+    if (!window.confirm(`Delete ${lead.name}? This cannot be undone.`)) return;
+    try {
+      await leadsService.deleteLead(lead.id);
+      toast.success('Lead deleted successfully');
+      await fetchLeads();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete lead');
+    }
+  };
+
+  const handleUpdateStatus = async (lead: Lead, salesStage: string) => {
+    setOpenMenuId(null);
+    try {
+      await leadsService.updateLead(lead.id, { salesStage } as any);
+      toast.success('Status updated successfully');
+      await fetchLeads();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,12 +245,12 @@ export const Leads: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const fileData = evt.target?.result;
+        const wb = XLSX.read(fileData, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-        
+
         let headerRowIndex = 0;
         // Search first 20 rows to find actual header row
         for (let i = 0; i < Math.min(20, rawData.length); i++) {
@@ -218,19 +299,20 @@ export const Leads: React.FC = () => {
         if (formattedLeads.length > 0) {
           await leadsService.importLeads(formattedLeads);
           await fetchLeads();
-          alert(`Successfully imported ${formattedLeads.length} leads!`);
+          toast.success(`Successfully imported ${formattedLeads.length} leads!`);
         } else {
-          alert('No valid data found in the file.');
+          toast.error('No valid data found in the file.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error importing file:', err);
-        alert('Failed to parse the file. Please ensure it is a valid Excel/CSV file.');
+        const errMsg = err?.response?.data?.message || err?.message || 'Failed to parse the file. Please ensure it is a valid Excel/CSV file.';
+        toast.error(errMsg);
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const formatDate = (dateStr: string) => {
@@ -238,6 +320,9 @@ export const Leads: React.FC = () => {
       day: 'numeric', month: 'short', year: 'numeric',
     });
   };
+
+  const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, totalRecords);
 
   return (
     <div className="relative flex gap-6">
@@ -252,14 +337,14 @@ export const Leads: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <input 
-              type="file" 
-              accept=".xlsx, .xls, .csv" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
-              className="hidden" 
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
             />
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC] transition-colors disabled:opacity-50"
@@ -271,7 +356,7 @@ export const Leads: React.FC = () => {
               <Download className="h-4 w-4" />
               Export
             </button>
-            <button 
+            <button
               onClick={() => handleOpenForm()}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 transition-colors"
             >
@@ -296,14 +381,28 @@ export const Leads: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
               className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
             >
-              <option value="All">All Statuses</option>
-              <option value="Converted">Converted</option>
-              <option value="Contacted">Contacted</option>
+              <option value="All">All Types</option>
+              <option value="Manual">Manual</option>
+              <option value="IA">IA</option>
+              <option value="Sub Broker">Sub Broker</option>
+              <option value="RA">RA</option>
+            </select>
+
+            <select
+              value={salesStageFilter}
+              onChange={(e) => setSalesStageFilter(e.target.value)}
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
+            >
+              <option value="All">All Stages</option>
               <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Client Won">Client Won</option>
+              <option value="Client Lost">Client Lost</option>
             </select>
 
             <button
@@ -349,8 +448,10 @@ export const Leads: React.FC = () => {
                     <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
                       <th className="py-4 px-6">Name</th>
                       <th className="py-4 px-6">Email</th>
-                      <th className="py-4 px-6">Registration No.</th>
-                      <th className="py-4 px-6 text-center">Status</th>
+                      <th className="py-4 px-6">Type</th>
+                      <th className="py-4 px-6">Reg No.</th>
+                      <th className="py-4 px-6 text-center">Sales Stage</th>
+                      <th className="py-4 px-6 text-center">Verification</th>
                       <th className="py-4 px-6">Lead Score</th>
                       <th className="py-4 px-6">Created</th>
                       <th className="py-4 px-6 text-right">Actions</th>
@@ -359,26 +460,25 @@ export const Leads: React.FC = () => {
                   <tbody className="divide-y divide-[#E2E8F0]">
                     {leads.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-16 text-center text-sm text-slate-400">
+                        <td colSpan={8} className="py-16 text-center text-sm text-slate-400">
                           No leads found matching your filters.
                         </td>
                       </tr>
                     ) : (
                       leads.map((lead) => {
-                        const score = getLeadScore(lead.status);
+                        const score = getLeadScore(lead.salesStage);
                         return (
                           <tr
                             key={lead.id}
                             onClick={() => handleRowClick(lead)}
-                            className={`cursor-pointer hover:bg-slate-50 transition-colors ${
-                              selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
-                            }`}
+                            className={`cursor-pointer hover:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
+                              }`}
                           >
                             {/* Lead Details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
                                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm">
-                                  {lead.name.split(' ').map((n) => n[0]).join('')}
+                                  {lead.type}
                                 </div>
                                 <div>
                                   <p className="font-semibold text-[#0F172A]">{lead.name}</p>
@@ -393,29 +493,43 @@ export const Leads: React.FC = () => {
                                 {lead.email && <p className="font-medium text-[#0F172A]">{lead.email}</p>}
                                 {lead.email2 && <p className="font-medium text-[#0F172A]">{lead.email2}</p>}
                                 {(!lead.email && !lead.email2) && <p className="font-medium text-[#0F172A]">—</p>}
-                                
+
                                 {lead.phone && <p className="text-xs text-[#64748B]">{lead.phone}</p>}
                                 {lead.phone2 && <p className="text-xs text-[#64748B]">{lead.phone2}</p>}
                                 {(!lead.phone && !lead.phone2) && <p className="text-xs text-[#64748B]">—</p>}
                               </div>
                             </td>
 
-                            {/* Source */}
+                            {/* Type */}
+                            <td className="py-4 px-6">
+                              <span className="rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 block w-fit">
+                                {lead.type || 'Manual'}
+                              </span>
+                            </td>
+
+                            {/* Source and Reg No */}
                             <td className="py-4 px-6">
                               {lead.registrationNo ? (
                                 <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 block w-fit mb-1">
                                   {lead.registrationNo}
                                 </span>
                               ) : null}
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                {lead.source || 'Manual'}
-                              </span>
+
                             </td>
 
-                            {/* Status Badge */}
                             <td className="py-4 px-6 text-center">
-                              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${getStatusStyle(lead.status)}`}>
-                                {getStatusLabel(lead.status)}
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${lead.salesStage === 'New'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : lead.salesStage === 'Client Won'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                {lead.salesStage}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
+                                {lead.verificationStatus}
                               </span>
                             </td>
 
@@ -425,13 +539,12 @@ export const Leads: React.FC = () => {
                                 <span className="w-6 text-right text-xs font-bold text-slate-700">{score}</span>
                                 <div className="h-2 w-24 rounded-full bg-slate-100">
                                   <div
-                                    className={`h-full rounded-full ${
-                                      score >= 80
-                                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                                        : score >= 50
+                                    className={`h-full rounded-full ${score >= 80
+                                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                                      : score >= 50
                                         ? 'bg-amber-500'
                                         : 'bg-emerald-500'
-                                    }`}
+                                      }`}
                                     style={{ width: `${score}%` }}
                                   />
                                 </div>
@@ -445,17 +558,74 @@ export const Leads: React.FC = () => {
 
                             {/* Row Actions */}
                             <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex justify-end gap-2">
-                                <button 
+                              <div className="relative flex justify-end gap-2">
+                                <button
                                   onClick={() => handleOpenForm(lead)}
                                   className="rounded-lg p-1.5 text-blue-500 hover:bg-blue-50 transition-colors"
                                   title="Edit Lead"
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </button>
-                                <button className="rounded-lg p-1.5 text-slate-400 hover:bg-[#F8FAFC] hover:text-[#0F172A] transition-colors">
+                                <button
+                                  onClick={() => setOpenMenuId(openMenuId === lead.id ? null : lead.id)}
+                                  className={`rounded-lg p-1.5 transition-colors ${openMenuId === lead.id ? 'bg-slate-100 text-[#0F172A]' : 'text-slate-400 hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+                                >
                                   <MoreVertical className="h-4 w-4" />
                                 </button>
+
+                                {/* Dropdown Menu */}
+                                {openMenuId === lead.id && (
+                                  <div
+                                    ref={menuRef}
+                                    className="absolute right-0 top-full z-20 mt-1 w-52 rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-lg"
+                                  >
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); handleRowClick(lead); }}
+                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5 text-slate-400" />
+                                      View details
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); handleOpenForm(lead); }}
+                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5 text-slate-400" />
+                                      Edit lead
+                                    </button>
+
+                                    <div className="my-1 border-t border-[#E2E8F0]" />
+
+                                    {lead.status !== 'CONTACTED' && (
+                                      <button
+                                        onClick={() => handleUpdateStatus(lead, 'CONTACTED')}
+                                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                                      >
+                                        <PhoneCall className="h-3.5 w-3.5 text-amber-500" />
+                                        Mark as contacted
+                                      </button>
+                                    )}
+                                    {lead.status !== 'CONVERTED' && (
+                                      <button
+                                        onClick={() => handleUpdateStatus(lead, 'CONVERTED')}
+                                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                                      >
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
+                                        Mark as converted
+                                      </button>
+                                    )}
+
+                                    <div className="my-1 border-t border-[#E2E8F0]" />
+
+                                    <button
+                                      onClick={() => handleDeleteLead(lead)}
+                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      Delete lead
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -467,25 +637,50 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Pagination footer */}
-              <div className="flex items-center justify-between border-t border-[#E2E8F0] px-6 py-4">
+              <div className="flex flex-col gap-3 border-t border-[#E2E8F0] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs font-semibold text-[#64748B]">
-                  Showing Page <span className="text-[#0F172A]">{page}</span> of <span className="text-[#0F172A]">{totalPages}</span> 
-                  {' '} (<span className="text-[#0F172A]">{totalRecords}</span> total leads)
+                  Showing <span className="text-[#0F172A]">{rangeStart}–{rangeEnd}</span> of{' '}
+                  <span className="text-[#0F172A]">{totalRecords}</span> leads
                 </span>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded-lg border border-[#E2E8F0] px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Previous
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Prev
                   </button>
-                  <button 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+
+                  <div className="flex items-center gap-1">
+                    {buildPageList(page, totalPages).map((p, idx) =>
+                      p === 'ellipsis' ? (
+                        <span key={`e-${idx}`} className="px-1.5 text-xs font-semibold text-slate-400">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${p === page
+                            ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                            : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="rounded-lg border border-[#E2E8F0] px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     Next
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -497,130 +692,206 @@ export const Leads: React.FC = () => {
       {/* Quick-View Modal */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">
-              Quick Details
-            </span>
-            <button
-              onClick={() => setSelectedLead(null)}
-              className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC] hover:text-slate-900 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Profile Section */}
-          <div className="mt-6 flex flex-col items-center border-b border-[#E2E8F0] pb-6">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl mb-3">
-              {selectedLead.name.split(' ').map((n) => n[0]).join('')}
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
+              <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">
+                Quick Details
+              </span>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC] hover:text-slate-900 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <h3 className="text-lg font-bold text-[#0F172A]">{selectedLead.name}</h3>
-            <p className="text-xs text-[#64748B] mt-0.5">Lead ID: {selectedLead.id}</p>
-            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold mt-2.5 ${getStatusStyle(selectedLead.status)}`}>
-              {getStatusLabel(selectedLead.status)}
-            </span>
-          </div>
 
-          {/* Detail Rows */}
-          <div className="mt-6 space-y-4">
-            <div className="flex items-start gap-3">
-              <Mail className="h-4 w-4 text-[#64748B] mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email</p>
-                <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedLead.email || '—'}</p>
-                {selectedLead.email2 && (
-                  <p className="text-sm font-semibold text-[#0F172A] truncate mt-1">{selectedLead.email2}</p>
-                )}
+            {/* Profile Section */}
+            <div className="mt-6 flex flex-col items-center pb-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl mb-3">
+                {selectedLead.name.split(' ').map((n) => n[0]).join('')}
+              </div>
+              <h3 className="text-lg font-bold text-[#0F172A]">{selectedLead.name}</h3>
+              <p className="text-xs text-[#64748B] mt-0.5">Lead ID: {selectedLead.id}</p>
+              <div className="flex gap-2 mt-2.5">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${selectedLead.salesStage === 'New' ? 'bg-emerald-100 text-emerald-700' : selectedLead.salesStage === 'Client Won' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {selectedLead.salesStage}
+                </span>
+                <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
+                  {selectedLead.verificationStatus}
+                </span>
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
-              <div>
-                <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Phone</p>
-                <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.phone || '—'}</p>
-                {selectedLead.phone2 && (
-                  <p className="text-sm font-semibold text-[#0F172A] mt-1">{selectedLead.phone2}</p>
-                )}
-              </div>
+            {/* Tabs */}
+            <div className="flex border-b border-[#E2E8F0] mb-6">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'details' ? 'border-primary text-primary' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'}`}
+              >
+                Details
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'}`}
+              >
+                Activity History
+              </button>
             </div>
 
-            <div className="flex items-start gap-3">
-              <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
-              <div>
-                <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Source & Reg No.</p>
-                <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.registrationNo ? `${selectedLead.registrationNo} (${selectedLead.source || 'Manual'})` : (selectedLead.source || 'Manual')}</p>
+            {activeTab === 'details' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <Mail className="h-4 w-4 text-[#64748B] mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Email</p>
+                  <p className="text-sm font-semibold text-[#0F172A] truncate">{selectedLead.email || '—'}</p>
+                  {selectedLead.email2 && (
+                    <p className="text-sm font-semibold text-[#0F172A] truncate mt-1">{selectedLead.email2}</p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {(selectedLead.address || selectedLead.city) && (
+              <div className="flex items-start gap-3">
+                <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Phone</p>
+                  <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.phone || '—'}</p>
+                  {selectedLead.phone2 && (
+                    <p className="text-sm font-semibold text-[#0F172A] mt-1">{selectedLead.phone2}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Address</p>
-                  <p className="text-sm font-medium text-[#0F172A]">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
+                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Type</p>
+                  <span className="inline-block mt-0.5 rounded-md bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                    {selectedLead.type || 'Manual'}
+                  </span>
                 </div>
               </div>
-            )}
-            
-            {selectedLead.contactPerson && (
+
               <div className="flex items-start gap-3">
-                <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contact Person</p>
-                  <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.contactPerson}</p>
+                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Source & Reg No.</p>
+                  {selectedLead.registrationNo && (
+                    <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 mb-1 mt-0.5">
+                      {selectedLead.registrationNo}
+                    </span>
+                  )}
+                  <p className="text-sm font-semibold text-[#0F172A] mt-0.5">{selectedLead.source || 'Manual'}</p>
                 </div>
+              </div>
+
+              {(selectedLead.address || selectedLead.city) && (
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Address</p>
+                    <p className="text-sm font-medium text-[#0F172A]">{[selectedLead.address, selectedLead.city, selectedLead.state, selectedLead.pincode].filter(Boolean).join(', ')}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedLead.contactPerson && (
+                <div className="flex items-start gap-3">
+                  <PhoneIcon className="h-4 w-4 text-[#64748B] mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contact Person</p>
+                    <p className="text-sm font-semibold text-[#0F172A]">{selectedLead.contactPerson}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3">
+                <Clock className="h-4 w-4 text-[#64748B] mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Created At</p>
+                  <p className="text-sm font-semibold text-[#0F172A]">{formatDate(selectedLead.createdAt)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-4 w-4 text-primary mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Lead Score</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="h-2 w-full rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                        style={{ width: `${getLeadScore(selectedLead.salesStage)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            ) : (
+              <div className="space-y-4">
+                {logs.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-8">No activity history found for this lead.</p>
+                ) : (
+                  <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
+                    {logs.map((log) => (
+                      <div key={log.id} className="relative pl-6">
+                        <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-primary" />
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-bold text-slate-800">{log.action.replace(/_/g, ' ')}</span>
+                          <span className="text-xs font-medium text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                        </div>
+                        {log.user && (
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">
+                              {log.user.name.charAt(0)}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-700">{log.user.name}</span>
+                            <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase tracking-wider">{log.user.role?.name || 'User'}</span>
+                          </div>
+                        )}
+                        <p className="text-sm text-slate-600 mb-2">{log.details}</p>
+                        {log.changes && (
+                          <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                            {Object.entries(JSON.parse(log.changes)).map(([field, vals]: any) => (
+                              <div key={field} className="flex items-center text-xs mb-1 last:mb-0">
+                                <span className="font-semibold text-slate-700 w-32 capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                <span className="text-slate-500 bg-white border px-1.5 py-0.5 rounded mr-2 line-through">{vals.from}</span>
+                                <ArrowRight className="w-3 h-3 text-slate-400 mr-2" />
+                                <span className="text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded font-medium">{vals.to}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="flex items-start gap-3">
-              <Clock className="h-4 w-4 text-[#64748B] mt-0.5" />
-              <div>
-                <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Created At</p>
-                <p className="text-sm font-semibold text-[#0F172A]">{formatDate(selectedLead.createdAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-4 w-4 text-primary mt-0.5" />
-              <div className="flex-1">
-                <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Lead Score</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="h-2 w-full rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
-                      style={{ width: `${getLeadScore(selectedLead.status)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-[#0F172A]">{getLeadScore(selectedLead.status)}%</span>
-                </div>
-              </div>
+            {/* Drawer Actions */}
+            <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex gap-3">
+              <button
+                onClick={() => {
+                  setSelectedLead(null);
+                  handleOpenForm(selectedLead);
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white py-2 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
+              >
+                <Edit2 className="h-4 w-4" />
+                Edit Lead
+              </button>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
+              >
+                Close
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </button>
             </div>
           </div>
-
-          {/* Drawer Actions */}
-          <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex gap-3">
-            <button 
-              onClick={() => {
-                setSelectedLead(null);
-                handleOpenForm(selectedLead);
-              }}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white py-2 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
-            >
-              <Edit2 className="h-4 w-4" />
-              Edit Lead
-            </button>
-            <button
-              onClick={() => setSelectedLead(null)}
-              className="inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
-            >
-              Action
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </button>
-          </div>
-        </div>
         </div>
       )}
 
@@ -674,17 +945,87 @@ export const Leads: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Status</label>
-                <select
-                  value={formData.status || 'NEW'}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                >
-                  <option value="NEW">New</option>
-                  <option value="CONTACTED">Contacted</option>
-                  <option value="CONVERTED">Converted</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
+                  <select
+                    value={formData.salesStage || 'New'}
+                    onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                  >
+                    <option value="New">New</option>
+                    <option value="Contacted">Contacted</option>
+                    <option value="Qualified">Qualified</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="Negotiation">Negotiation</option>
+                    <option value="Client Won">Client Won</option>
+                    <option value="Client Lost">Client Lost</option>
+                    <option value="Do Not Contact">Do Not Contact</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Verification</label>
+                  <select
+                    value={formData.verificationStatus || 'Unverified'}
+                    onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                  >
+                    <option value="Imported">Imported</option>
+                    <option value="Enrichment Pending">Enrichment Pending</option>
+                    <option value="Active">Active</option>
+                    <option value="Likely Inactive">Likely Inactive</option>
+                    <option value="Unverified">Unverified</option>
+                    <option value="Duplicate">Duplicate</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Engagement</label>
+                  <select
+                    value={formData.engagementStatus || 'Not Engaged'}
+                    onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                  >
+                    <option value="Not Engaged">Not Engaged</option>
+                    <option value="Sent">Sent</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Opened">Opened</option>
+                    <option value="Clicked">Clicked</option>
+                    <option value="Replied">Replied</option>
+                    <option value="Demo Requested">Demo Requested</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Consent</label>
+                  <select
+                    value={formData.consentStatus || 'Unknown'}
+                    onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                  >
+                    <option value="Unknown">Unknown</option>
+                    <option value="Opted In">Opted In</option>
+                    <option value="Opted Out">Opted Out</option>
+                    <option value="Implied B2B">Implied B2B</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
+                  <select
+                    value={formData.type || 'Manual'}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                  >
+                    <option value="Manual">Manual</option>
+                    <option value="IA">IA</option>
+                    <option value="Sub Broker">Sub Broker</option>
+                    <option value="RA">RA</option>
+                  </select>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-[#E2E8F0] flex justify-end gap-3">

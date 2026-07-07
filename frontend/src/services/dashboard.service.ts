@@ -2,9 +2,13 @@ import { apiClient } from './apiClient';
 
 export interface DashboardStats {
   totalLeads: number;
+  newLeads: number;
+  contactedLeads: number;
   qualifiedLeads: number;
-  pendingLeads: number;
-  closedLeads: number;
+  convertedLeads: number;
+  unverifiedLeads: number;
+  activeLeads: number;
+  engagedLeads: number;
   activeCampaigns: number;
 }
 

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
+import toast from 'react-hot-toast';
+
 export const Login: React.FC = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ export const Login: React.FC = () => {
     e.preventDefault();
     if (!email || !password) {
       setError('Please enter both email and password.');
+      toast.error('Please enter both email and password.');
       return;
     }
 
@@ -23,14 +26,18 @@ export const Login: React.FC = () => {
 
     try {
       await login(email, password);
+      toast.success('Successfully logged in!');
       // Navigation based on role happens after user state updates
       // We read role from the fresh user state through the navigate after state refresh
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosErr = err as { response?: { data?: { message?: string } } };
-        setError(axiosErr.response?.data?.message || 'Invalid credentials. Please try again.');
+        const msg = axiosErr.response?.data?.message || 'Invalid credentials. Please try again.';
+        setError(msg);
+        toast.error(msg);
       } else {
         setError('Unable to connect to server. Please try again.');
+        toast.error('Unable to connect to server. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -140,15 +147,7 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Credentials hint */}
-          <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-            <p className="text-xs font-bold text-blue-800 mb-1.5">Test Credentials</p>
-            <div className="space-y-1 text-[11px] text-blue-700 font-medium">
-              <p>• <strong>Admin:</strong> admin@algoconnect.com / password123</p>
-              <p>• <strong>Manager:</strong> manager@algoconnect.com / password123</p>
-              <p>• <strong>Agent:</strong> agent@algoconnect.com / password123</p>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

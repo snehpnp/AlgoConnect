@@ -2,14 +2,16 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Megaphone, 
-  Settings as SettingsIcon, 
+import {
+  LayoutDashboard,
+  Users,
+  Megaphone,
+  Settings as SettingsIcon,
   LogOut,
   ShieldCheck,
-  TrendingUp
+  TrendingUp,
+  BookOpen,
+  Target
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -30,25 +32,44 @@ export const Sidebar: React.FC = () => {
       name: 'Dashboard',
       path: '/dashboard',
       icon: <LayoutDashboard className="h-5 w-5" />,
-      allowedRoles: ['admin', 'manager'],
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
+    },
+    {
+      name: 'User Management',
+      path: '/admin/users',
+      icon: <Users className="h-5 w-5" />,
+      allowedRoles: ['System Admin'],
     },
     {
       name: 'Lead Management',
       path: '/leads',
       icon: <Users className="h-5 w-5" />,
-      allowedRoles: ['admin', 'manager', 'agent'],
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'],
     },
     {
       name: 'Campaigns',
       path: '/campaigns',
       icon: <Megaphone className="h-5 w-5" />,
-      allowedRoles: ['admin', 'manager'],
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
+    },
+
+    {
+      name: 'Segments',
+      path: '/segments',
+      icon: <Target className="h-5 w-5" />,
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
     },
     {
-      name: 'Admin Settings',
-      path: '/settings',
-      icon: <SettingsIcon className="h-5 w-5" />,
-      allowedRoles: ['admin'],
+      name: 'Consent',
+      path: '/consent',
+      icon: <ShieldCheck className="h-5 w-5" />,
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
+    },
+    {
+      name: 'Dictionary',
+      path: '/dictionary',
+      icon: <BookOpen className="h-5 w-5" />,
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'],
     },
   ];
 
@@ -71,11 +92,10 @@ export const Sidebar: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-primary text-white shadow-md shadow-primary/20'
-                  : 'hover:bg-slate-800/60 hover:text-slate-100'
-              }`}
+              className={`flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'hover:bg-slate-800/60 hover:text-slate-100'
+                }`}
             >
               {item.icon}
               <span>{item.name}</span>
@@ -84,32 +104,7 @@ export const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      {/* User Info & Footer */}
-      <div className="border-t border-slate-800 p-4">
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-slate-900/60 p-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-primary">
-            {user.role === 'admin' ? (
-              <ShieldCheck className="h-5 w-5" />
-            ) : user.role === 'manager' ? (
-              <TrendingUp className="h-5 w-5" />
-            ) : (
-              <Users className="h-5 w-5" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-200">{user.name}</p>
-            <p className="truncate text-xs text-slate-500 capitalize">{user.role}</p>
-          </div>
-        </div>
 
-        <button
-          onClick={logout}
-          className="flex w-full items-center gap-3.5 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:bg-red-950/30 hover:text-red-400"
-        >
-          <LogOut className="h-5 w-5" />
-          <span>Sign Out</span>
-        </button>
-      </div>
     </aside>
   );
 };
