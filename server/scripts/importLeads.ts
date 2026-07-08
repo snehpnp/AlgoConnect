@@ -20,13 +20,13 @@ async function runImport() {
   for (const file of files) {
     const filePath = path.resolve(__dirname, file);
     console.log(`\nProcessing file: ${path.basename(filePath)}`);
-    
+
     try {
       const wb = XLSX.readFile(filePath);
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
       const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-      
+
       let headerRowIndex = 0;
       // Search first 20 rows to find actual header row
       for (let i = 0; i < Math.min(20, rawData.length); i++) {

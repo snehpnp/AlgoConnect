@@ -57,6 +57,20 @@ model Lead {
   validity        String?
   exchangeName    String?
   tradeName       String?
+  
+  // Enrichment fields
+  isEnriched          Boolean  @default(false)
+  website             String?
+  linkedin            String?
+  twitter             String?
+  facebook            String?
+  servicesSummary     String?  @db.Text
+  productsOffered     String?  @db.Text
+  sellsAlgoTrading    String?
+  brokerPartner       String?
+  companySizeEstimate String?
+  enrichmentNotes     String?  @db.Text
+
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id])
   createdAt       DateTime      @default(now())
