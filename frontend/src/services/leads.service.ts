@@ -27,6 +27,19 @@ export interface Lead {
   userId: number | null;
   createdAt: string;
   updatedAt: string;
+  
+  // Enrichment fields
+  isEnriched?: boolean;
+  website?: string | null;
+  linkedin?: string | null;
+  twitter?: string | null;
+  facebook?: string | null;
+  servicesSummary?: string | null;
+  productsOffered?: string | null;
+  sellsAlgoTrading?: string | null;
+  brokerPartner?: string | null;
+  companySizeEstimate?: string | null;
+  enrichmentNotes?: string | null;
 }
 
 export interface GetLeadsResponse {

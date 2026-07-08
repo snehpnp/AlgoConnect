@@ -24,6 +24,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Globe,
+  Link as LinkIcon,
+  Briefcase
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
@@ -101,7 +104,7 @@ export const Leads: React.FC = () => {
   });
 
   const [logs, setLogs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'enrichment'>('details');
 
   useEffect(() => {
     if (selectedLead) {
@@ -682,9 +685,15 @@ export const Leads: React.FC = () => {
               >
                 Activity History
               </button>
+              <button
+                onClick={() => setActiveTab('enrichment')}
+                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'enrichment' ? 'border-primary text-primary' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'}`}
+              >
+                Scraped Data
+              </button>
             </div>
 
-            {activeTab === 'details' ? (
+            {activeTab === 'details' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 bg-slate-50/50 rounded-xl p-5 border border-slate-100">
                 <div className="flex items-start gap-3">
                   <Mail className="h-4 w-4 text-slate-400 mt-0.5" />
@@ -819,7 +828,9 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'history' && (
               <div className="space-y-4">
                 {logs.length === 0 ? (
                   <p className="text-sm text-slate-500 text-center py-8">No activity history found for this lead.</p>
@@ -860,6 +871,95 @@ export const Leads: React.FC = () => {
                 )}
               </div>
             )}
+
+            {activeTab === 'enrichment' && (
+              <div className="space-y-6">
+                {selectedLead.isEnriched ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 bg-slate-50/50 rounded-xl p-5 border border-slate-100">
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <Globe className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Website</p>
+                        {selectedLead.website ? (
+                          <a href={selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{selectedLead.website}</a>
+                        ) : (
+                          <p className="text-sm text-slate-400 mt-0.5">—</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <LinkIcon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Social Links</p>
+                        <div className="mt-1.5 space-y-2">
+                          {selectedLead.linkedin ? (
+                            <a href={selectedLead.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-700 hover:underline flex items-center gap-1">LinkedIn</a>
+                          ) : null}
+                          {selectedLead.twitter ? (
+                            <a href={selectedLead.twitter} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-400 hover:underline flex items-center gap-1">Twitter</a>
+                          ) : null}
+                          {selectedLead.facebook ? (
+                            <a href={selectedLead.facebook} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">Facebook</a>
+                          ) : null}
+                          {!selectedLead.linkedin && !selectedLead.twitter && !selectedLead.facebook && <span className="text-xs text-slate-400">None found</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <Briefcase className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Company Size</p>
+                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.companySizeEstimate || '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <Sparkles className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Services Summary</p>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{selectedLead.servicesSummary || '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Products Offered</p>
+                        <p className="text-sm text-slate-700 mt-1">{selectedLead.productsOffered || '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Broker Partner</p>
+                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.brokerPartner || '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</p>
+                        <span className="inline-flex items-center mt-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{selectedLead.sellsAlgoTrading || 'Unknown'}</span>
+                      </div>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                      <Search className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">Not enriched yet</p>
+                    <p className="text-xs text-slate-500 mt-1 text-center max-w-xs">Run the lead enrichment script to fetch public web data for this lead.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* Drawer Actions */}
             <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex gap-3">
