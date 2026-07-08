@@ -34,6 +34,7 @@ from urllib.parse import urlparse, urljoin
 import psycopg2
 import psycopg2.extras
 import requests
+import concurrent.futures
 from bs4 import BeautifulSoup
 
 # Config
@@ -355,6 +356,7 @@ def main():
     parser.add_argument("--output", default="enriched.csv", help="Output CSV path")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of leads processed (0 = all)")
     parser.add_argument("--use-llm", action="store_true", help="Use Claude API to structure the data")
+    parser.add_argument("--workers", type=int, default=5, help="Number of concurrent workers (default 5)")
     args = parser.parse_args()
 
     # Load from .env if possible (fallback if python-dotenv isn't installed)
@@ -379,19 +381,25 @@ def main():
     print(f"Loaded {len(leads)} leads from database.")
 
     enriched = []
-    for i, lead in enumerate(leads, 1):
+    
+    def process_single_lead(args_tuple):
+        i, lead = args_tuple
         reg = lead.get('registrationNo') or 'No Reg'
         state = lead.get('state') or 'No State'
         print(f"[{i}/{len(leads)}] {lead.get('name', '(no name)')} | Reg: {reg} | State: {state}")
         try:
             result = enrich_lead(lead, tavily_key, anthropic_key, args.use_llm)
-            enriched.append(result)
             if "id" in lead:
                 update_lead_in_db(db_url, lead["id"], result)
+            return result
         except Exception as e:
             print(f"  [error] {e}")
-            enriched.append({"lead": lead, "error": str(e)})
-        time.sleep(DELAY_BETWEEN_LEADS)
+            return {"lead": lead, "error": str(e)}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
+        args_list = [(i, lead) for i, lead in enumerate(leads, 1)]
+        results = list(executor.map(process_single_lead, args_list))
+        enriched.extend(results)
 
     out_json = args.output.rsplit(".", 1)[0] + ".json"
     save_outputs(enriched, args.output, out_json)
