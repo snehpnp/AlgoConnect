@@ -395,7 +395,7 @@ export const Leads: React.FC = () => {
 
                                 <div>
                                   <a
-                                    href={`https://www.google.com/search?q=${encodeURIComponent(lead.name)}`}
+                                    href={lead.website ? lead.website : `https://www.google.com/search?q=${encodeURIComponent(lead.name)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="font-semibold text-primary hover:underline group block min-w-0"
@@ -650,7 +650,7 @@ export const Leads: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-3 min-w-0">
                   <a
-                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedLead.name)}`}
+                    href={selectedLead.website ? selectedLead.website : `https://www.google.com/search?q=${encodeURIComponent(selectedLead.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group block min-w-0"
