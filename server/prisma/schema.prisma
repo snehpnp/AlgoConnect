@@ -16,6 +16,7 @@ model User {
   role      Role     @relation(fields: [roleId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  avatar       String?       @db.Text
   leads        Lead[]
   activityLogs ActivityLog[]
 }
@@ -77,8 +78,7 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   leads     Lead[]
-  segmentId Int?
-  segment   Segment? @relation(fields: [segmentId], references: [id])
+  segments  Segment[] @relation("CampaignSegments")
   
   emailTemplateId Int?
   emailTemplate   MessageTemplate? @relation("CampaignEmailTemplate", fields: [emailTemplateId], references: [id])
@@ -133,7 +133,7 @@ model Segment {
   rules       Json       // Stores conditions like { "region": "Maharashtra", "leadScore": { "gt": 80 } }
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  campaigns   Campaign[]
+  campaigns   Campaign[] @relation("CampaignSegments")
 }
 
 model IntegrationSetting {

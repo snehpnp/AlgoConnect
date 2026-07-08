@@ -24,6 +24,8 @@ export const Campaigns: React.FC = () => {
   const [availableLeads, setAvailableLeads] = useState<Lead[]>([]);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<number>>(new Set());
   const [leadsLoading, setLeadsLoading] = useState(false);
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalSalesStage, setModalSalesStage] = useState('');
 
   // Row Action Menu
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
@@ -90,15 +92,14 @@ export const Campaigns: React.FC = () => {
     setOpenMenuId(null);
   };
 
-  const openManageLeads = async (campaign: Campaign) => {
-    setCurrentCampaign(campaign);
-    setOpenMenuId(null);
-    setIsLeadsModalOpen(true);
-    setSelectedLeadIds(new Set());
+  const fetchModalLeads = async (searchStr: string = '', stage: string = '') => {
     setLeadsLoading(true);
     try {
-      // Fetch available leads to add
-      const res = await leadsService.getLeads({ limit: 100 }); 
+      const params: any = { limit: 100 };
+      if (searchStr) params.search = searchStr;
+      if (stage) params.salesStage = stage;
+      
+      const res = await leadsService.getLeads(params); 
       setAvailableLeads(res.data);
     } catch (error) {
       toast.error('Failed to load leads');
@@ -106,6 +107,25 @@ export const Campaigns: React.FC = () => {
       setLeadsLoading(false);
     }
   };
+
+  const openManageLeads = async (campaign: Campaign) => {
+    setCurrentCampaign(campaign);
+    setOpenMenuId(null);
+    setIsLeadsModalOpen(true);
+    setSelectedLeadIds(new Set());
+    setModalSearch('');
+    setModalSalesStage('');
+    await fetchModalLeads();
+  };
+
+  // Debounced search for Modal
+  useEffect(() => {
+    if (!isLeadsModalOpen) return;
+    const delayDebounceFn = setTimeout(() => {
+      fetchModalLeads(modalSearch, modalSalesStage);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [modalSearch, modalSalesStage, isLeadsModalOpen]);
 
   const handleAddLeads = async () => {
     if (!currentCampaign.id || selectedLeadIds.size === 0) return;
@@ -203,7 +223,9 @@ export const Campaigns: React.FC = () => {
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-sm text-[#475569] bg-slate-100 px-2 py-1 rounded-md font-medium">
-                        {camp.segment?.name || 'Manual Selection'}
+                        {camp.segments && camp.segments.length > 0 
+                          ? camp.segments.map(s => s.name).join(', ') 
+                          : 'Manual Selection'}
                       </span>
                     </td>
                     <td className="py-4 px-6"><span className="text-sm font-semibold text-[#0F172A]">{camp.type}</span></td>
@@ -239,7 +261,7 @@ export const Campaigns: React.FC = () => {
                           <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
                           </button>
-                          <button onClick={() => { setCurrentCampaign(camp); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <button onClick={() => { setCurrentCampaign({ ...camp, segmentIds: camp.segments?.map(s => s.id) || [] }); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
                           <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
@@ -280,13 +302,27 @@ export const Campaigns: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Target Segment</label>
-                <select value={currentCampaign.segmentId || ''} onChange={(e) => setCurrentCampaign({ ...currentCampaign, segmentId: e.target.value ? Number(e.target.value) : undefined })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
-                  <option value="">-- Manual Selection --</option>
+                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Target Segments</label>
+                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
                   {segments.map(seg => (
-                    <option key={seg.id} value={seg.id}>{seg.name}</option>
+                    <label key={seg.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={(currentCampaign.segmentIds || []).includes(seg.id)}
+                        onChange={(e) => {
+                          const currentIds = currentCampaign.segmentIds || [];
+                          if (e.target.checked) {
+                            setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
+                          } else {
+                            setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter(id => id !== seg.id) });
+                          }
+                        }}
+                      />
+                      {seg.name}
+                    </label>
                   ))}
-                </select>
+                  {segments.length === 0 && <span className="text-xs text-slate-500">No segments available</span>}
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Status</label>
@@ -317,6 +353,32 @@ export const Campaigns: React.FC = () => {
               <button onClick={() => setIsLeadsModalOpen(false)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC]">
                 <X className="h-5 w-5" />
               </button>
+            </div>
+
+            {/* Modal Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+                <input 
+                  type="text" 
+                  placeholder="Search leads by name, email, phone..." 
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  className="input-base !pl-9"
+                />
+              </div>
+              <select 
+                value={modalSalesStage}
+                onChange={(e) => setModalSalesStage(e.target.value)}
+                className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+              >
+                <option value="">All Stages</option>
+                <option value="New">New</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Converted">Converted</option>
+                <option value="Lost">Lost</option>
+              </select>
             </div>
 
             <div className="flex-1 overflow-y-auto mb-4 border rounded-lg border-slate-200">

@@ -115,20 +115,23 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
 
         {/* User Dropdown */}
         <div className="relative">
-          <button
+          <button 
             onClick={() => {
               setDropdownOpen(!dropdownOpen);
               setNotificationOpen(false); // close notifications if open
             }}
-            className="flex items-center gap-3.5 rounded-lg p-1.5 text-left hover:bg-[#F8FAFC] transition-colors"
+            className="flex items-center gap-2.5 rounded-full bg-[#F8FAFC] pl-1.5 pr-3 py-1.5 hover:bg-[#F1F5F9] transition-all border border-[#E2E8F0]"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E2E8F0] text-[#0F172A] font-bold">
-              {user.name.charAt(0)}
+            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user?.name} className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.charAt(0).toUpperCase() || 'U'
+              )}
             </div>
-            <div className="hidden md:block">
-              <p className="text-sm font-semibold leading-none text-[#0F172A]">{user.name}</p>
-              <p className="mt-1 text-xs text-[#64748B] capitalize">{user.role} Account</p>
-            </div>
+            <span className="text-sm font-semibold text-[#0F172A] hidden sm:block">
+              {user?.name || 'Administrator'}
+            </span>
             <ChevronDown className="h-4 w-4 text-[#64748B]" />
           </button>
 

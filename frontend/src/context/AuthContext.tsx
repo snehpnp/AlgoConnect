@@ -8,11 +8,13 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  avatar?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  updateUserContext: (updates: Partial<User>) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -51,11 +53,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: response.user.name,
         email: response.user.email,
         role: response.user.role as UserRole,
+        avatar: response.user.avatar,
       };
       localStorage.setItem('algoconnect_user', JSON.stringify(userData));
       setUser(userData);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateUserContext = (updates: Partial<User>) => {
+    if (user) {
+      const updated = { ...user, ...updates };
+      setUser(updated);
+      localStorage.setItem('algoconnect_user', JSON.stringify(updated));
     }
   };
 
@@ -66,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, updateUserContext, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Clock, ShieldCheck, UserCircle, Briefcase, Lock, X, Loader2 } from 'lucide-react';
+import { User, Mail, Shield, Clock, ShieldCheck, UserCircle, Briefcase, Lock, X, Loader2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const Profile = () => {
-  const { user } = useAuth();
-  
+  const { user, updateUserContext } = useAuth();
+
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   if (!user) return null;
 
@@ -20,7 +24,7 @@ export const Profile = () => {
       toast.error('New passwords do not match!');
       return;
     }
-    
+
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem('algoconnect_token');
@@ -32,13 +36,13 @@ export const Profile = () => {
         },
         body: JSON.stringify({ currentPassword, newPassword })
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to change password');
       }
-      
+
       toast.success('Password updated successfully!');
       setIsPasswordModalOpen(false);
       setCurrentPassword('');
@@ -48,6 +52,76 @@ export const Profile = () => {
       toast.error(err.message || 'Failed to change password');
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    if (file.size > 400 * 1024) {
+      toast.error('Image size must be less than 400KB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // Optimize image using Canvas
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Max dimension 256x256
+          const MAX_SIZE = 256;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG with 0.8 quality
+          const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+          // Upload to backend
+          const token = localStorage.getItem('algoconnect_token');
+          const response = await fetch(`http://localhost:7700/api/users/${user.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ avatar: optimizedBase64 })
+          });
+
+          if (!response.ok) throw new Error('Failed to update avatar');
+
+          updateUserContext({ avatar: optimizedBase64 });
+          toast.success('Profile picture updated successfully!');
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Failed to process image');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -67,13 +141,29 @@ export const Profile = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {/* Left Column: Avatar & Basic Info */}
         <div className="md:col-span-1 space-y-6">
-          <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm flex flex-col items-center text-center">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/30 mb-4">
-              {user.name.charAt(0).toUpperCase()}
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm flex flex-col items-center text-center relative">
+            <div className="relative group cursor-pointer mb-4" onClick={() => fileInputRef.current?.click()}>
+              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-blue-500/30 overflow-hidden">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                ) : (
+                  user.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploading ? <Loader2 className="h-6 w-6 text-white animate-spin" /> : <Camera className="h-6 w-6 text-white" />}
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleAvatarChange}
+              />
             </div>
             <h2 className="text-xl font-bold text-[#0F172A]">{user.name}</h2>
             <p className="text-sm font-medium text-[#64748B] mt-1">{user.email}</p>
-            
+
             <div className="mt-6 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-50 py-2.5 px-4 text-sm font-bold text-blue-700 border border-blue-100">
               <ShieldCheck className="h-4 w-4" />
               {user.role}
@@ -81,18 +171,18 @@ export const Profile = () => {
           </div>
 
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-             <h3 className="text-sm font-bold text-[#0F172A] mb-4 uppercase tracking-wider text-left">Quick Actions</h3>
-             <button 
-               onClick={() => setIsPasswordModalOpen(true)}
-               className="w-full mb-3 flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-             >
-               <Lock className="h-4 w-4 text-slate-400" />
-               Change Password
-             </button>
-             <button className="w-full flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
-               <Mail className="h-4 w-4 text-slate-400" />
-               Update Email Settings
-             </button>
+            <h3 className="text-sm font-bold text-[#0F172A] mb-4 uppercase tracking-wider text-left">Quick Actions</h3>
+            <button
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="w-full mb-3 flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Lock className="h-4 w-4 text-slate-400" />
+              Change Password
+            </button>
+            <button className="w-full flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+              <Mail className="h-4 w-4 text-slate-400" />
+              Update Email Settings
+            </button>
           </div>
         </div>
 
@@ -103,7 +193,7 @@ export const Profile = () => {
               <User className="h-5 w-5 text-indigo-500" />
               Personal Information
             </h2>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
               <div>
                 <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Full Name</label>
@@ -133,7 +223,7 @@ export const Profile = () => {
               <Briefcase className="h-5 w-5 text-emerald-500" />
               Account & Role Information
             </h2>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
               <div>
                 <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-1">Assigned Role</label>
@@ -179,7 +269,7 @@ export const Profile = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleChangePassword} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Current Password</label>
@@ -192,7 +282,7 @@ export const Profile = () => {
                   placeholder="Enter current password"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">New Password</label>
                 <input
@@ -204,7 +294,7 @@ export const Profile = () => {
                   placeholder="Enter new password"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Confirm New Password</label>
                 <input

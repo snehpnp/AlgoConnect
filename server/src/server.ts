@@ -9,6 +9,7 @@ import segmentRoutes from './routes/segment.routes';
 import consentRoutes from './routes/consent.routes';
 import settingsRoutes from './routes/settings.routes';
 import automationRoutes from './routes/automation.routes';
+import templateRoutes from './routes/template.routes';
 
 const app = express();
 const port = process.env.PORT || 7700;
@@ -28,6 +29,7 @@ app.use('/api/segments', segmentRoutes);
 app.use('/api/consents', consentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/automations', automationRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

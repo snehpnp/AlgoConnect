@@ -32,6 +32,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       name: user.name,
       email: user.email,
       role: user.role.name,
+      avatar: user.avatar,
     },
   });
 });

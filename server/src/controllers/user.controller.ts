@@ -53,7 +53,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
 // PUT /users/:id - update name, email, or roleId
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const userId = Number(req.params.id);
-  const { name, email, roleId, password } = req.body;
+  const { name, email, roleId, password, avatar } = req.body;
 
   const existing = await prisma.user.findUnique({ where: { id: userId } });
   if (!existing) {
@@ -64,6 +64,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   if (name) updateData.name = name;
   if (email) updateData.email = email;
   if (roleId) updateData.roleId = Number(roleId);
+  if (avatar !== undefined) updateData.avatar = avatar; // Allow setting null or string
   if (password && password.trim().length > 0) {
     updateData.password = await bcrypt.hash(password, 10);
   }
