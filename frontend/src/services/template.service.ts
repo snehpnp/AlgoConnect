@@ -3,6 +3,7 @@ import { apiClient } from './apiClient';
 export interface MessageTemplate {
   id: number;
   name: string;
+  subject?: string;
   content: string;
   type: string;
   status: string;

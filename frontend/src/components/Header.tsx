@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
       <div className="flex items-center gap-6">
         {/* Notifications */}
         <div className="relative">
-          <button 
+          <button
             onClick={() => {
               setNotificationOpen(!notificationOpen);
               setDropdownOpen(false); // close user menu if open
@@ -57,10 +57,10 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
             className={`relative rounded-xl p-2.5 transition-all duration-200 ${notificationOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
           >
             <Bell className={`h-5 w-5 ${notificationOpen ? 'fill-blue-100' : ''}`} />
-            <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+            {/* <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span>
-            </span>
+            </span> */}
           </button>
 
           {notificationOpen && (
@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                     Mark all read
                   </button>
                 </div>
-                
+
                 <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
                   {/* Dummy Notification 1 */}
                   <div className="flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer bg-blue-50/30">
@@ -115,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
 
         {/* User Dropdown */}
         <div className="relative">
-          <button 
+          <button
             onClick={() => {
               setDropdownOpen(!dropdownOpen);
               setNotificationOpen(false); // close notifications if open

@@ -644,9 +644,15 @@ export const Leads: React.FC = () => {
 
             {/* Profile Section */}
             <div className="mt-4 flex items-center gap-4 pb-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-xl ring-1 ring-inset ring-blue-100">
-                {selectedLead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-              </div>
+              {selectedLead.logoUrl ? (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl overflow-hidden ring-1 ring-inset ring-slate-200 bg-white">
+                  <img src={selectedLead.logoUrl} alt={selectedLead.name} className="h-full w-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="flex h-14 w-14 items-center justify-center bg-blue-50 text-blue-600 font-bold text-xl">${selectedLead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>` }} />
+                </div>
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-bold text-xl ring-1 ring-inset ring-blue-100">
+                  {selectedLead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-3 min-w-0">
                   <a
@@ -947,6 +953,16 @@ export const Leads: React.FC = () => {
                       </div>
                     </div>
 
+                    {selectedLead.enrichmentNotes && (
+                      <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                        <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1 bg-amber-50 rounded-lg p-3 border border-amber-100">
+                          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1">Enrichment Notes / Alerts</p>
+                          <p className="text-sm text-amber-900 leading-relaxed break-words">{selectedLead.enrichmentNotes}</p>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10">
@@ -988,7 +1004,7 @@ export const Leads: React.FC = () => {
       {/* Add/Edit Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-3xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
               <h2 className="text-lg font-bold text-[#0F172A]">
                 {formData.id ? 'Edit Lead' : 'Add New Lead'}
@@ -1002,119 +1018,380 @@ export const Leads: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveLead} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  placeholder="Enter full name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              {/* Basic Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Basic Details</h3>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone</label>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Name *</label>
                   <input
                     type="text"
-                    value={formData.phone || ''}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    required
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email 2</label>
+                    <input
+                      type="email"
+                      value={formData.email2 || ''}
+                      onChange={(e) => setFormData({ ...formData, email2: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone</label>
+                    <input
+                      type="text"
+                      value={formData.phone || ''}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone 2</label>
+                    <input
+                      type="text"
+                      value={formData.phone2 || ''}
+                      onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Contact Person</label>
+                    <input
+                      type="text"
+                      value={formData.contactPerson || ''}
+                      onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Website</label>
+                    <input
+                      type="text"
+                      value={formData.website || ''}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Segmentation */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Status & Segment</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
+                    <select
+                      value={formData.salesStage || 'New'}
+                      onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    >
+                      <option value="New">New</option>
+                      <option value="Contacted">Contacted</option>
+                      <option value="Qualified">Qualified</option>
+                      <option value="Follow-up">Follow-up</option>
+                      <option value="Negotiation">Negotiation</option>
+                      <option value="Client Won">Client Won</option>
+                      <option value="Client Lost">Client Lost</option>
+                      <option value="Do Not Contact">Do Not Contact</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Verification</label>
+                    <select
+                      value={formData.verificationStatus || 'Unverified'}
+                      onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    >
+                      <option value="Imported">Imported</option>
+                      <option value="Enrichment Pending">Enrichment Pending</option>
+                      <option value="Active">Active</option>
+                      <option value="Likely Inactive">Likely Inactive</option>
+                      <option value="Unverified">Unverified</option>
+                      <option value="Duplicate">Duplicate</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Engagement</label>
+                    <select
+                      value={formData.engagementStatus || 'Not Engaged'}
+                      onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    >
+                      <option value="Not Engaged">Not Engaged</option>
+                      <option value="Sent">Sent</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Opened">Opened</option>
+                      <option value="Clicked">Clicked</option>
+                      <option value="Replied">Replied</option>
+                      <option value="Demo Requested">Demo Requested</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Consent</label>
+                    <select
+                      value={formData.consentStatus || 'Unknown'}
+                      onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    >
+                      <option value="Unknown">Unknown</option>
+                      <option value="Opted In">Opted In</option>
+                      <option value="Opted Out">Opted Out</option>
+                      <option value="Implied B2B">Implied B2B</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
+                    <select
+                      value={formData.type || 'Manual'}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    >
+                      <option value="Manual">Manual</option>
+                      <option value="IA">IA</option>
+                      <option value="Sub Broker">Sub Broker</option>
+                      <option value="RA">RA</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Source</label>
+                    <input
+                      type="text"
+                      value={formData.source || ''}
+                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Company & Registration */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Company & Registration</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Registration No</label>
+                    <input
+                      type="text"
+                      value={formData.registrationNo || ''}
+                      onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Validity</label>
+                    <input
+                      type="text"
+                      value={formData.validity || ''}
+                      onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Trade Name</label>
+                    <input
+                      type="text"
+                      value={formData.tradeName || ''}
+                      onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Exchange Name</label>
+                    <input
+                      type="text"
+                      value={formData.exchangeName || ''}
+                      onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Location</h3>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Address</label>
+                  <input
+                    type="text"
+                    value={formData.address || ''}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
-                  <select
-                    value={formData.salesStage || 'New'}
-                    onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  >
-                    <option value="New">New</option>
-                    <option value="Contacted">Contacted</option>
-                    <option value="Qualified">Qualified</option>
-                    <option value="Follow-up">Follow-up</option>
-                    <option value="Negotiation">Negotiation</option>
-                    <option value="Client Won">Client Won</option>
-                    <option value="Client Lost">Client Lost</option>
-                    <option value="Do Not Contact">Do Not Contact</option>
-                  </select>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">City</label>
+                    <input
+                      type="text"
+                      value={formData.city || ''}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">State</label>
+                    <input
+                      type="text"
+                      value={formData.state || ''}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Pincode</label>
+                    <input
+                      type="text"
+                      value={formData.pincode || ''}
+                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Verification</label>
-                  <select
-                    value={formData.verificationStatus || 'Unverified'}
-                    onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  >
-                    <option value="Imported">Imported</option>
-                    <option value="Enrichment Pending">Enrichment Pending</option>
-                    <option value="Active">Active</option>
-                    <option value="Likely Inactive">Likely Inactive</option>
-                    <option value="Unverified">Unverified</option>
-                    <option value="Duplicate">Duplicate</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Engagement</label>
-                  <select
-                    value={formData.engagementStatus || 'Not Engaged'}
-                    onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  >
-                    <option value="Not Engaged">Not Engaged</option>
-                    <option value="Sent">Sent</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Opened">Opened</option>
-                    <option value="Clicked">Clicked</option>
-                    <option value="Replied">Replied</option>
-                    <option value="Demo Requested">Demo Requested</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Consent</label>
-                  <select
-                    value={formData.consentStatus || 'Unknown'}
-                    onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  >
-                    <option value="Unknown">Unknown</option>
-                    <option value="Opted In">Opted In</option>
-                    <option value="Opted Out">Opted Out</option>
-                    <option value="Implied B2B">Implied B2B</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Fax</label>
+                    <input
+                      type="text"
+                      value={formData.fax || ''}
+                      onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Socials */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Social Links</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">LinkedIn</label>
+                    <input
+                      type="text"
+                      value={formData.linkedin || ''}
+                      onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Twitter</label>
+                    <input
+                      type="text"
+                      value={formData.twitter || ''}
+                      onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Facebook</label>
+                    <input
+                      type="text"
+                      value={formData.facebook || ''}
+                      onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Enrichment Data */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Enrichment Data</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sells Algo Trading?</label>
+                    <input
+                      type="text"
+                      value={formData.sellsAlgoTrading || ''}
+                      onChange={(e) => setFormData({ ...formData, sellsAlgoTrading: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Broker Partner</label>
+                    <input
+                      type="text"
+                      value={formData.brokerPartner || ''}
+                      onChange={(e) => setFormData({ ...formData, brokerPartner: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Company Size</label>
+                    <input
+                      type="text"
+                      value={formData.companySizeEstimate || ''}
+                      onChange={(e) => setFormData({ ...formData, companySizeEstimate: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Logo URL</label>
+                    <input
+                      type="text"
+                      value={formData.logoUrl || ''}
+                      onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
-                  <select
-                    value={formData.type || 'Manual'}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
-                  >
-                    <option value="Manual">Manual</option>
-                    <option value="IA">IA</option>
-                    <option value="Sub Broker">Sub Broker</option>
-                    <option value="RA">RA</option>
-                  </select>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Products Offered</label>
+                  <textarea
+                    value={formData.productsOffered || ''}
+                    onChange={(e) => setFormData({ ...formData, productsOffered: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Services Summary</label>
+                  <textarea
+                    value={formData.servicesSummary || ''}
+                    onChange={(e) => setFormData({ ...formData, servicesSummary: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Enrichment Notes</label>
+                  <textarea
+                    value={formData.enrichmentNotes || ''}
+                    onChange={(e) => setFormData({ ...formData, enrichmentNotes: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                  />
                 </div>
               </div>
 

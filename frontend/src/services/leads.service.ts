@@ -40,6 +40,7 @@ export interface Lead {
   brokerPartner?: string | null;
   companySizeEstimate?: string | null;
   enrichmentNotes?: string | null;
+  logoUrl?: string | null;
 }
 
 export interface GetLeadsResponse {

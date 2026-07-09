@@ -74,16 +74,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
     },
     {
-      name: 'Dictionary',
-      path: '/dictionary',
-      icon: <BookOpen className="h-5 w-5" />,
-      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'],
-    },
-    {
       name: 'Message Templates',
       path: '/templates',
       icon: <MessageSquare className="h-5 w-5" />,
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
+    },
+    {
+      name: 'Dictionary',
+      path: '/dictionary',
+      icon: <BookOpen className="h-5 w-5" />,
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'],
     },
   ];
 

@@ -70,6 +70,7 @@ model Lead {
   brokerPartner       String?
   companySizeEstimate String?
   enrichmentNotes     String?  @db.Text
+  logoUrl             String?
 
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id])
@@ -107,6 +108,7 @@ model Campaign {
 model MessageTemplate {
   id        Int      @id @default(autoincrement())
   name      String
+  subject   String?
   content   String
   type      String   // EMAIL, SMS, WHATSAPP
   status    String   @default("PENDING") // PENDING, APPROVED

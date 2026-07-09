@@ -107,7 +107,11 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type } = req.body;
+  const { 
+    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+    registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
+    website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
+  } = req.body;
   const userId = req.user?.id;
 
   if (!name) {
@@ -122,7 +126,8 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
       salesStage: salesStage || 'New',
       verificationStatus: verificationStatus || 'Unverified',
       engagementStatus: engagementStatus || 'Not Engaged',
-      consentStatus: consentStatus || 'Unknown'
+      consentStatus: consentStatus || 'Unknown',
+      website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
     }
   });
 
@@ -142,7 +147,11 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
 
 export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type } = req.body;
+  const { 
+    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+    registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
+    website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
+  } = req.body;
   const userId = req.user?.id;
 
   if (!id) {
@@ -159,7 +168,8 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const updatedLead = await prisma.lead.update({
     where: { id: leadId },
     data: {
-      name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type
+      name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
+      website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
     }
   });
 

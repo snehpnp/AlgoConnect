@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  getTemplates, 
-  createTemplate, 
-  updateTemplate, 
-  deleteTemplate, 
-  type MessageTemplate 
+import {
+  getTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  type MessageTemplate
 } from '../services/template.service';
-import { Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Eye, PhoneCall, Mail } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -17,9 +17,10 @@ export const MessageTemplates = () => {
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
   const [showHtml, setShowHtml] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '',
+    subject: '',
     type: 'EMAIL',
     status: 'PENDING',
     content: ''
@@ -46,6 +47,7 @@ export const MessageTemplates = () => {
       setEditingTemplate(template);
       setFormData({
         name: template.name,
+        subject: template.subject || '',
         type: template.type,
         status: template.status,
         content: template.content
@@ -54,6 +56,7 @@ export const MessageTemplates = () => {
       setEditingTemplate(null);
       setFormData({
         name: '',
+        subject: '',
         type: 'EMAIL',
         status: 'PENDING',
         content: ''
@@ -106,7 +109,7 @@ export const MessageTemplates = () => {
           <h1 className="text-2xl font-bold text-gray-900">Message Templates</h1>
           <p className="text-sm text-gray-500">Manage your Email, SMS, and WhatsApp templates.</p>
         </div>
-        <button 
+        <button
           onClick={() => openModal()}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
         >
@@ -139,9 +142,9 @@ export const MessageTemplates = () => {
                   <td className="p-4 font-medium text-gray-900">{template.name}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' : 
-                        template.type === 'WHATSAPP' ? 'bg-green-100 text-green-700' : 
-                        'bg-purple-100 text-purple-700'}`}>
+                      ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' :
+                        template.type === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
+                          'bg-purple-100 text-purple-700'}`}>
                       {template.type}
                     </span>
                   </td>
@@ -152,26 +155,26 @@ export const MessageTemplates = () => {
                     </span>
                   </td>
                   <td className="p-4 text-gray-500 text-sm max-w-xs truncate">
-                    {template.type === 'EMAIL' 
+                    {template.type === 'EMAIL'
                       ? template.content.replace(/<[^>]*>?/gm, '') // Strip HTML for plain text preview in table
                       : template.content}
                   </td>
                   <td className="p-4 text-right">
-                    <button 
+                    <button
                       onClick={() => setPreviewTemplate(template)}
                       className="text-gray-400 hover:text-green-600 p-2 transition-colors"
                       title="Preview Content"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
-                    <button 
+                    <button
                       onClick={() => openModal(template)}
                       className="text-gray-400 hover:text-blue-600 p-2 transition-colors"
                       title="Edit"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(template.id)}
                       className="text-gray-400 hover:text-red-600 p-2 transition-colors"
                       title="Delete"
@@ -198,26 +201,40 @@ export const MessageTemplates = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6">
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
-                  <input 
+                  <input
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="e.g., Welcome Email"
                   />
                 </div>
-                
+
+                {formData.type === 'EMAIL' && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Subject</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="e.g., Welcome to AlgoConnect!"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Channel Type</label>
-                  <select 
+                  <select
                     value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="EMAIL">Email</option>
@@ -228,9 +245,9 @@ export const MessageTemplates = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select 
+                  <select
                     value={formData.status}
-                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="PENDING">Pending Approval</option>
@@ -253,31 +270,31 @@ export const MessageTemplates = () => {
                   </div>
                   {formData.type === 'EMAIL' ? (
                     showHtml ? (
-                      <textarea 
+                      <textarea
                         required
                         rows={8}
                         value={formData.content}
-                        onChange={(e) => setFormData({...formData, content: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                         className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono text-sm"
                         placeholder="<h1>Hello {{name}}</h1>"
                       />
                     ) : (
                       <div className="bg-white">
-                        <ReactQuill 
+                        <ReactQuill
                           theme="snow"
                           value={formData.content}
-                          onChange={(content) => setFormData({...formData, content})}
+                          onChange={(content) => setFormData({ ...formData, content })}
                           className="h-48 mb-12"
                           placeholder="Hello {{name}}, welcome to our platform!"
                         />
                       </div>
                     )
                   ) : (
-                    <textarea 
+                    <textarea
                       required
                       rows={6}
                       value={formData.content}
-                      onChange={(e) => setFormData({...formData, content: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                       placeholder="Hello {{name}}, welcome to our platform!"
                     />
@@ -287,14 +304,14 @@ export const MessageTemplates = () => {
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={closeModal}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                 >
@@ -308,32 +325,86 @@ export const MessageTemplates = () => {
 
       {/* Preview Modal */}
       {previewTemplate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900">
-                Preview: {previewTemplate.name}
-              </h2>
-              <button onClick={() => setPreviewTemplate(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-[#F8FAFC] rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col border border-slate-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-4 py-3 bg-white border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-slate-500" />
+                <h2 className="text-[15px] font-semibold text-slate-800">
+                  {previewTemplate.type === 'EMAIL' ? 'Email Preview' : 'SMS Preview'}
+                </h2>
+              </div>
+              <button onClick={() => setPreviewTemplate(null)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+
+            {/* Modal Body */}
+            <div className="p-0 sm:p-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
               {previewTemplate.type === 'EMAIL' ? (
-                <div 
-                  className="prose max-w-none" 
-                  dangerouslySetInnerHTML={{ __html: previewTemplate.content }} 
-                />
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                  {/* Email Header */}
+                  <div className="px-6 py-4 border-b border-slate-100">
+                    <h3 className="text-xl font-medium text-slate-900 mb-4">
+                      {previewTemplate.subject || '(No Subject)'}
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+                          A
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-sm text-slate-900">AlgoConnect Sales</span>
+                            <span className="text-xs text-slate-500">&lt;sales@algoconnect.com&gt;</span>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            to <span className="text-slate-700">Client Name</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-500 flex items-center gap-2">
+                        <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email Body */}
+                  <div className="p-6">
+                    <div
+                      className="prose prose-sm sm:prose-base max-w-none prose-slate"
+                      dangerouslySetInnerHTML={{ __html: previewTemplate.content }}
+                    />
+                  </div>
+                </div>
               ) : (
-                <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                  {previewTemplate.content}
-                </pre>
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 max-w-md mx-auto relative mt-4">
+                  {/* SMS Tail Pointer Mock */}
+                  <div className="absolute -left-2 top-6 w-4 h-4 bg-white border-l border-b border-slate-200 rotate-45 rounded-sm"></div>
+
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <PhoneCall className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">SMS Message</div>
+                      <div className="text-xs text-slate-500">To: +91 9876543210</div>
+                    </div>
+                  </div>
+                  <pre className="whitespace-pre-wrap font-sans text-[15px] text-slate-800 leading-relaxed bg-[#F0F2F5] p-4 rounded-2xl rounded-tl-sm">
+                    {previewTemplate.content}
+                  </pre>
+                  <div className="text-[10px] text-right text-slate-400 mt-2">Just now</div>
+                </div>
               )}
             </div>
-            <div className="p-6 border-t border-gray-100 flex justify-end">
-              <button 
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end">
+              <button
                 onClick={() => setPreviewTemplate(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm shadow-sm"
               >
                 Close Preview
               </button>
