@@ -43,13 +43,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
     },
     {
-      name: 'User Management',
+      name: 'Users',
       path: '/admin/users',
       icon: <Users className="h-5 w-5" />,
       allowedRoles: ['System Admin'],
     },
     {
-      name: 'Lead Management',
+      name: 'Leads',
       path: '/leads',
       icon: <Users className="h-5 w-5" />,
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin', 'Sales Rep'],
@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
     },
     {
-      name: 'Message Templates',
+      name: 'Msg Templates',
       path: '/templates',
       icon: <MessageSquare className="h-5 w-5" />,
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],

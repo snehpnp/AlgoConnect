@@ -58,8 +58,8 @@ model Lead {
   exchangeName    String?
   tradeName       String?
   
-  // Enrichment fields
   isEnriched          Boolean  @default(false)
+  leadScore           Int      @default(0)
   website             String?
   linkedin            String?
   twitter             String?

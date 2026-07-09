@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,8 +21,6 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Globe,
   Link as LinkIcon,
@@ -33,31 +31,142 @@ import { leadsService } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
 
 
-// Compute a pseudo lead score from salesStage
-const getLeadScore = (stage: string): number => {
-  switch (stage) {
-    case 'Client Won': return 90 + Math.floor(Math.random() * 10);
-    case 'Negotiation': return 70 + Math.floor(Math.random() * 20);
-    case 'Qualified': return 60 + Math.floor(Math.random() * 10);
-    case 'Contacted': return 40 + Math.floor(Math.random() * 15);
-    case 'New': default: return 10 + Math.floor(Math.random() * 30);
-  }
+// Helper to check if a field contains actual data and is not just a placeholder or "null" string
+const hasValue = (val: any): boolean => {
+  if (val === undefined || val === null) return false;
+  const str = String(val).trim();
+  return str !== '' && str.toLowerCase() !== 'null';
 };
 
-// Build a compact page list with ellipses, e.g. 1 … 4 5 [6] 7 8 … 20
-const buildPageList = (current: number, total: number): (number | 'ellipsis')[] => {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = new Set<number>([1, 2, total - 1, total, current - 1, current, current + 1]);
-  const sorted = Array.from(pages).filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
-  const result: (number | 'ellipsis')[] = [];
-  let prev = 0;
-  for (const p of sorted) {
-    if (prev && p - prev > 1) result.push('ellipsis');
-    result.push(p);
-    prev = p;
+// Compute a deterministic lead score based on status components and data completeness
+const getLeadScore = (lead: Lead): number => {
+  let score = 0;
+
+  // --- PART 1: STATUS COMPONENTS (Max 60 points) ---
+  
+  // 1. Sales Stage component (Max 20 points)
+  switch (lead.salesStage) {
+    case 'Client Won':
+      score += 20;
+      break;
+    case 'Negotiation':
+      score += 17;
+      break;
+    case 'Follow-up':
+      score += 15;
+      break;
+    case 'Qualified':
+      score += 12;
+      break;
+    case 'Contacted':
+      score += 8;
+      break;
+    case 'New':
+      score += 5;
+      break;
+    case 'Client Lost':
+    case 'Do Not Contact':
+      score += 0;
+      break;
+    default:
+      score += 3;
   }
-  return result;
+
+  // 2. Verification Status component (Max 15 points)
+  switch (lead.verificationStatus) {
+    case 'Active':
+      score += 15;
+      break;
+    case 'Imported':
+    case 'Enrichment Pending':
+    case 'Unverified':
+      score += 8;
+      break;
+    case 'Likely Inactive':
+      score += 2;
+      break;
+    case 'Duplicate':
+      score -= 15;
+      break;
+  }
+
+  // 3. Engagement Status component (Max 15 points)
+  switch (lead.engagementStatus) {
+    case 'Demo Requested':
+      score += 15;
+      break;
+    case 'Replied':
+      score += 13;
+      break;
+    case 'Clicked':
+      score += 11;
+      break;
+    case 'Opened':
+      score += 8;
+      break;
+    case 'Delivered':
+      score += 5;
+      break;
+    case 'Sent':
+      score += 3;
+      break;
+    case 'Not Engaged':
+    default:
+      score += 0;
+  }
+
+  // 4. Consent Status component (Max 10 points)
+  switch (lead.consentStatus) {
+    case 'Opted In':
+      score += 10;
+      break;
+    case 'Implied B2B':
+      score += 7;
+      break;
+    case 'Unknown':
+      score += 3;
+      break;
+    case 'Opted Out':
+      score -= 15;
+      break;
+  }
+
+  // --- PART 2: DATA COMPLETENESS & RICHNESS (Max 46 points) ---
+  
+  // 5. Contact Completeness (Max 8 points)
+  if (hasValue(lead.email)) score += 3;
+  if (hasValue(lead.email2)) score += 1;
+  if (hasValue(lead.phone)) score += 3;
+  if (hasValue(lead.phone2)) score += 1;
+
+  // 6. Registration & Business Info (Max 10 points)
+  if (hasValue(lead.registrationNo)) score += 5;
+  if (hasValue(lead.type) && lead.type.toLowerCase() !== 'manual') score += 3;
+  if (hasValue(lead.contactPerson)) score += 2;
+
+  // 7. Location Info (Max 6 points)
+  if (hasValue(lead.address)) score += 2;
+  if (hasValue(lead.city)) score += 2;
+  if (hasValue(lead.state)) score += 2;
+
+  // 8. Online Presence (Max 8 points)
+  if (hasValue(lead.website)) score += 4;
+  if (hasValue(lead.logoUrl)) score += 2;
+  if (hasValue(lead.linkedin) || hasValue(lead.facebook) || hasValue(lead.twitter)) score += 2;
+
+  // 9. Enrichment Content (Max 14 points)
+  if (lead.isEnriched) score += 3;
+  if (hasValue(lead.servicesSummary)) score += 3;
+  if (hasValue(lead.productsOffered)) score += 2;
+  if (hasValue(lead.enrichmentNotes)) score += 2;
+  if (lead.sellsAlgoTrading === 'Yes') score += 2;
+  if (hasValue(lead.brokerPartner)) score += 2;
+
+  // Clamp the score between 0 and 100
+  return Math.max(0, Math.min(100, score));
 };
+
+
 
 export const Leads: React.FC = () => {
   const navigate = useNavigate();
@@ -75,6 +184,37 @@ export const Leads: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [scoreSort, setScoreSort] = useState<'none' | 'asc' | 'desc'>('none');
+
+  const sortedLeads = useMemo(() => {
+    return leads;
+  }, [leads]);
+
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      const target = entries[0];
+      if (target.isIntersecting && page < totalPages && !isLoading) {
+        setPage(prev => prev + 1);
+      }
+    }, {
+      root: null,
+      rootMargin: '150px',
+      threshold: 0.1
+    });
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+
+    return () => {
+      if (loaderRef.current) {
+        observer.unobserve(loaderRef.current);
+      }
+    };
+  }, [page, totalPages, isLoading]);
 
   // Row action menu (3-dot dropdown)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
@@ -169,9 +309,11 @@ export const Leads: React.FC = () => {
         limit: PAGE_SIZE,
         search: searchQuery || undefined,
         salesStage: salesStageFilter === 'All' ? undefined : salesStageFilter,
-        type: typeFilter === 'All' ? undefined : typeFilter
+        type: typeFilter === 'All' ? undefined : typeFilter,
+        sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
+        order: scoreSort !== 'none' ? scoreSort : undefined
       });
-      setLeads(response.data);
+      setLeads(prev => page === 1 ? response.data : [...prev, ...response.data]);
       if (response.pagination) {
         setTotalPages(response.pagination.totalPages);
         setTotalRecords(response.pagination.total);
@@ -186,20 +328,26 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, salesStageFilter, typeFilter]);
+  }, [page, searchQuery, salesStageFilter, typeFilter, scoreSort]);
 
-  // Handle Debounce for Search and Filters
+  // Reset to page 1 on search, filter or sort change
   useEffect(() => {
+    setPage(1);
+  }, [searchQuery, salesStageFilter, typeFilter, scoreSort]);
+
+  // Handle immediate page loading for scroll and debounced loading for search/filters
+  useEffect(() => {
+    if (page > 1) {
+      fetchLeads();
+      return;
+    }
+
     const delay = setTimeout(() => {
       fetchLeads();
     }, 400);
-    return () => clearTimeout(delay);
-  }, [fetchLeads]);
 
-  // Reset to page 1 on search or filter change
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, salesStageFilter, typeFilter]);
+    return () => clearTimeout(delay);
+  }, [page, fetchLeads]);
 
 
   const handleRowClick = (lead: Lead) => {
@@ -238,7 +386,6 @@ export const Leads: React.FC = () => {
   };
 
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, totalRecords);
 
   return (
     <div className="relative flex gap-6">
@@ -326,7 +473,7 @@ export const Leads: React.FC = () => {
 
         {/* Leads Table */}
         <div className="card !p-0 overflow-hidden">
-          {isLoading ? (
+          {isLoading && leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="text-sm font-medium">Loading leads from server...</p>
@@ -354,28 +501,39 @@ export const Leads: React.FC = () => {
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                      <th className="py-4 px-6 w-[8%] min-w-[80px]">Id</th>
-                      <th className="py-4 px-6 w-[18%] min-w-[200px]">Name</th>
-                      <th className="py-4 px-6 w-[20%] min-w-[220px]">Email</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[120px]">Type</th>
-                      <th className="py-4 px-6 w-[12%] min-w-[130px]">Reg No.</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Sales Stage</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Verification</th>
-                      <th className="py-4 px-6 w-[12%] min-w-[140px]">Lead Score</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[100px]">Created</th>
-                      <th className="py-4 px-6 w-[5%] min-w-[80px] text-right">Actions</th>
+                      <th className="py-4 px-6 w-[4%] min-w-[50px]">Id</th>
+                      <th className="py-4 px-6 w-[26%] min-w-[280px]">Name</th>
+                      <th className="py-4 px-6 w-[22%] min-w-[220px]">Email / Phone</th>
+                      <th className="py-4 px-6 w-[6%] min-w-[70px]">Type</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
+                      <th className="py-4 px-6 w-[8%] min-w-[90px] text-center">Sales Stage</th>
+                      <th className="py-4 px-6 w-[8%] min-w-[95px] text-center">Verification</th>
+                      <th 
+                        onClick={() => {
+                          setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
+                        }}
+                        className="py-4 px-6 w-[11%] min-w-[110px] cursor-pointer select-none hover:text-[#0F172A] transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Lead Score
+                          <span className="text-slate-400">
+                            {scoreSort === 'none' ? '⇅' : scoreSort === 'asc' ? '▲' : '▼'}
+                          </span>
+                        </div>
+                      </th>
+                      <th className="py-4 px-6 w-[5%] min-w-[60px] text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]">
-                    {leads.length === 0 ? (
+                    {sortedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-16 text-center text-sm text-slate-400">
+                        <td colSpan={9} className="py-16 text-center text-sm text-slate-400">
                           No leads found matching your filters.
                         </td>
                       </tr>
                     ) : (
-                      leads.map((lead, index) => {
-                        const score = getLeadScore(lead.salesStage);
+                      sortedLeads.map((lead, index) => {
+                        const score = getLeadScore(lead);
                         return (
                           <tr
                             key={lead.id}
@@ -392,6 +550,26 @@ export const Leads: React.FC = () => {
                             {/* Lead Details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
+                                <div className="relative h-9 w-9 flex-shrink-0 select-none">
+                                  {lead.logoUrl ? (
+                                    <img 
+                                      src={lead.logoUrl} 
+                                      alt={lead.name}
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        const sibling = (e.target as HTMLImageElement).nextElementSibling as HTMLDivElement;
+                                        if (sibling) sibling.style.display = 'flex';
+                                      }}
+                                      className="h-9 w-9 rounded-full object-cover border border-slate-200 bg-white"
+                                    />
+                                  ) : null}
+                                  <div 
+                                    style={{ display: lead.logoUrl ? 'none' : 'flex' }}
+                                    className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-600/10 text-primary border border-primary/20 items-center justify-center font-bold text-sm"
+                                  >
+                                    {lead.name.charAt(0).toUpperCase()}
+                                  </div>
+                                </div>
 
                                 <div>
                                   <a
@@ -402,7 +580,8 @@ export const Leads: React.FC = () => {
                                     title="Click to search on Google"
                                   >
                                     {lead.name}
-                                  </a></div>
+                                  </a>
+                                </div>
                               </div>
                             </td>
 
@@ -470,10 +649,6 @@ export const Leads: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* Created Date */}
-                            <td className="py-4 px-6 text-xs text-[#64748B] font-medium">
-                              {formatDate(lead.createdAt)}
-                            </td>
 
                             {/* Row Actions */}
                             <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
@@ -572,53 +747,20 @@ export const Leads: React.FC = () => {
                 </table>
               </div>
 
-              {/* Pagination footer */}
-              <div className="flex flex-col gap-3 border-t border-[#E2E8F0] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-xs font-semibold text-[#64748B]">
-                  Showing <span className="text-[#0F172A]">{rangeStart}–{rangeEnd}</span> of{' '}
-                  <span className="text-[#0F172A]">{totalRecords}</span> leads
-                </span>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                    Prev
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {buildPageList(page, totalPages).map((p, idx) =>
-                      p === 'ellipsis' ? (
-                        <span key={`e-${idx}`} className="px-1.5 text-xs font-semibold text-slate-400">
-                          …
-                        </span>
-                      ) : (
-                        <button
-                          key={p}
-                          onClick={() => setPage(p)}
-                          className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${p === page
-                            ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                            : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                        >
-                          {p}
-                        </button>
-                      )
-                    )}
+              {/* Infinite Scroll Indicator */}
+              <div ref={loaderRef} className="flex justify-center items-center py-6 border-t border-[#E2E8F0] select-none">
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    Loading more leads...
                   </div>
-
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                ) : page < totalPages ? (
+                  <span className="text-xs font-semibold text-slate-400">Scroll down to load more</span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400">
+                    Showing all {totalRecords} leads
+                  </span>
+                )}
               </div>
             </>
           )}
@@ -823,11 +965,11 @@ export const Leads: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Lead Score</p>
                     <div className="flex items-center gap-3 mt-1.5">
-                      <span className="text-xs font-bold text-slate-700 w-5">{getLeadScore(selectedLead.salesStage)}</span>
+                      <span className="text-xs font-bold text-slate-700 w-5">{getLeadScore(selectedLead)}</span>
                       <div className="h-1.5 w-full rounded-full bg-slate-200">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
-                          style={{ width: `${getLeadScore(selectedLead.salesStage)}%` }}
+                          style={{ width: `${getLeadScore(selectedLead)}%` }}
                         />
                       </div>
                     </div>

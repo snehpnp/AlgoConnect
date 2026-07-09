@@ -84,10 +84,17 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
     ];
   }
 
+  const sortBy = (req.query.sortBy as string) || 'createdAt';
+  const order = (req.query.order as string) || 'desc';
+
+  const allowedSortFields = ['createdAt', 'name', 'leadScore'];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+  const sortOrder = order === 'asc' ? 'asc' : 'desc';
+
   const [leads, total] = await Promise.all([
     prisma.lead.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { [sortField]: sortOrder },
       skip,
       take: limit,
     }),
