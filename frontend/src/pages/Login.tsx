@@ -47,7 +47,7 @@ export const Login: React.FC = () => {
   // Once user is set after login, navigate to role-based destination
   React.useEffect(() => {
     if (user) {
-      if (user.role === 'agent') {
+      if (user.role === 'Sales Rep') {
         navigate('/leads', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });

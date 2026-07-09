@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Megaphone, Play, Pause, Plus, Trash2, Edit2, Zap, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { automationService, type CampaignAutomation } from '../services/automation.service';
 import toast from 'react-hot-toast';

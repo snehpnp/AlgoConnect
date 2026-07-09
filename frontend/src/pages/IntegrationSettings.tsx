@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { settingsService } from '../services/settings.service';

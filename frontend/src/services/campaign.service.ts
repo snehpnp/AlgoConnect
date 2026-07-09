@@ -10,6 +10,8 @@ export interface Campaign {
   status: string;
   createdAt: string;
   updatedAt: string;
+  segmentId?: number | null;
+  segment?: { id: number; name: string } | null;
   segmentIds?: number[];
   segments?: { id: number; name: string }[];
   emailTemplateId?: number | null;

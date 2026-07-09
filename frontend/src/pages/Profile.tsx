@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Mail, Shield, Clock, ShieldCheck, UserCircle, Briefcase, Lock, X, Loader2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { base_url } from '../services/apiClient';
 
 export const Profile = () => {
   const { user, updateUserContext } = useAuth();
@@ -28,7 +29,7 @@ export const Profile = () => {
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem('algoconnect_token');
-      const response = await fetch('http://localhost:7700/api/auth/change-password', {
+      const response = await fetch(`${base_url}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +101,7 @@ export const Profile = () => {
 
           // Upload to backend
           const token = localStorage.getItem('algoconnect_token');
-          const response = await fetch(`http://localhost:7700/api/users/${user.id}`, {
+          const response = await fetch(`${base_url}/users/${user.id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',

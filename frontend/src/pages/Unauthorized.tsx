@@ -26,7 +26,7 @@ export const Unauthorized: React.FC = () => {
 
       <div className="mt-8 flex items-center gap-4">
         <button
-          onClick={() => navigate(user?.role === 'agent' ? '/leads' : '/dashboard')}
+          onClick={() => navigate(user?.role === 'Sales Rep' ? '/leads' : '/dashboard')}
           className="inline-flex items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
         >
           <ArrowLeft className="h-4.5 w-4.5" />

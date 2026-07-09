@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Users, Search, Edit, Trash2, X, Shield, Mail, Calendar, Loader2, AlertCircle, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { base_url } from '../services/apiClient';
 
 interface Role {
   id: number;
@@ -44,7 +45,7 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:7700/api/users', axiosConfig);
+      const response = await axios.get(`${base_url}/users`, axiosConfig);
       setUsers(response.data.data);
     } catch (error) {
       toast.error('Failed to fetch users');
@@ -53,7 +54,7 @@ const AdminUsers = () => {
 
   const fetchRoles = async () => {
     try {
-      const response = await axios.get('http://localhost:7700/api/users/roles', axiosConfig);
+      const response = await axios.get(`${base_url}/users/roles`, axiosConfig);
       setRoles(response.data.data);
     } catch (error) {
       toast.error('Failed to fetch roles');
@@ -89,10 +90,10 @@ const AdminUsers = () => {
 
     try {
       if (modalMode === 'ADD') {
-        await axios.post('http://localhost:7700/api/users', formData, axiosConfig);
+        await axios.post(`${base_url}/users`, formData, axiosConfig);
         toast.success('User added successfully');
       } else {
-        await axios.put(`http://localhost:7700/api/users/${formData.id}`, formData, axiosConfig);
+        await axios.put(`${base_url}/users/${formData.id}`, formData, axiosConfig);
         toast.success('User updated successfully');
       }
       await fetchUsers();
@@ -109,7 +110,7 @@ const AdminUsers = () => {
   const confirmDelete = async () => {
     if (!userToDelete) return;
     try {
-      await axios.delete(`http://localhost:7700/api/users/${userToDelete.id}`, axiosConfig);
+      await axios.delete(`${base_url}/users/${userToDelete.id}`, axiosConfig);
       toast.success('User deleted successfully');
       await fetchUsers();
       setShowDeleteModal(false);

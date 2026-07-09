@@ -6,7 +6,6 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Leads } from './pages/Leads';
 import { Campaigns } from './pages/Campaigns';
-import { Settings } from './pages/Settings';
 import { Unauthorized } from './pages/Unauthorized';
 import AdminUsers from './pages/AdminUsers';
 import StatusDictionary from './pages/StatusDictionary';

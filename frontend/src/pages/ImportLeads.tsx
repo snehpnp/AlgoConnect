@@ -14,7 +14,6 @@ export const ImportLeads = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   
-  const [headers, setHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<any>(null);
   const [previewRows, setPreviewRows] = useState<any[]>([]);
   
@@ -69,7 +68,7 @@ export const ImportLeads = () => {
         throw new Error("Could not find a valid header row in the file.");
       }
 
-      setHeaders(extractedHeaders);
+
 
       const findColumn = (possibleNames: string[]) => {
         const idx = extractedHeaders.findIndex(h => h && possibleNames.some(p => String(h).toLowerCase().includes(p.toLowerCase())));

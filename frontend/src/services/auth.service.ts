@@ -12,7 +12,8 @@ export interface LoginResponse {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'manager' | 'agent';
+    role: string;
+    avatar?: string | null;
   };
 }
 

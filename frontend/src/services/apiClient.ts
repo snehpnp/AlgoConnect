@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-// Base URL from Vite env or fallback to localhost
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:7700/api';
+export const base_url = window.location.hostname === "localhost" ? `http://localhost:7700/api` : `${window.location.origin}/backend/api`;
 
 export const apiClient = axios.create({
-  baseURL: BASE_URL,
+  baseURL: base_url,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

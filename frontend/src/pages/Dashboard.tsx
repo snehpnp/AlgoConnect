@@ -3,7 +3,6 @@ import {
   Users, 
   TrendingUp, 
   Target, 
-  Activity,
   Sparkles,
   UserCheck,
   AlertCircle,

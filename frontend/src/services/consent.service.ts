@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { base_url } from './apiClient';
 
-const API_URL = 'http://localhost:7700/api/consents';
+const API_URL = `${base_url}/consents`;
 
 export interface Consent {
   id: number;

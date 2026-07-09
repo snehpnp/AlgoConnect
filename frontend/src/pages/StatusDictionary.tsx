@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BookOpen, Search, Target, Users, Shield, Briefcase, Zap, CheckCircle2, ShieldCheck, Database, Megaphone, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { BookOpen, Search, Target, Users, Shield, Briefcase, Zap, ShieldCheck, Database, Megaphone, Settings } from 'lucide-react';
 
 interface StatusDefinition {
   name: string;

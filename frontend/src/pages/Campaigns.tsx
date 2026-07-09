@@ -314,7 +314,7 @@ export const Campaigns: React.FC = () => {
                           if (e.target.checked) {
                             setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
                           } else {
-                            setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter(id => id !== seg.id) });
+                            setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter((id: number) => id !== seg.id) });
                           }
                         }}
                       />
