@@ -14,11 +14,12 @@ export interface LeadWithConsents {
   name: string;
   email: string | null;
   phone: string | null;
+  type: string;
   consents: Consent[];
 }
 
 export const consentService = {
-  getConsents: async (params?: { search?: string; page?: number; limit?: number; dncFilter?: string }) => {
+  getConsents: async (params?: { search?: string; page?: number; limit?: number; dncFilter?: string; typeFilter?: string; consentFilter?: string }) => {
     const token = localStorage.getItem('algoconnect_token');
     const response = await axios.get(API_URL, {
       params,

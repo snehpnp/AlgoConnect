@@ -26,6 +26,8 @@ export const ConsentManagement = () => {
   // New States
   const [page, setPage] = useState(1);
   const [dncFilter, setDncFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [consentFilter, setConsentFilter] = useState('All');
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const PAGE_SIZE = 50;
@@ -37,7 +39,9 @@ export const ConsentManagement = () => {
         search: searchQuery || undefined,
         page,
         limit: PAGE_SIZE,
-        dncFilter: dncFilter === 'All' ? undefined : dncFilter
+        dncFilter: dncFilter === 'All' ? undefined : dncFilter,
+        typeFilter: typeFilter === 'All' ? undefined : typeFilter,
+        consentFilter: consentFilter === 'All' ? undefined : consentFilter
       });
       setLeads(response.data);
       if (response.pagination) {
@@ -53,7 +57,7 @@ export const ConsentManagement = () => {
 
   useEffect(() => {
     fetchLeads();
-  }, [page, dncFilter]);
+  }, [page, dncFilter, typeFilter, consentFilter]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -74,19 +78,27 @@ export const ConsentManagement = () => {
     const newStatus = currentStatus === 'OPT_IN' ? 'OPT_OUT' : 'OPT_IN';
     try {
       // Optimistic update
-      setLeads(prevLeads => prevLeads.map(lead => {
-        if (lead.id === leadId) {
-          const consents = [...lead.consents];
-          const consentIndex = consents.findIndex(c => c.channel === channel);
-          if (consentIndex >= 0) {
-            consents[consentIndex] = { ...consents[consentIndex], status: newStatus };
-          } else {
-            consents.push({ id: 0, leadId, channel, status: newStatus });
-          }
-          return { ...lead, consents };
+      setLeads(prevLeads => {
+        const leadIndex = prevLeads.findIndex(l => l.id === leadId);
+        if (leadIndex === -1) return prevLeads;
+        
+        const lead = prevLeads[leadIndex];
+        const consents = [...lead.consents];
+        const consentIndex = consents.findIndex(c => c.channel === channel);
+        
+        if (consentIndex >= 0) {
+          consents[consentIndex] = { ...consents[consentIndex], status: newStatus };
+        } else {
+          consents.push({ id: 0, leadId, channel, status: newStatus });
         }
-        return lead;
-      }));
+        
+        const updatedLead = { ...lead, consents };
+        const newLeads = [...prevLeads];
+        newLeads.splice(leadIndex, 1);
+        newLeads.unshift(updatedLead);
+        
+        return newLeads;
+      });
 
       await consentService.updateConsent(leadId, channel, newStatus);
       toast.success(`${channel} consent updated`);
@@ -143,6 +155,27 @@ export const ConsentManagement = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           <select
+            value={typeFilter}
+            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+            className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
+          >
+            <option value="All">All Types</option>
+            <option value="Manual">Manual</option>
+            <option value="API">API</option>
+            <option value="Imported">Imported</option>
+          </select>
+          
+          <select
+            value={consentFilter}
+            onChange={(e) => { setConsentFilter(e.target.value); setPage(1); }}
+            className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
+          >
+            <option value="All">All Consents</option>
+            <option value="Selected">Selected</option>
+            <option value="Not Selected">Not Selected</option>
+          </select>
+
+          <select
             value={dncFilter}
             onChange={(e) => { setDncFilter(e.target.value); setPage(1); }}
             className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
@@ -179,6 +212,7 @@ export const ConsentManagement = () => {
                   <tr>
                     <th className="px-6 py-4 w-16">Id</th>
                     <th className="px-6 py-4">Lead Name</th>
+                    <th className="px-6 py-4">Type</th>
                     <th className="px-6 py-4">Contact Info</th>
                     <th className="px-6 py-4 text-center">Do Not Contact</th>
                     <th className="px-6 py-4 text-center">Email Consent</th>
@@ -191,6 +225,11 @@ export const ConsentManagement = () => {
                     <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 font-bold text-slate-500 text-xs">#{rangeStart + index}</td>
                       <td className="px-6 py-4 font-semibold text-[#0F172A]">{lead.name}</td>
+                      <td className="px-6 py-4 font-medium text-slate-700">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800">
+                          {lead.type || 'Manual'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-slate-600">
                         <div>{lead.email || 'N/A'}</div>
                         <div className="text-xs mt-0.5">{lead.phone || 'N/A'}</div>

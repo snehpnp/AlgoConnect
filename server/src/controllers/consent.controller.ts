@@ -7,21 +7,37 @@ export const getConsents = asyncHandler(async (req: Request, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const search = (req.query.search as string) || '';
   const dncFilter = (req.query.dncFilter as string) || 'All';
+  const typeFilter = (req.query.typeFilter as string) || 'All';
+  const consentFilter = (req.query.consentFilter as string) || 'All';
 
   const skip = (page - 1) * limit;
 
   const where: any = {};
   
+  if (typeFilter !== 'All') {
+    where.type = typeFilter;
+  }
+  
+  if (consentFilter === 'Selected') {
+    where.consents = { some: {} };
+  } else if (consentFilter === 'Not Selected') {
+    where.consents = { none: {} };
+  }
+  
   if (dncFilter === 'DNC Active') {
     where.consents = {
+      ...(where.consents || {}),
       some: {
+        ...(where.consents?.some || {}),
         channel: 'DNC',
         status: 'OPT_IN'
       }
     };
   } else if (dncFilter === 'Allowed') {
     where.consents = {
+      ...(where.consents || {}),
       none: {
+        ...(where.consents?.none || {}),
         channel: 'DNC',
         status: 'OPT_IN'
       }
@@ -47,7 +63,7 @@ export const getConsents = asyncHandler(async (req: Request, res: Response) => {
         consents: true
       },
       orderBy: {
-        createdAt: 'desc'
+        updatedAt: 'desc'
       },
       skip,
       take: limit
@@ -98,6 +114,12 @@ export const updateConsent = asyncHandler(async (req: Request, res: Response) =>
       }
     });
   }
+  
+  // Touch the lead to update its updatedAt timestamp
+  await prisma.lead.update({
+    where: { id: leadIdNum },
+    data: { updatedAt: new Date() }
+  });
 
   res.status(200).json({ message: 'Consent updated successfully' });
 });
