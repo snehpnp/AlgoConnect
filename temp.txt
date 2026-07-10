@@ -1,0 +1,373 @@
+PRODUCT SPECIFICATION
+AlgoConnect
+B2B Sales & Lead-Activation Platform for Algo Trading Products
+Phase 1: India (SEBI/NSE-authorised intermediaries)  ·  Phase 2: Crypto
+Version 1.0  ·  Draft for Engineering Review
+July 2026
+1. Overview
+1.1 Purpose
+AlgoConnect is an internal B2B sales-enablement platform for identifying, verifying, and marketing our algorithmic trading products to SEBI/NSE-authorised market intermediaries — Research Analysts (RAs), Investment Advisers (IAs), and sub-brokers — who are legally positioned to distribute algo strategies to end clients. The platform converts publicly available regulatory registers into a qualified, enriched, and actively-managed outbound pipeline across Email, WhatsApp, and SMS.
+1.2 Problem Statement
+We hold large static lead lists (RA / IA / sub-broker registers published by SEBI and NSE) but no systematic way to tell which entities are still active, what they currently sell, or how to reach them.
+Outreach today is manual and channel-fragmented; there is no unified view of a lead across Email, WhatsApp, and SMS, and no consent/compliance trail.
+We need a repeatable pipeline: ingest → verify/enrich → segment → engage → track → hand off to sales, that can scale from hundreds to tens of thousands of leads.
+1.3 Scope
+Phase 1 (this spec): India equity/derivatives algo product distribution, targeting NSE-listed algo offerings sold through SEBI-registered RAs, IAs, and NSE-authorised persons/sub-brokers.
+Phase 2 (future, not built now but data model must accommodate): Crypto market algo products, currently unregulated in India — the data model and campaign engine are designed market-agnostic from day one so Crypto can be enabled as a second "market" without re-architecture.
+Why this targeting makes sense (regulatory context for engineering)
+SEBI's 2026 algo trading framework requires algo providers to be empanelled with exchanges and vetted by brokers before distribution; providers of non-transparent ("Black Box") strategies must additionally be SEBI-registered Research Analysts with a maintained research report per strategy. RAs, IAs, and sub-brokers are therefore the class of professionals legally able to evaluate and distribute algo products to their own client base — which is why they are the seed audience. This has two concrete engineering implications: (1) the platform must capture and store each lead's registration type and registration number, since it determines what we're legally allowed to pitch them, and (2) outreach must be treated as B2B commercial communication to registered professionals, not retail solicitation — but it still must respect India's telecom and data-protection rules described in Section 6.
+2. Actors & Personas
+Field
+Type
+Description
+Growth/Sales Operator
+Internal
+Uploads lead sources, reviews enrichment results, builds segments, launches and monitors campaigns.
+Compliance Admin
+Internal
+Approves message templates, manages consent/opt-out records, controls channel throttling and DLT/WhatsApp template registration.
+Sales Rep
+Internal
+Receives hot leads handed off from campaigns, works them in CRM.
+Lead (RA / IA / Sub-broker)
+External
+SEBI/NSE-registered intermediary; recipient of outreach; may reply, opt in/out, or request a demo.
+System Admin
+Internal
+Manages users, roles, API keys, and integrations.
+3. Core Workflow
+The product is built around a five-stage pipeline that mirrors the process described by the business:
+Ingest — import raw lead lists sourced from SEBI/NSE public registers (RA, IA, sub-broker/authorised-person lists).
+Verify & Enrich — determine whether each entity is currently active, and collect supplementary operating detail (website, socials, apparent client focus, AUM/scale signals, existing product stack) via web lookup.
+Segment & Score — group and rank leads by activity confidence, fit, and reachability.
+Engage — run multi-channel campaigns (Email / WhatsApp / SMS) with consent and throttling controls.
+Track & Hand off — capture engagement events (opens, clicks, replies, opt-outs) and push qualified leads to the sales/CRM queue.
+4. Feature List by Module
+4.1 Lead Import & Management
+Bulk import via CSV/XLSX upload, with column-mapping UI (name, entity type, registration no., address, phone, email, region).
+De-duplication on registration number + normalised phone/email.
+Source tracking: every lead stores its origin register (e.g. "SEBI RA List — June 2026") and import batch ID.
+Manual lead entry and edit for one-off additions.
+Market tag on every lead: India-Equity (Phase 1) or Crypto (Phase 2, disabled by default).
+4.2 Enrichment Engine
+Automated, queued enrichment job per lead:
+Activity check: search the web for the entity/registration number to flag Active, Likely Inactive, or Unverified, with the evidence links stored against the lead.
+Firm profile capture: website URL, social handles, apparent focus area (equity/derivatives/algo/advisory), estimated scale signals (employee count, client testimonials, years active).
+Existing tech-stack signal: whether the lead already advertises or resells a competing algo/trading product.
+Confidence score (0–100) per enrichment field, and a re-verification cadence (e.g. re-check every 90 days) so stale "active" flags don't linger.
+Enrichment is provider-agnostic behind an internal interface — implementation may call a search API or an LLM-assisted lookup service; only public information is collected, never data behind logins or paywalls.
+4.3 Segmentation & Scoring
+Rule-based and saved-filter segments (e.g. "Active RAs, Maharashtra, no existing algo product").
+Lead score combining: activity confidence, registration type weight, enrichment completeness, and prior engagement (if any).
+Segment size preview before a campaign is launched.
+4.4 Campaign & Messaging
+Channel-specific campaign builder for Email, WhatsApp, and SMS, each with its own template library.
+Approved-template enforcement: WhatsApp and SMS sends are blocked unless the template is pre-approved (see Section 6.2).
+Sequencing: multi-step drip sequences with wait steps and branch-on-engagement logic (e.g. "if opened but no click, send WhatsApp follow-up on day 3").
+Send-time throttling per channel to respect provider rate limits and avoid spam flags.
+Per-lead channel preference and unified do-not-contact flag that suppresses all channels at once.
+4.5 Compliance & Consent Management
+Consent ledger per lead per channel (opted-in, opted-out, unknown/implied-B2B), with timestamp and source of the consent event.
+One-click / auto-processed opt-out handling (STOP replies, WhatsApp block, unsubscribe link) that propagates instantly to all future campaigns.
+National DND / NCPR suppression check before any SMS/voice send.
+Immutable audit log of every message sent, to whom, under which template, and consent basis — exportable for a compliance review.
+4.6 Analytics & Reporting
+Funnel view: imported → enriched → active-confirmed → contacted → engaged → handed-off-to-sales.
+Per-campaign delivery, open, click, reply, and opt-out rates by channel.
+Enrichment coverage and data-freshness dashboard (% of leads verified in last 90 days).
+4.7 Admin & Access Control
+Role-based access (Growth Operator, Compliance Admin, Sales Rep, System Admin).
+API key / credential vault for Email, WhatsApp, and SMS provider integrations.
+Full activity audit trail for admin actions.
+4.8 Future: Crypto Market Module (Phase 2, design-only for now)
+No India crypto algo-distribution rule currently exists, so this module ships disabled. The data model (Section 5) already carries a market field on Lead and Campaign so this can be turned on later without a schema migration. When enabled it will need its own lead source (crypto exchanges/VASPs, influencer/community lists) and its own compliance ruleset, to be scoped separately once the regulatory picture is clearer.
+5. Data Model
+Core entities and key fields. Primary/foreign keys and standard audit columns (created_at, updated_at, created_by) are implied on every entity and omitted below for brevity.
+Lead
+A single RA / IA / sub-broker / authorised person record.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+entity_type
+Enum
+RESEARCH_ANALYST | INVESTMENT_ADVISER | SUB_BROKER | AUTHORISED_PERSON | OTHER.
+registration_no
+String
+SEBI/NSE registration number; unique per entity_type.
+market
+Enum
+INDIA_EQUITY | CRYPTO (Crypto inactive in Phase 1).
+legal_name
+String
+Registered name of the individual/firm.
+contact_name
+String
+Primary contact person, if different from legal name.
+email
+String
+Primary email address.
+phone
+String
+Primary phone (E.164), used for SMS/WhatsApp.
+region
+String
+State/city, from source register.
+source_batch_id
+UUID (FK)
+Links to the ImportBatch this lead came from.
+activity_status
+Enum
+ACTIVE | LIKELY_INACTIVE | UNVERIFIED — set by Enrichment Engine.
+lead_score
+Integer
+0–100, computed by scoring job.
+do_not_contact
+Boolean
+Global suppression flag, overrides all channel consent.
+assigned_sales_rep_id
+UUID (FK)
+Set once a lead is handed off.
+ImportBatch
+One bulk-upload event of a source register.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+source_name
+String
+e.g. "SEBI RA Register", "NSE Sub-broker List".
+source_url
+String
+Origin URL/reference, for auditability.
+imported_at
+DateTime
+Import timestamp.
+row_count
+Integer
+Number of leads imported in this batch.
+EnrichmentRecord
+One enrichment pass on a Lead; a lead can have several over time.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+lead_id
+UUID (FK)
+Lead this record belongs to.
+run_at
+DateTime
+When this enrichment pass ran.
+activity_status
+Enum
+Result of this pass: ACTIVE | LIKELY_INACTIVE | UNVERIFIED.
+confidence
+Integer
+0–100 confidence in the activity_status result.
+evidence_urls
+String[]
+Public sources supporting the finding.
+firm_profile_json
+JSON
+Structured firm-profile fields (website, socials, focus area, scale signals).
+existing_stack_flag
+Boolean
+True if lead already markets a competing algo product.
+Consent
+Per-lead, per-channel consent/opt-out state.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+lead_id
+UUID (FK)
+Lead this consent record applies to.
+channel
+Enum
+EMAIL | WHATSAPP | SMS.
+status
+Enum
+OPTED_IN | OPTED_OUT | IMPLIED_B2B | UNKNOWN.
+source
+String
+How the status was set, e.g. "STOP reply", "unsubscribe link", "manual".
+updated_at
+DateTime
+Last change to this record.
+Campaign
+An outbound messaging campaign targeting one or more segments.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+name
+String
+Internal campaign name.
+market
+Enum
+INDIA_EQUITY | CRYPTO.
+channels
+Enum[]
+Subset of EMAIL, WHATSAPP, SMS used in this campaign.
+segment_filter_json
+JSON
+Saved filter defining the target segment.
+status
+Enum
+DRAFT | SCHEDULED | RUNNING | PAUSED | COMPLETED.
+created_by
+UUID (FK)
+Operator who built the campaign.
+MessageTemplate
+A reusable, compliance-approved message per channel.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+channel
+Enum
+EMAIL | WHATSAPP | SMS.
+name
+String
+Internal template name.
+body
+Text
+Template body with merge fields, e.g. {{contact_name}}.
+approval_status
+Enum
+DRAFT | PENDING_APPROVAL | APPROVED | REJECTED.
+provider_template_id
+String
+External ID once registered with WhatsApp/DLT (see 6.2).
+MessageSend
+One individual message dispatched to one lead.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+campaign_id
+UUID (FK)
+Parent campaign.
+lead_id
+UUID (FK)
+Recipient.
+channel
+Enum
+EMAIL | WHATSAPP | SMS.
+template_id
+UUID (FK)
+Template used.
+status
+Enum
+QUEUED | SENT | DELIVERED | FAILED | BOUNCED.
+provider_message_id
+String
+ID returned by the Email/WhatsApp/SMS provider, for status webhooks.
+sent_at
+DateTime
+Dispatch time.
+EngagementEvent
+A tracked interaction with a sent message.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+message_send_id
+UUID (FK)
+Related send.
+event_type
+Enum
+OPENED | CLICKED | REPLIED | OPTED_OUT | FAILED.
+occurred_at
+DateTime
+Event timestamp.
+meta_json
+JSON
+Event-specific detail (link clicked, reply text, etc.).
+User
+Internal platform user.
+Field
+Type
+Description
+id
+UUID
+Primary key.
+name
+String
+Full name.
+email
+String
+Login email.
+role
+Enum
+GROWTH_OPERATOR | COMPLIANCE_ADMIN | SALES_REP | SYSTEM_ADMIN.
+6. API & Integration Requirements
+6.1 Inbound / Data Sourcing
+No official SEBI/NSE bulk-data API exists for these registers; ingestion is via manually downloaded CSV/XLSX from the public SEBI/NSE intermediary lists, through the standard Lead Import module.
+Enrichment lookups use a general web-search/fetch provider behind an internal EnrichmentProvider interface, so the underlying vendor can be swapped without touching calling code.
+6.2 Outbound Channel APIs
+Field
+Type
+Description
+Email
+Transactional/marketing email API (e.g. SES, SendGrid, or similar).
+Standard opt-out header/link required on every send; domain must be SPF/DKIM/DMARC-authenticated to protect sender reputation.
+WhatsApp
+WhatsApp Business Platform (Cloud API) via a Business Solution Provider.
+Only pre-approved message templates can be sent to a user outside a 24-hour session window; template approval happens on Meta's side and must be mirrored in MessageTemplate.provider_template_id.
+SMS
+SMS gateway with DLT (Distributed Ledger Technology) registration.
+Indian telecom rules (TRAI) require the sender ID, entity, and every template to be registered on the DLT platform before sending; NCPR/DND scrubbing is mandatory before send.
+All three integrations should sit behind a single internal MessagingGateway interface exposing send(), getStatus(), and a webhook receiver for delivery/opt-out callbacks — this keeps Campaign/MessageSend logic provider-agnostic.
+6.3 Internal APIs (indicative)
+POST /leads/import — accepts a mapped CSV/XLSX, creates an ImportBatch and Lead rows.
+POST /leads/{id}/enrich — queues an enrichment job; GET /leads/{id}/enrichment for history.
+GET /segments/preview — accepts a filter payload, returns matching lead count.
+POST /campaigns — create/update a campaign; POST /campaigns/{id}/launch.
+POST /webhooks/email|whatsapp|sms — provider delivery/engagement callbacks, written into MessageSend / EngagementEvent.
+POST /consent/opt-out — manual or automated opt-out entry point, propagates to Consent and do_not_contact.
+7. Non-Functional Requirements
+7.1 Data Protection & Privacy
+Lead contact data (phone, email) is personal data under India's Digital Personal Data Protection (DPDP) Act — store only what's needed, encrypt at rest, and log every access.
+Provide a data-retention policy and a mechanism to purge a lead's data on request.
+7.2 Compliance Guardrails
+A message cannot be sent on any channel if do_not_contact is true or the channel-level Consent status is OPTED_OUT — enforced at the MessagingGateway layer, not just the UI.
+SMS sends must fail closed (not send) if DLT template registration or NCPR scrub status is missing or stale.
+7.3 Scalability & Reliability
+Enrichment and messaging are queue-based (async workers) so a bulk import of tens of thousands of leads doesn't block the UI.
+Provider webhooks are idempotent and retried on failure.
+7.4 Auditability
+Every send, consent change, and admin action is logged with actor, timestamp, and before/after state for compliance review.
+8. Roadmap
+Field
+Type
+Description
+Phase 1 — MVP
+Lead import, activity enrichment, segmentation, Email + SMS + WhatsApp outreach, consent management, basic analytics. India equity/derivatives market only.
+Phase 1.1
+CRM handoff integration, lead scoring v2, campaign sequencing/branching.
+Phase 2
+Crypto market module: new lead sources, market-specific templates, compliance ruleset once regulatory clarity improves.
+Phase 3
+Predictive lead scoring, reply-intent classification, self-serve compliance template approval workflow.
+9. Open Questions
+Which Email / WhatsApp BSP / SMS-DLT vendors are already contracted or preferred, so the MessagingGateway adapters can be scoped precisely?
+Does compliance want a human-in-the-loop approval step before any campaign launch, or is template pre-approval sufficient?
+What CRM (if any) should receive handed-off leads, and via what integration (webhook, native connector, CSV export)?
+What's the expected initial lead volume, to size the enrichment queue and outbound rate limits?

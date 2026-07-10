@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const base_url = window.location.hostname === "localhost" ? `http://localhost:7700/api` : `${window.location.origin}/backend/api`;
+export const base_url = window.location.hostname === "localhost" ? `http://localhost:7701/api` : `${window.location.origin}/backend/api`;
 
 export const apiClient = axios.create({
   baseURL: base_url,

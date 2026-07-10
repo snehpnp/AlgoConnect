@@ -72,6 +72,8 @@ model Lead {
   companySizeEstimate String?
   enrichmentNotes     String?  @db.Text
   logoUrl             String?
+  scrapedEmail        String?
+  scrapedPhone        String?
 
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id])

@@ -57,23 +57,31 @@ HEADERS = {"User-Agent": USER_AGENT}
 def search_company(query: str, api_key: str, max_results: int = 5) -> list:
     if not api_key:
         return []
-    try:
-  
-        resp = requests.post(
-            "https://api.tavily.com/search",
-            json={"api_key": api_key, "query": query, "max_results": max_results, "search_depth": "basic"},
-            timeout=REQUEST_TIMEOUT,
-        )
-        resp.raise_for_status()
-        return resp.json().get("results", [])
-    except requests.RequestException as e:
-        print(f"  [search error] {e}")
-        return []
+    for attempt in range(3):
+        try:
+            resp = requests.post(
+                "https://api.tavily.com/search",
+                json={"api_key": api_key, "query": query, "max_results": max_results, "search_depth": "basic"},
+                timeout=REQUEST_TIMEOUT,
+            )
+            if resp.status_code in (429, 432):
+                time.sleep(2 + (attempt * 2))
+                continue
+            resp.raise_for_status()
+            return resp.json().get("results", [])
+        except requests.RequestException as e:
+            err_msg = e.response.text if getattr(e, 'response', None) else str(e)
+            if getattr(e, 'response', None) and e.response.status_code in (429, 432) and attempt < 2:
+                time.sleep(3)
+                continue
+            print(f"  [search error] {e} -> {err_msg}")
+            return []
+    return []
 
 def pick_official_website(results: list, company_name: str) -> str:
     skip_domains = set(SOCIAL_DOMAINS.keys()) | {
         "wikipedia.org", "youtube.com", "sebi.gov.in", "moneycontrol.com",
-        "economictimes.indiatimes.com", "google.com",
+        "economictimes.indiatimes.com", "google.com", "justdial.com", "algotest.in"
     }
     for r in results:
         url = r.get("url", "")
@@ -124,11 +132,54 @@ def find_contact_page(base_url: str, html: str) -> str:
             return urljoin(base_url, a["href"])
     return ""
 
+def find_logo_url(html: str, base_url: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    candidate_url = None
+    og_image = soup.find("meta", property="og:image")
+    if og_image and og_image.get("content"):
+        candidate_url = urljoin(base_url, og_image["content"])
+    if not candidate_url:
+        header = soup.find(["header", "nav"])
+        if header:
+            img = header.find("img")
+            if img and img.get("src"):
+                candidate_url = urljoin(base_url, img["src"])
+    if not candidate_url:
+        icon = soup.find("link", rel=lambda v: v and "icon" in v.lower())
+        if icon and icon.get("href"):
+            candidate_url = urljoin(base_url, icon["href"])
+    if not candidate_url:
+        candidate_url = urljoin(base_url, "/favicon.ico")
+    
+    try:
+        resp = requests.get(candidate_url, headers={"User-Agent": USER_AGENT}, timeout=5, stream=True)
+        if resp.status_code == 200:
+            return candidate_url
+    except Exception:
+        pass
+    return ""
+
 def extract_contacts(html: str) -> dict:
-    text = BeautifulSoup(html, "html.parser").get_text(" ")
-    emails = sorted(set(EMAIL_RE.findall(text)))
-    phones = sorted(set(m.group(0) for m in PHONE_RE.finditer(text)))
-    return {"emails": emails, "phones": phones}
+    soup = BeautifulSoup(html, "html.parser")
+    emails = set()
+    phones = set()
+    
+    # 1. mailto: / tel: links
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if href.lower().startswith("mailto:"):
+            addr = href.split(":", 1)[1].split("?")[0].strip()
+            if addr: emails.add(addr.lower())
+        elif href.lower().startswith("tel:"):
+            digits = re.sub(r"[^\d]", "", href.split(":", 1)[1])
+            phones.add(digits)
+            
+    # 2. regex fallback
+    text = soup.get_text(" ")
+    emails.update(EMAIL_RE.findall(text))
+    phones.update(m.group(0) for m in PHONE_RE.finditer(text))
+    
+    return {"emails": sorted(emails), "phones": sorted(phones)}
 
 def extract_social_from_html(base_url: str, html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
@@ -169,31 +220,39 @@ Return ONLY a JSON object (no markdown, no preamble) with these fields:
   "notes": ""
 }}
 If a field is unknown, leave it empty string / empty list. Do not guess."""
-    try:
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-3-5-sonnet-20240620",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        text = "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
-        text = text.strip().strip("```json").strip("```").strip()
-        return json.loads(text)
-    except Exception as e:
-        print(f"  [llm error] {e}")
-        return {}
+    for attempt in range(3):
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                },
+                timeout=30,
+            )
+            if resp.status_code == 429:
+                time.sleep(2 + (attempt * 2))  # Exponential backoff: 2s, 4s, 6s
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            text = data.get("choices", [])[0].get("message", {}).get("content", "")
+            text = text.strip().strip("```json").strip("```").strip()
+            return json.loads(text)
+        except Exception as e:
+            err_msg = e.response.text if getattr(e, 'response', None) else str(e)
+            if getattr(e, 'response', None) and e.response.status_code == 429 and attempt < 2:
+                time.sleep(3)
+                continue
+            print(f"  [llm error] {e} -> {err_msg}")
+            return {}
+    return {}
 
-def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool, recheck_websites: bool = False) -> dict:
+def enrich_lead(lead: dict, tavily_key: str, groq_key: str, use_llm: bool, recheck_websites: bool = False) -> dict:
     company = lead.get("name", "").strip()
     city = lead.get("city", "") or ""
     
@@ -213,15 +272,26 @@ def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool, 
     else:
         query = f"{company} {city} SEBI registered advisor".strip()
         
-    print(f"-> Searching: {query}")
     results = search_company(query, tavily_key)
 
     website = pick_official_website(results, company)
     socials = pick_social_links(results)
 
     html = fetch_page(website) if website else ""
+
+    if recheck_websites and website and html:
+        reg_no = lead.get("registrationNo", "").strip().upper()
+        if reg_no and reg_no not in html.upper():
+            website = ""
+            html = ""
+            
+    if recheck_websites:
+        if not website:
+            website = lead.get("website", "")
+
     contacts = extract_contacts(html) if html else {"emails": [], "phones": []}
     socials.update(extract_social_from_html(website, html) if html else {})
+    logo_url = find_logo_url(html, website) if html and website else ""
 
     if html and website:
         contact_url = find_contact_page(website, html)
@@ -240,7 +310,7 @@ def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool, 
 
     enrichment = {}
     if use_llm:
-        enrichment = llm_structure(lead, raw_findings, anthropic_key)
+        enrichment = llm_structure(lead, raw_findings, groq_key)
 
     has_own_website = True
     if not website:
@@ -252,6 +322,7 @@ def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool, 
         "has_own_website": has_own_website,
         "socials": socials,
         "contacts_found_on_site": contacts,
+        "logoUrl": logo_url,
         "llm_enrichment": enrichment,
     }
 
@@ -265,14 +336,7 @@ def fetch_leads_from_db(db_url: str, limit: int = 0, recheck_websites: bool = Fa
             SELECT * FROM "Lead"
             WHERE "isEnriched" = true
               AND "hasOwnWebsite" = true
-              AND (
-                  "website" IS NULL OR "website" = ''
-                  OR "website" ILIKE '%justdial%'
-                  OR "website" ILIKE '%linkedin%'
-                  OR "website" ILIKE '%facebook%'
-                  OR "website" ILIKE '%sebi%'
-                  OR "website" ILIKE '%moneycontrol%'
-              )
+              AND "website" ILIKE '%algotest.in%'
             ORDER BY id ASC
         '''
     else:
@@ -316,6 +380,12 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
     broker = llm.get("broker_partner", "")
     size = llm.get("company_size_estimate", "")
     notes = llm.get("notes", "")
+    
+    logo_url = e.get("logoUrl", "")
+    scraped_email = e.get("contacts_found_on_site", {}).get("emails", [])
+    scraped_email = scraped_email[0] if scraped_email else None
+    scraped_phone = e.get("contacts_found_on_site", {}).get("phones", [])
+    scraped_phone = scraped_phone[0] if scraped_phone else None
 
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
@@ -333,10 +403,17 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
             "sellsAlgoTrading" = %s,
             "brokerPartner" = %s,
             "companySizeEstimate" = %s,
-            "enrichmentNotes" = %s
+            "enrichmentNotes" = %s,
+            "logoUrl" = COALESCE(NULLIF(%s, ''), "logoUrl"),
+            "scrapedEmail" = COALESCE(NULLIF(%s, ''), "scrapedEmail"),
+            "scrapedPhone" = COALESCE(NULLIF(%s, ''), "scrapedPhone")
         WHERE id = %s
     '''
-    cur.execute(update_q, (has_own_website, website, linkedin, twitter, facebook, services, products, algo, broker, size, notes, lead_id))
+    cur.execute(update_q, (
+        has_own_website, website, linkedin, twitter, facebook, 
+        services, products, algo, broker, size, notes, 
+        logo_url, scraped_email, scraped_phone, lead_id
+    ))
     conn.commit()
     cur.close()
     conn.close()
@@ -403,17 +480,17 @@ def main():
         pass
 
     db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:123456@localhost:5432/algoconnect")
-    default_tavily_keys = "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,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,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"
+    default_tavily_keys = "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,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"
     env_keys = os.environ.get("TAVILY_API_KEYS", os.environ.get("TAVILY_API_KEY", default_tavily_keys))
     tavily_keys_raw = args.api_keys if args.api_keys else env_keys
     tavily_keys = [k.strip() for k in tavily_keys_raw.split(",") if k.strip()]
     
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    groq_key = os.environ.get("GROQ_API_KEY", "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")
 
     if not tavily_keys:
         print("WARNING: TAVILY_API_KEYS not set. Search step will be skipped.")
-    if args.use_llm and not anthropic_key:
-        print("WARNING: --use-llm passed but ANTHROPIC_API_KEY not set.")
+    if args.use_llm and not groq_key:
+        print("WARNING: --use-llm passed but GROQ_API_KEY not set in .env.")
 
     import threading
     tavily_state = {"idx": 0, "calls": 0, "lock": threading.Lock()}
@@ -433,17 +510,23 @@ def main():
     
     def process_single_lead(args_tuple):
         i, lead = args_tuple
-        reg = lead.get('registrationNo') or 'No Reg'
-        state = lead.get('state') or 'No State'
-        print(f"[{i}/{len(leads)}] {lead.get('name', '(no name)')} | Reg: {reg} | State: {state}")
         try:
+            time.sleep(DELAY_BETWEEN_LEADS) # Prevent hammering APIs
             current_key = get_tavily_key()
-            result = enrich_lead(lead, current_key, anthropic_key, args.use_llm, args.recheck_websites)
+            result = enrich_lead(lead, current_key, groq_key, args.use_llm, args.recheck_websites)
             if "id" in lead:
                 update_lead_in_db(db_url, lead["id"], result)
+            
+            # Simple log output as requested
+            status = "FOUND" if (result.get("website") and result.get("website") != lead.get("website", "")) else "NOT FOUND"
+            name = lead.get('name', '')
+            print(f"[{i}/{len(leads)}] ID: {lead.get('id')} | Name: {name} | {status} | {result.get('website', '')}")
+            
             return result
         except Exception as e:
-            print(f"  [error] {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"[{i}/{len(leads)}] ID: {lead.get('id')} | ERROR | {str(e)}")
             return {"lead": lead, "error": str(e)}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:

@@ -1,0 +1,73 @@
+[
+  {
+    "lead": {
+      "id": 40765,
+      "name": "DSIJ Wealth Advisory Private Limited",
+      "email": "rajeshp@dsij.in",
+      "phone": "2040197219",
+      "source": "IMPORT",
+      "userId": null,
+      "createdAt": "2026-07-07T11:30:36.201000",
+      "updatedAt": "2026-07-09T04:57:58.606000",
+      "address": "419-A, 4TH FLOOR, ARUN CHAMBERS,, TARDEO, NEXT TO AC MARKET,",
+      "city": "MUMBAI",
+      "contactPerson": "MR. RAJESH PADODE",
+      "pincode": "400034",
+      "registrationNo": "INA000001142",
+      "state": "MAHARASHTRA",
+      "email2": null,
+      "phone2": null,
+      "type": "Investment Advisor (IA)",
+      "consentStatus": "Unknown",
+      "engagementStatus": "Not Engaged",
+      "salesStage": "New",
+      "verificationStatus": "Imported",
+      "exchangeName": null,
+      "fax": "2040197219",
+      "tradeName": null,
+      "validity": null,
+      "brokerPartner": "",
+      "companySizeEstimate": "",
+      "enrichmentNotes": "",
+      "facebook": "",
+      "isEnriched": true,
+      "linkedin": "",
+      "productsOffered": "",
+      "sellsAlgoTrading": "",
+      "servicesSummary": "",
+      "twitter": "",
+      "website": "https://algotest.in/tools/research-analysts/INH000006396",
+      "logoUrl": "https://esi.in/favicon.ico",
+      "leadScore": 47,
+      "hasOwnWebsite": true,
+      "scrapedEmail": null,
+      "scrapedPhone": null
+    },
+    "website": "https://algotest.in/tools/research-analysts/INH000006396",
+    "has_own_website": true,
+    "socials": {},
+    "contacts_found_on_site": {
+      "emails": [],
+      "phones": []
+    },
+    "logoUrl": "",
+    "llm_enrichment": {
+      "website": "https://algotest.in/tools/research-analysts/INH000006396",
+      "linkedin": "",
+      "twitter": "",
+      "facebook": "",
+      "emails": [
+        "rajeshp@dsij.in"
+      ],
+      "phones": [
+        "2040197219"
+      ],
+      "services_summary": "",
+      "products_offered": [],
+      "sells_algo_trading": "unclear",
+      "broker_partner": "",
+      "company_size_estimate": "",
+      "notes": ""
+    }
+  }
+]
