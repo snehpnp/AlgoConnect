@@ -219,3 +219,29 @@ export const removeLeadFromCampaign = asyncHandler(async (req: Request, res: Res
 
   res.status(200).json({ message: 'Lead removed from campaign successfully', data: campaign });
 });
+
+export const getCampaignStats = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const engagements = await prisma.engagementEvent.groupBy({
+    by: ['eventType'],
+    where: { campaignId: parseInt(id as string) },
+    _count: {
+      eventType: true
+    }
+  });
+
+  res.status(200).json({ data: { sends: [], engagements } });
+});
+
+import { toggleEngine, getEngineState } from '../services/campaignRunner.service';
+
+export const getEngineStatus = asyncHandler(async (req: Request, res: Response) => {
+  res.status(200).json({ data: { isRunning: getEngineState() } });
+});
+
+export const toggleEngineStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { isRunning } = req.body;
+  const newState = toggleEngine(isRunning);
+  res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});

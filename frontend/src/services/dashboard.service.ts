@@ -28,6 +28,7 @@ export interface DashboardResponse {
   message: string;
   data: {
     stats: DashboardStats;
+    leadTypes: { type: string, count: number }[];
     analytics: MonthlyAnalytics[];
     activities: Activity[];
   };

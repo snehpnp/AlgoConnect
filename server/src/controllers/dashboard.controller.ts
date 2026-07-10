@@ -26,6 +26,18 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
   // 5. Active Campaigns
   const activeCampaigns = await prisma.campaign.count({ where: { status: 'ACTIVE' } });
 
+  // 6. Leads by Type
+  const leadsByTypeRaw = await prisma.lead.groupBy({
+    by: ['type'],
+    _count: {
+      type: true
+    }
+  });
+  const leadTypes = leadsByTypeRaw.map(item => ({
+    type: item.type,
+    count: item._count.type
+  }));
+
   // 6. Monthly analytics placeholder
   const monthlyAnalytics = [
     { label: 'Jan', value: '0%' },
@@ -55,6 +67,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
         engagedLeads,
         activeCampaigns
       },
+      leadTypes,
       analytics: monthlyAnalytics,
       activities: recentActivities
     },

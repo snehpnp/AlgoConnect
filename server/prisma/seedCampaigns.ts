@@ -8,7 +8,6 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('Seeding database with dummy campaigns and activity logs...');
 
   const dummyCampaigns = [
     { name: 'Tech Enterprise Q3 Outreach', type: 'EMAIL', status: 'ACTIVE' },
@@ -31,7 +30,6 @@ async function main() {
     await prisma.activityLog.create({ data: act });
   }
 
-  console.log('🎉 Dummy Campaigns and Activities inserted successfully!');
 }
 
 main()

@@ -46,6 +46,7 @@ const statusDefinitions: StatusDefinition[] = [
 export default function StatusDictionary() {
   const [activeTab, setActiveTab] = useState<'status' | 'docs'>('docs');
   const [search, setSearch] = useState('');
+  const [docsLanguage, setDocsLanguage] = useState<'en' | 'hi'>('hi');
 
   const filteredStatuses = statusDefinitions.filter(status =>
     status.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -104,147 +105,241 @@ export default function StatusDictionary() {
         {/* TAB 1: System Documentation */}
         {activeTab === 'docs' && (
           <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* 1. What and Why */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-indigo-500" />
-                  What is AlgoConnect?
-                </h2>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  AlgoConnect is a powerful B2B outbound marketing and CRM platform designed specifically to target financial intermediaries in India, such as SEBI Research Analysts (RAs), Investment Advisors (IAs), and NSE Sub-brokers. It aggregates raw market data, enriches it to verify activity, and facilitates multi-channel outreach (Email, SMS, WhatsApp).
-                </p>
-              </div>
-              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
-                  Why was this project created?
-                </h2>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  Acquiring and engaging financial intermediaries is highly manual and compliance-heavy. AlgoConnect was built to automate lead aggregation, filter out inactive entities via enrichment, group them into smart segments, and launch strictly compliant, scalable messaging campaigns to generate warm leads for the sales team.
-                </p>
+            {/* Language Toggle */}
+            <div className="flex justify-end">
+              <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200 w-fit">
+                <button
+                  onClick={() => setDocsLanguage('en')}
+                  className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${docsLanguage === 'en' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => setDocsLanguage('hi')}
+                  className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${docsLanguage === 'hi' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Hindi
+                </button>
               </div>
             </div>
 
-            {/* 2. Roles in the App */}
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
-                <Users className="h-5 w-5 text-emerald-500" />
-                User Roles & Permissions
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Shield className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-bold text-blue-900">System Admin</h3>
+            {docsLanguage === 'en' ? (
+              <div className="space-y-8 animate-fade-in">
+                {/* 1. What and Why (English) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                    <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                      <Target className="h-5 w-5 text-indigo-500" />
+                      What is AlgoConnect?
+                    </h2>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      AlgoConnect is a powerful B2B outbound marketing and CRM platform designed specifically to target financial intermediaries in India, such as SEBI Research Analysts (RAs), Investment Advisors (IAs), and NSE Sub-brokers. It aggregates raw market data, enriches it to verify activity, and facilitates multi-channel outreach (Email, SMS, WhatsApp).
+                    </p>
                   </div>
-                  <p className="text-sm text-blue-800/80 leading-relaxed">
-                    Has unrestricted access to the entire platform. Responsible for creating other user accounts, configuring API integrations, webhooks, and setting up the communication gateways (SMTP, Twilio) in System Settings.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-purple-50/50 border border-purple-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Megaphone className="h-5 w-5 text-purple-600" />
-                    <h3 className="font-bold text-purple-900">Growth Operator</h3>
-                  </div>
-                  <p className="text-sm text-purple-800/80 leading-relaxed">
-                    The primary marketer. They import lead lists (CSV/XLSX), run enrichment jobs to verify leads, build targeted Segments (e.g. "Active RAs in Delhi"), and launch outbound Campaigns to engage those segments.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShieldCheck className="h-5 w-5 text-amber-600" />
-                    <h3 className="font-bold text-amber-900">Compliance Admin</h3>
-                  </div>
-                  <p className="text-sm text-amber-800/80 leading-relaxed">
-                    Ensures all operations are legally compliant. They approve or reject message templates to ensure they meet DLT/TRAI standards, monitor audit logs, and enforce global "Do Not Contact" (DND) consent lists.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Briefcase className="h-5 w-5 text-emerald-600" />
-                    <h3 className="font-bold text-emerald-900">Sales Rep</h3>
-                  </div>
-                  <p className="text-sm text-emerald-800/80 leading-relaxed">
-                    The closer. They have restricted access, primarily viewing leads that have engaged with campaigns and have been marked as "warm" or "qualified", allowing them to focus purely on outreach and sales conversions.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Page Dictionary */}
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
-                <BookOpen className="h-5 w-5 text-primary" />
-                Page Dictionary & Workflows
-              </h2>
-
-              <div className="space-y-6">
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><Database className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">Lead Management</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      The central database for all contacts. This page allows you to import raw lists from SEBI/NSE, trigger enrichment jobs to verify if the business is active, and view detailed profiles and engagement history for every single lead.
+                  <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                    <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-amber-500" />
+                      Why was this project created?
+                    </h2>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Acquiring and engaging financial intermediaries is highly manual and compliance-heavy. AlgoConnect was built to automate lead aggregation, filter out inactive entities via enrichment, group them into smart segments, and launch strictly compliant, scalable messaging campaigns to generate warm leads for the sales team.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><Target className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">Segments</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Instead of blasting all 10,000 leads, Segments allow you to build dynamic, rule-based filters (e.g., "Lead Score `{">"}` 80" + "Region: Maharashtra"). You create segments here before attaching them to a campaign.
-                    </p>
+                {/* 2. Roles in the App (English) */}
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                    <Users className="h-5 w-5 text-emerald-500" />
+                    User Roles & Permissions
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className="h-5 w-5 text-blue-600" />
+                        <h3 className="font-bold text-blue-900">System Admin</h3>
+                      </div>
+                      <p className="text-sm text-blue-800/80 leading-relaxed">
+                        Has unrestricted access to the entire platform. Responsible for creating other user accounts, configuring API integrations, webhooks, and setting up the communication gateways (SMTP, Twilio) in System Settings.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-purple-50/50 border border-purple-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Megaphone className="h-5 w-5 text-purple-600" />
+                        <h3 className="font-bold text-purple-900">Growth Operator</h3>
+                      </div>
+                      <p className="text-sm text-purple-800/80 leading-relaxed">
+                        The primary marketer. They import lead lists (CSV/XLSX), run enrichment jobs to verify leads, build targeted Segments (e.g. "Active RAs in Delhi"), and launch outbound Campaigns to engage those segments.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShieldCheck className="h-5 w-5 text-amber-600" />
+                        <h3 className="font-bold text-amber-900">Compliance Admin</h3>
+                      </div>
+                      <p className="text-sm text-amber-800/80 leading-relaxed">
+                        Ensures all operations are legally compliant. They approve or reject message templates to ensure they meet DLT/TRAI standards, monitor audit logs, and enforce global "Do Not Contact" (DND) consent lists.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Briefcase className="h-5 w-5 text-emerald-600" />
+                        <h3 className="font-bold text-emerald-900">Sales Rep</h3>
+                      </div>
+                      <p className="text-sm text-emerald-800/80 leading-relaxed">
+                        The closer. They have restricted access, primarily viewing leads that have engaged with campaigns and have been marked as "warm" or "qualified", allowing them to focus purely on outreach and sales conversions.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><Megaphone className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">Campaigns</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      The core execution engine. Here, you take a Segment, attach a pre-approved Message Template, select your channels (Email, SMS, WhatsApp), and schedule the outbound delivery. It also displays open, click, and reply analytics.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><ShieldCheck className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">Consent Management</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      A highly critical compliance page. It tracks exactly who has Opted-In or Opted-Out for each specific channel. If a user is marked as Opted-Out here, the system will physically block campaigns from messaging them.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><Users className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">User Management</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Restricted to System Admins. Allows the business to onboard new employees, edit their details, and strictly assign them a role (Growth Operator, Compliance, Sales) which controls what pages they can see.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 mt-1"><Settings className="h-5 w-5 text-slate-400" /></div>
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0F172A]">System & Integration Settings</h4>
-                    <p className="text-sm text-slate-600 mt-1">
-                      The technical backbone page. Used to connect AlgoConnect to the outside world—entering SendGrid API keys for email, Twilio credentials for SMS/WhatsApp, and configuring incoming webhooks.
-                    </p>
+                {/* 3. Page Dictionary (English) */}
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    Page Dictionary & Workflows
+                  </h2>
+                  <div className="space-y-6">
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Database className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Lead Management</h4>
+                        <p className="text-sm text-slate-600 mt-1">The central database for all contacts. This page allows you to import raw lists from SEBI/NSE, trigger enrichment jobs to verify if the business is active, and view detailed profiles and engagement history for every single lead.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Target className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Segments</h4>
+                        <p className="text-sm text-slate-600 mt-1">Instead of blasting all 10,000 leads, Segments allow you to build dynamic, rule-based filters (e.g., "Lead Score {">"} 80" + "Region: Maharashtra"). You create segments here before attaching them to a campaign.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Megaphone className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Campaigns</h4>
+                        <p className="text-sm text-slate-600 mt-1">The core execution engine. Here, you take a Segment, attach a pre-approved Message Template, select your channels (Email, SMS, WhatsApp), and schedule the outbound delivery. It also displays open, click, and reply analytics.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><ShieldCheck className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Consent Management</h4>
+                        <p className="text-sm text-slate-600 mt-1">A highly critical compliance page. It tracks exactly who has Opted-In or Opted-Out for each specific channel. If a user is marked as Opted-Out here, the system will physically block campaigns from messaging them.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-8 animate-fade-in">
+                {/* 1. What and Why (Hindi) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                    <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                      <Target className="h-5 w-5 text-indigo-500" />
+                      AlgoConnect kya hai?
+                    </h2>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      AlgoConnect ek powerful B2B marketing aur CRM platform hai. Ise khaas taur par India ke financial professionals (jaise SEBI Research Analysts, Investment Advisors, aur NSE Sub-brokers) tak pahunchne ke liye banaya gaya hai. Ye system market se unka data collect karta hai, unki details verify karta hai, aur unhe Email, SMS, ya WhatsApp ke zariye messages bhejta hai.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                    <h2 className="text-lg font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-amber-500" />
+                      Ye system kyu banaya gaya?
+                    </h2>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Financial market me naye clients dhundhna bahut mushkil aur strict compliance (rules) wala kaam hai. AlgoConnect isliye banaya gaya taaki leads ikattha karne ka kaam automatic ho jaye, fake/inactive leads hat jaye, aur system khud ba khud rules follow karte hue bulk me campaigns chala sake, jisse Sales Team ko sirf qualified (warm) leads mile.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Roles in the App (Hindi) */}
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                    <Users className="h-5 w-5 text-emerald-500" />
+                    User Roles & Permissions (Kon kya kar sakta hai)
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className="h-5 w-5 text-blue-600" />
+                        <h3 className="font-bold text-blue-900">System Admin</h3>
+                      </div>
+                      <p className="text-sm text-blue-800/80 leading-relaxed">
+                        Inke paas poore system ka full control hota hai. Naye users banana, API settings configure karna, aur message bhejne wale gateways (Email/SMS Providers) ko system ke sath connect karna inhi ka kaam hai.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-purple-50/50 border border-purple-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Megaphone className="h-5 w-5 text-purple-600" />
+                        <h3 className="font-bold text-purple-900">Growth Operator</h3>
+                      </div>
+                      <p className="text-sm text-purple-800/80 leading-relaxed">
+                        Ye main Marketing team hote hain. Ye bahar se leads import karte hain, unhe alag-alag Segments (groups) me baant'te hain, aur un par Campaigns chalate hain.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShieldCheck className="h-5 w-5 text-amber-600" />
+                        <h3 className="font-bold text-amber-900">Compliance Admin</h3>
+                      </div>
+                      <p className="text-sm text-amber-800/80 leading-relaxed">
+                        Inka kaam ye dekhna hai ki koi rule na toote. Ye check karte hain ki Message Templates TRAI/DLT rules ke hisaab se sahi hain ya nahi. Agar koi customer "Do Not Contact" bolta hai, toh ye unhe block list (Opt-Out) me daalte hain.
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Briefcase className="h-5 w-5 text-emerald-600" />
+                        <h3 className="font-bold text-emerald-900">Sales Rep</h3>
+                      </div>
+                      <p className="text-sm text-emerald-800/80 leading-relaxed">
+                        Sales Team ko sirf un leads ka data dikhta hai jinhone campaign emails/SMS khol kar dekhe hain ya interest show kiya hai. Ye direct customer ko call karke deal close karte hain.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Page Dictionary (Hindi) */}
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-bold text-[#0F172A] mb-6 flex items-center gap-2 border-b border-[#E2E8F0] pb-4">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    Page Dictionary & Workflows (Kaunsa page kya karta hai)
+                  </h2>
+                  <div className="space-y-6">
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Database className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Lead Management (Leads Page)</h4>
+                        <p className="text-sm text-slate-600 mt-1">Ye poore system ka main Database hai. Yaha aap raw data (Excel/CSV) upload kar sakte hain, unka verification kar sakte hain, aur kisi bhi ek lead ki poori details aur history dekh sakte hain.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Target className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Segments (Groups)</h4>
+                        <p className="text-sm text-slate-600 mt-1">Ek sath 10,000 logo ko message bhejne ke bajaye, aap yaha smart filters banate hain. Jaise "Sirf Maharashtra ke log". Inhi Segments par aage chalkar Campaign chalaya jata hai.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><Megaphone className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Campaigns</h4>
+                        <p className="text-sm text-slate-600 mt-1">Ye execution engine hai. Yaha aap ek Segment select karte hain, Message Template set karte hain, aur system ko Email/WhatsApp bhejne ka order dete hain. Yahi par aapko statistics (Kitne open hue, kitne fail hue) dikhte hain.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1"><ShieldCheck className="h-5 w-5 text-slate-400" /></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A]">Consent Management</h4>
+                        <p className="text-sm text-slate-600 mt-1">Ye ek security page hai. Yaha record hota hai ki kis customer ko message bhejna allow hai (Opt-in) aur kisne mana kiya hai (Opt-out). System automatically Opt-out walo ko message bhejna band kar deta hai.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

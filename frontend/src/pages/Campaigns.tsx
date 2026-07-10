@@ -1,25 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2 } from 'lucide-react';
+import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
 import { segmentService, type Segment } from '../services/segment.service';
+import { getTemplates, type MessageTemplate } from '../services/template.service';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export const Campaigns: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'System Admin';
+  const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isEngineRunning, setIsEngineRunning] = useState(true);
+  const [isEngineInfoModalOpen, setIsEngineInfoModalOpen] = useState(false);
+  const [infoLanguage, setInfoLanguage] = useState<'en' | 'hi'>('hi');
 
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
-  
+
   // Leads connection state
   const [availableLeads, setAvailableLeads] = useState<Lead[]>([]);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<number>>(new Set());
@@ -32,12 +39,16 @@ export const Campaigns: React.FC = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const [campRes, segRes] = await Promise.all([
+      const [campRes, segRes, engineRes, tplRes] = await Promise.all([
         campaignService.getCampaigns(),
-        segmentService.getSegments()
+        segmentService.getSegments(),
+        campaignService.getEngineStatus(),
+        getTemplates()
       ]);
       setCampaigns(campRes.data || []);
       setSegments(segRes || []);
+      setTemplates(tplRes.data || []);
+      setIsEngineRunning(engineRes.data?.isRunning ?? true);
     } catch (error) {
       toast.error('Failed to load campaigns and segments');
     } finally {
@@ -51,12 +62,27 @@ export const Campaigns: React.FC = () => {
 
   const handleSaveCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentCampaign.name || !currentCampaign.type) {
+      toast.error('Name and Type are required');
+      return;
+    }
+    
+    // Auto-fill the correct template ID based on type
+    let finalCampaignData = { ...currentCampaign };
+    if (finalCampaignData.type === 'EMAIL') {
+      finalCampaignData.channels = ['EMAIL'];
+    } else if (finalCampaignData.type === 'SMS') {
+      finalCampaignData.channels = ['SMS'];
+    } else if (finalCampaignData.type === 'WHATSAPP') {
+      finalCampaignData.channels = ['WHATSAPP'];
+    }
+
     try {
       if (currentCampaign.id) {
-        await campaignService.updateCampaign(currentCampaign.id, currentCampaign);
+        await campaignService.updateCampaign(currentCampaign.id, finalCampaignData);
         toast.success('Campaign updated successfully');
       } else {
-        await campaignService.createCampaign(currentCampaign);
+        await campaignService.createCampaign(finalCampaignData);
         toast.success('Campaign created successfully');
       }
       setIsFormOpen(false);
@@ -98,8 +124,8 @@ export const Campaigns: React.FC = () => {
       const params: any = { limit: 100 };
       if (searchStr) params.search = searchStr;
       if (stage) params.salesStage = stage;
-      
-      const res = await leadsService.getLeads(params); 
+
+      const res = await leadsService.getLeads(params);
       setAvailableLeads(res.data);
     } catch (error) {
       toast.error('Failed to load leads');
@@ -149,14 +175,48 @@ export const Campaigns: React.FC = () => {
   const activeCount = campaigns.filter(c => c.status === 'ACTIVE').length;
   const filteredCampaigns = campaigns.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
+  const handleToggleEngine = async () => {
+    try {
+      const newState = !isEngineRunning;
+      setIsEngineRunning(newState); // optimistic
+      await campaignService.toggleEngineStatus(newState);
+      toast.success(newState ? 'Campaign Engine Started' : 'Campaign Engine Paused');
+    } catch (err) {
+      toast.error('Failed to toggle engine status');
+      setIsEngineRunning(!isEngineRunning); // revert
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in relative pb-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">Campaign Automation</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
+            Campaign Automation
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleToggleEngine}
+                className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 font-semibold transition-colors ${isEngineRunning
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                  }`}
+                title="Toggle Master Engine Status"
+              >
+                <div className={`h-2 w-2 rounded-full ${isEngineRunning ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
+                {isEngineRunning ? 'ENGINE RUNNING' : 'ENGINE PAUSED'}
+              </button>
+              <button
+                onClick={() => setIsEngineInfoModalOpen(true)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                title="How does the engine work?"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </div>
+          </h1>
           <p className="text-sm text-[#64748B]">Create, deploy, and monitor outreach campaigns.</p>
         </div>
-        <button 
+        <button
           onClick={() => { setCurrentCampaign({ type: 'EMAIL', status: 'DRAFT' }); setIsFormOpen(true); }}
           className="btn-primary"
         >
@@ -183,9 +243,9 @@ export const Campaigns: React.FC = () => {
           <h3 className="text-sm font-bold text-[#0F172A]">All Campaigns</h3>
           <div className="relative w-64">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
-            <input 
-              type="text" 
-              placeholder="Search campaigns..." 
+            <input
+              type="text"
+              placeholder="Search campaigns..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-base !pl-9"
@@ -214,25 +274,30 @@ export const Campaigns: React.FC = () => {
                 filteredCampaigns.map((camp) => (
                   <tr key={camp.id} className="group hover:bg-[#F8FAFC] transition-colors relative">
                     <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer group-hover:text-primary transition-colors"
+                        onClick={() => navigate(`/campaigns/${camp.id}`)}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
                           <Megaphone className="h-5 w-5" />
                         </div>
-                        <p className="text-sm font-bold text-[#0F172A]">{camp.name}</p>
+                        <div>
+                          <p className="text-sm font-bold text-[#0F172A] group-hover:text-indigo-600 transition-colors">{camp.name}</p>
+                          <p className="text-xs text-slate-500 group-hover:text-indigo-400">View Details & Stats →</p>
+                        </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-sm text-[#475569] bg-slate-100 px-2 py-1 rounded-md font-medium">
-                        {camp.segments && camp.segments.length > 0 
-                          ? camp.segments.map(s => s.name).join(', ') 
+                        {camp.segments && camp.segments.length > 0
+                          ? camp.segments.map(s => s.name).join(', ')
                           : 'Manual Selection'}
                       </span>
                     </td>
                     <td className="py-4 px-6"><span className="text-sm font-semibold text-[#0F172A]">{camp.type}</span></td>
                     <td className="py-4 px-6">
-                      <span className={`badge-${
-                        camp.status === 'ACTIVE' ? 'success' : 'neutral'
-                      }`}>
+                      <span className={`badge-${camp.status === 'ACTIVE' ? 'success' : 'neutral'
+                        }`}>
                         {camp.status}
                       </span>
                     </td>
@@ -243,7 +308,7 @@ export const Campaigns: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right relative">
-                      <button 
+                      <button
                         onClick={() => setOpenMenuId(openMenuId === camp.id ? null : camp.id)}
                         className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                       >
@@ -306,8 +371,8 @@ export const Campaigns: React.FC = () => {
                 <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
                   {segments.map(seg => (
                     <label key={seg.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={(currentCampaign.segmentIds || []).includes(seg.id)}
                         onChange={(e) => {
                           const currentIds = currentCampaign.segmentIds || [];
@@ -331,6 +396,34 @@ export const Campaigns: React.FC = () => {
                   <option value="ACTIVE">Active</option>
                   <option value="COMPLETED">Completed</option>
                 </select>
+              </div>
+              
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Message Template</label>
+                <select 
+                  value={
+                    currentCampaign.type === 'EMAIL' ? (currentCampaign.emailTemplateId || '') :
+                    currentCampaign.type === 'SMS' ? (currentCampaign.smsTemplateId || '') :
+                    (currentCampaign.whatsappTemplateId || '')
+                  } 
+                  onChange={(e) => {
+                    const id = e.target.value ? parseInt(e.target.value) : null;
+                    if (currentCampaign.type === 'EMAIL') {
+                      setCurrentCampaign({ ...currentCampaign, emailTemplateId: id });
+                    } else if (currentCampaign.type === 'SMS') {
+                      setCurrentCampaign({ ...currentCampaign, smsTemplateId: id });
+                    } else {
+                      setCurrentCampaign({ ...currentCampaign, whatsappTemplateId: id });
+                    }
+                  }} 
+                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="">Select a template...</option>
+                  {templates.filter(t => t.type === currentCampaign.type).map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Select the content template to send to the leads.</p>
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0]">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold">Cancel</button>
@@ -359,15 +452,15 @@ export const Campaigns: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
-                <input 
-                  type="text" 
-                  placeholder="Search leads by name, email, phone..." 
+                <input
+                  type="text"
+                  placeholder="Search leads by name, email, phone..."
                   value={modalSearch}
                   onChange={(e) => setModalSearch(e.target.value)}
                   className="input-base !pl-9"
                 />
               </div>
-              <select 
+              <select
                 value={modalSalesStage}
                 onChange={(e) => setModalSalesStage(e.target.value)}
                 className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
@@ -423,6 +516,67 @@ export const Campaigns: React.FC = () => {
                   Add Selected Leads
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Engine Info Modal */}
+      {isEngineInfoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] p-6">
+              <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+                <Settings className="h-5 w-5 text-indigo-500" />
+                How the Campaign Engine Works
+              </h3>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                  <button
+                    onClick={() => setInfoLanguage('en')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${infoLanguage === 'en' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => setInfoLanguage('hi')}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${infoLanguage === 'hi' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Hindi
+                  </button>
+                </div>
+                <button onClick={() => setIsEngineInfoModalOpen(false)} className="text-[#64748B] hover:text-[#0F172A] transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-6 text-sm text-slate-600 max-h-[60vh] overflow-y-auto">
+              {infoLanguage === 'en' ? (
+                <div className="space-y-4 animate-fade-in">
+                  <p>The <strong>Campaign Engine</strong> is an autonomous background worker that powers all outbound communication in AlgoConnect.</p>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li><strong>Background Processing:</strong> It runs automatically every minute, scanning for campaigns with an <span className="font-semibold text-emerald-600">ACTIVE</span> status.</li>
+                    <li><strong>Throttling:</strong> It dispatches max 50 messages/minute/campaign to prevent spamming.</li>
+                    <li><strong>Compliance:</strong> It automatically checks DND and Opt-Out rules before sending.</li>
+                    <li><strong>Master Switch:</strong> Pausing the engine instantly halts ALL outgoing messages globally.</li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="space-y-4 animate-fade-in">
+                  <p><strong>Campaign Engine</strong> AlgoConnect ka apna khud ka background robot (worker) hai jo saare messages bhejta hai.</p>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li><strong>Background Processing:</strong> Ye robot har 1 minute baad check karta hai ki kya koi campaign <span className="font-semibold text-emerald-600">ACTIVE</span> hai? Agar haan, toh wo apne aap messages bhejna shuru kar deta hai.</li>
+                    <li><strong>Throttling (Speed Control):</strong> Ye ek sath hazaron message bhejkar spam nahi karta. Ek minute me sirf 50 leads ko messages bheje jate hain.</li>
+                    <li><strong>Compliance (Rules):</strong> Kisi ko message bhejne se pehle ye check karta hai ki usne DND (Do Not Disturb) toh on nahi kiya. Agar haan, toh ye us lead ko skip kar dega.</li>
+                    <li><strong>Master Switch:</strong> Agar aap ise PAUSE kar dete hain, toh poore system me ek bhi message nahi jayega, chahe campaign ACTIVE hi kyun na ho.</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-[#E2E8F0] bg-slate-50 p-6 rounded-b-2xl flex justify-end">
+              <button onClick={() => setIsEngineInfoModalOpen(false)} className="btn-primary">
+                Got it
+              </button>
             </div>
           </div>
         </div>

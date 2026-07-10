@@ -13,12 +13,12 @@ const files = [
 async function main() {
   for (const file of files) {
     const filePath = path.join(__dirname, file);
-    console.log(`Reading ${file}...`);
+
     try {
       const wb = XLSX.readFile(filePath);
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      
+
       const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
       let headerRowIndex = 0;
       for (let i = 0; i < Math.min(20, rawData.length); i++) {
@@ -56,14 +56,12 @@ async function main() {
         .filter(lead => lead.name !== 'Unknown' || lead.registrationNo);
 
       if (formattedLeads.length > 0) {
-        console.log(`Importing ${formattedLeads.length} leads...`);
+
         const created = await prisma.lead.createMany({
           data: formattedLeads,
           skipDuplicates: true
         });
-        console.log(`Success: ${created.count} leads inserted.`);
-      } else {
-        console.log('No valid data found.');
+
       }
     } catch (err) {
       console.error(`Error processing ${file}:`, err);

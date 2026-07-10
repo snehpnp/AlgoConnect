@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-4">
         <div className="card lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
@@ -186,6 +186,31 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+        <div className="card">
+          <h2 className="text-base font-bold text-[#0F172A]">Lead Types</h2>
+          <p className="text-xs text-[#64748B]">Distribution of total leads</p>
+          <div className="mt-6 space-y-4 flex flex-col justify-center h-[calc(100%-4rem)]">
+            {data?.leadTypes?.map((item, idx) => {
+              const colors = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-rose-500', 'bg-cyan-500'];
+              const color = colors[idx % colors.length];
+              const percent = stats.totalLeads ? (item.count / stats.totalLeads) * 100 : 0;
+              return (
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">{item.type}</span>
+                    <span className="font-bold text-[#0F172A]">{item.count}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`h-full rounded-full ${color} transition-all duration-1000`} style={{ width: `${percent}%` }}></div>
+                  </div>
+                </div>
+              );
+            })}
+            {(!data?.leadTypes || data.leadTypes.length === 0) && (
+              <div className="text-center text-sm text-slate-500 py-8">No leads found</div>
+            )}
           </div>
         </div>
       </div>

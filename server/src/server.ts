@@ -44,6 +44,9 @@ app.use((req, res) => {
 import { errorHandler } from './middlewares/errorHandler';
 app.use(errorHandler);
 
+import { startCampaignRunner } from './services/campaignRunner.service';
+startCampaignRunner();
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

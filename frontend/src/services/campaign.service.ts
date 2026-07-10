@@ -53,5 +53,20 @@ export const campaignService = {
   addLeadsToCampaign: async (id: number, leadIds: number[]): Promise<{ data: Campaign }> => {
     const response = await apiClient.post<{ data: Campaign }>(`/campaigns/${id}/leads`, { leadIds });
     return response.data;
+  },
+
+  getCampaignStats: async (id: number): Promise<{ data: { sends: any[], engagements: any[] } }> => {
+    const response = await apiClient.get<{ data: { sends: any[], engagements: any[] } }>(`/campaigns/${id}/stats`);
+    return response.data;
+  },
+
+  getEngineStatus: async (): Promise<{ data: { isRunning: boolean } }> => {
+    const response = await apiClient.get<{ data: { isRunning: boolean } }>('/campaigns/engine/status');
+    return response.data;
+  },
+
+  toggleEngineStatus: async (isRunning: boolean): Promise<{ data: { isRunning: boolean } }> => {
+    const response = await apiClient.post<{ data: { isRunning: boolean } }>('/campaigns/engine/toggle', { isRunning });
+    return response.data;
   }
 };
