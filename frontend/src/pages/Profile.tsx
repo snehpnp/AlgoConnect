@@ -127,9 +127,9 @@ export const Profile = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="w-full max-w-6xl mx-auto space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
           <UserCircle className="h-8 w-8 text-primary" />
           My Profile

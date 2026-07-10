@@ -59,6 +59,7 @@ model Lead {
   tradeName       String?
   
   isEnriched          Boolean  @default(false)
+  hasOwnWebsite       Boolean  @default(true)
   leadScore           Int      @default(0)
   website             String?
   linkedin            String?

@@ -82,7 +82,7 @@ export const IntegrationSettings = () => {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-6xl mx-auto space-y-6 pb-12">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Integration Settings</h1>
         <p className="text-slate-500 mt-1">Manage credentials for Email, SMS, and WhatsApp communication channels.</p>

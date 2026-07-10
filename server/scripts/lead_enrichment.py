@@ -191,7 +191,7 @@ If a field is unknown, leave it empty string / empty list. Do not guess."""
         print(f"  [llm error] {e}")
         return {}
 
-def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool) -> dict:
+def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool, recheck_websites: bool = False) -> dict:
     company = lead.get("name", "").strip()
     city = lead.get("city", "") or ""
     
@@ -200,7 +200,17 @@ def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool) 
         parts = [p.strip() for p in address.split(",") if p.strip()]
         city = parts[-2] if len(parts) >= 2 else (parts[-1] if parts else "")
 
-    query = f"{company} {city} SEBI registered advisor".strip()
+    if recheck_websites:
+        q_parts = []
+        if company: q_parts.append(company)
+        if lead.get("registrationNo"): q_parts.append(lead.get("registrationNo"))
+        if lead.get("phone"): q_parts.append(lead.get("phone"))
+        if lead.get("email"): q_parts.append(lead.get("email"))
+        if city: q_parts.append(city)
+        query = " ".join(q_parts).strip() + " official website"
+    else:
+        query = f"{company} {city} SEBI registered advisor".strip()
+        
     print(f"-> Searching: {query}")
     results = search_company(query, tavily_key)
 
@@ -230,30 +240,48 @@ def enrich_lead(lead: dict, tavily_key: str, anthropic_key: str, use_llm: bool) 
     if use_llm:
         enrichment = llm_structure(lead, raw_findings, anthropic_key)
 
+    has_own_website = True
+    if not website:
+        has_own_website = False
+
     return {
         "lead": lead,
         "website": website,
+        "has_own_website": has_own_website,
         "socials": socials,
         "contacts_found_on_site": contacts,
         "llm_enrichment": enrichment,
     }
 
-def fetch_leads_from_db(db_url: str, limit: int = 0) -> list:
+def fetch_leads_from_db(db_url: str, limit: int = 0, recheck_websites: bool = False) -> list:
     print("Connecting to database...")
     conn = psycopg2.connect(db_url)
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     
-    # Priority:
-    # 1. RA (Research Analysts) -> registrationNo starting with 'INH'
-    # 2. State: Madhya Pradesh first
-    query = '''
-        SELECT * FROM "Lead"
-        WHERE "isEnriched" = false
-        ORDER BY 
-            CASE WHEN "registrationNo" ILIKE 'INH%' THEN 1 ELSE 2 END,
-            CASE WHEN "state" ILIKE '%Madhya%' OR "address" ILIKE '%Madhya%' THEN 1 ELSE 2 END,
-            id ASC
-    '''
+    if recheck_websites:
+        query = '''
+            SELECT * FROM "Lead"
+            WHERE "isEnriched" = true
+              AND "hasOwnWebsite" = true
+              AND (
+                  "website" IS NULL OR "website" = ''
+                  OR "website" ILIKE '%justdial%'
+                  OR "website" ILIKE '%linkedin%'
+                  OR "website" ILIKE '%facebook%'
+                  OR "website" ILIKE '%sebi%'
+                  OR "website" ILIKE '%moneycontrol%'
+              )
+            ORDER BY id ASC
+        '''
+    else:
+        query = '''
+            SELECT * FROM "Lead"
+            WHERE "isEnriched" = false
+            ORDER BY 
+                CASE WHEN "registrationNo" ILIKE 'INH%' THEN 1 ELSE 2 END,
+                CASE WHEN "state" ILIKE '%Madhya%' OR "address" ILIKE '%Madhya%' THEN 1 ELSE 2 END,
+                id ASC
+        '''
     if limit > 0:
         query += f" LIMIT {limit}"
         
@@ -270,6 +298,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
     socials = e.get("socials") or {}
     
     website = e.get("website", "")
+    has_own_website = e.get("has_own_website", True)
     linkedin = socials.get("linkedin", llm.get("linkedin", ""))
     twitter = socials.get("twitter", llm.get("twitter", ""))
     facebook = socials.get("facebook", llm.get("facebook", ""))
@@ -292,6 +321,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
     update_q = '''
         UPDATE "Lead" SET 
             "isEnriched" = true,
+            "hasOwnWebsite" = %s,
             "website" = %s,
             "linkedin" = %s,
             "twitter" = %s,
@@ -304,7 +334,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
             "enrichmentNotes" = %s
         WHERE id = %s
     '''
-    cur.execute(update_q, (website, linkedin, twitter, facebook, services, products, algo, broker, size, notes, lead_id))
+    cur.execute(update_q, (has_own_website, website, linkedin, twitter, facebook, services, products, algo, broker, size, notes, lead_id))
     conn.commit()
     cur.close()
     conn.close()
@@ -356,6 +386,8 @@ def main():
     parser.add_argument("--output", default="enriched.csv", help="Output CSV path")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of leads processed (0 = all)")
     parser.add_argument("--use-llm", action="store_true", help="Use Claude API to structure the data")
+    parser.add_argument("--recheck-websites", action="store_true", help="Recheck leads with generic/empty websites to find actual website")
+    parser.add_argument("--api-keys", default="", help="Comma-separated list of Tavily API keys (overrides TAVILY_API_KEY)")
     parser.add_argument("--workers", type=int, default=5, help="Number of concurrent workers (default 5)")
     args = parser.parse_args()
 
@@ -369,15 +401,30 @@ def main():
         pass
 
     db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:123456@localhost:5432/algoconnect")
-    tavily_key = os.environ.get("TAVILY_API_KEY", "")
+    default_tavily_keys = "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,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,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"
+    env_keys = os.environ.get("TAVILY_API_KEYS", os.environ.get("TAVILY_API_KEY", default_tavily_keys))
+    tavily_keys_raw = args.api_keys if args.api_keys else env_keys
+    tavily_keys = [k.strip() for k in tavily_keys_raw.split(",") if k.strip()]
+    
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
-    if not tavily_key:
-        print("WARNING: TAVILY_API_KEY not set. Search step will be skipped.")
+    if not tavily_keys:
+        print("WARNING: TAVILY_API_KEYS not set. Search step will be skipped.")
     if args.use_llm and not anthropic_key:
         print("WARNING: --use-llm passed but ANTHROPIC_API_KEY not set.")
 
-    leads = fetch_leads_from_db(db_url, args.limit)
+    import threading
+    tavily_state = {"idx": 0, "calls": 0, "lock": threading.Lock()}
+    def get_tavily_key():
+        if not tavily_keys: return ""
+        with tavily_state["lock"]:
+            if tavily_state["calls"] >= 700:
+                tavily_state["calls"] = 0
+                tavily_state["idx"] = (tavily_state["idx"] + 1) % len(tavily_keys)
+            tavily_state["calls"] += 1
+            return tavily_keys[tavily_state["idx"]]
+
+    leads = fetch_leads_from_db(db_url, args.limit, args.recheck_websites)
     print(f"Loaded {len(leads)} leads from database.")
 
     enriched = []
@@ -388,7 +435,8 @@ def main():
         state = lead.get('state') or 'No State'
         print(f"[{i}/{len(leads)}] {lead.get('name', '(no name)')} | Reg: {reg} | State: {state}")
         try:
-            result = enrich_lead(lead, tavily_key, anthropic_key, args.use_llm)
+            current_key = get_tavily_key()
+            result = enrich_lead(lead, current_key, anthropic_key, args.use_llm, args.recheck_websites)
             if "id" in lead:
                 update_lead_in_db(db_url, lead["id"], result)
             return result
