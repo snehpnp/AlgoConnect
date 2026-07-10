@@ -96,10 +96,12 @@ def robots_allows(url: str) -> bool:
     try:
         parsed = urlparse(url)
         robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-        rp = urllib.robotparser.RobotFileParser()
-        rp.set_url(robots_url)
-        rp.read()
-        return rp.can_fetch(USER_AGENT, url)
+        resp = requests.get(robots_url, headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            rp = urllib.robotparser.RobotFileParser()
+            rp.parse(resp.text.splitlines())
+            return rp.can_fetch(USER_AGENT, url)
+        return True
     except Exception:
         return True
 
