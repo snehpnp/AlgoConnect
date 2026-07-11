@@ -17,6 +17,7 @@ export interface Campaign {
   emailTemplateId?: number | null;
   whatsappTemplateId?: number | null;
   smsTemplateId?: number | null;
+  leads?: { id: number; name: string; email?: string | null; phone?: string | null }[];
   _count?: { leads: number };
 }
 
@@ -57,6 +58,11 @@ export const campaignService = {
 
   getCampaignStats: async (id: number): Promise<{ data: { sends: any[], engagements: any[] } }> => {
     const response = await apiClient.get<{ data: { sends: any[], engagements: any[] } }>(`/campaigns/${id}/stats`);
+    return response.data;
+  },
+
+  sendManualMessage: async (id: number, data: { leadId: number; channel: string; templateId?: number; message?: string }): Promise<any> => {
+    const response = await apiClient.post(`/campaigns/${id}/manual-message`, data);
     return response.data;
   },
 

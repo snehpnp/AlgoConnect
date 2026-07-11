@@ -11,7 +11,6 @@ import {
   Target,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   MessageSquare
 } from 'lucide-react';
 
@@ -102,14 +101,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
 
       <aside className={`fixed inset-y-0 left-0 z-40 flex ${isCollapsed ? 'w-[80px]' : 'w-[280px]'} flex-col border-r border-slate-800/60 bg-gradient-to-b from-[#0F172A] to-[#0B1121] text-slate-400 shadow-xl transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Brand Header */}
-        <div className={`flex h-16 items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-6'} border-b border-slate-800/50 backdrop-blur-sm bg-[#0F172A]/50 transition-all duration-300`}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 shadow-lg shadow-primary/20">
-            <TrendingUp className="h-5 w-5 text-white" />
+        <div className={`flex h-[72px] items-center border-b border-slate-800/50 bg-[#0F172A]/80 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-5 gap-3'}`}>
+          {/* Logo Mark - Always visible */}
+          <div className="shrink-0">
+            <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Letter A shape */}
+              <path d="M24 4L6 40H14L24 18L34 40H42L24 4Z" fill="url(#sidebarGrad1)" />
+              {/* Crossbar of A - replaced with connect nodes */}
+              <circle cx="17" cy="30" r="3" fill="#2563EB" stroke="#60A5FA" strokeWidth="1.5" />
+              <circle cx="31" cy="30" r="3" fill="#1D4ED8" stroke="#93C5FD" strokeWidth="1.5" />
+              <line x1="20" y1="30" x2="28" y2="30" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" />
+              <defs>
+                <linearGradient id="sidebarGrad1" x1="6" y1="4" x2="42" y2="40" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#60A5FA" />
+                  <stop offset="1" stopColor="#1D4ED8" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
+
+          {/* Wordmark - only visible when expanded */}
           {!isCollapsed && (
-            <span className="text-xl font-extrabold tracking-tight text-white whitespace-nowrap overflow-hidden">
-              AlgoConnect
-            </span>
+            <div className="flex flex-col leading-tight overflow-hidden">
+              <span className="text-[17px] font-extrabold tracking-tight whitespace-nowrap">
+                <span className="text-white">Algo</span>
+                <span className="text-blue-400">Connect</span>
+              </span>
+              <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap">
+                Sales Platform
+              </span>
+            </div>
           )}
         </div>
 

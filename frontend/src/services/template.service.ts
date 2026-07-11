@@ -7,6 +7,7 @@ export interface MessageTemplate {
   content: string;
   type: string;
   status: string;
+  isShared?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

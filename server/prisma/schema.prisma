@@ -115,6 +115,7 @@ model MessageTemplate {
   content   String
   type      String   // EMAIL, SMS, WHATSAPP
   status    String   @default("PENDING") // PENDING, APPROVED
+  isShared  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

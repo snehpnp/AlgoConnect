@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getCampaigns, getCampaignById, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign, getCampaignStats, getEngineStatus, toggleEngineStatus } from '../controllers/campaign.controller';
+import { getCampaigns, getCampaignById, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign, getCampaignStats, getEngineStatus, toggleEngineStatus, sendManualMessage } from '../controllers/campaign.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -16,5 +16,6 @@ router.delete('/:id', authenticate, deleteCampaign);
 
 router.post('/:id/leads', authenticate, addLeadsToCampaign);
 router.delete('/:id/leads/:leadId', authenticate, removeLeadFromCampaign);
+router.post('/:id/manual-message', authenticate, sendManualMessage);
 
 export default router;

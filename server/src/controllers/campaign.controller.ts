@@ -22,6 +22,7 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
     include: {
       segments: { select: { id: true, name: true } },
       automations: true,
+      leads: { select: { id: true, name: true, email: true, phone: true } },
       _count: { select: { leads: true } }
     }
   });
@@ -244,4 +245,26 @@ export const toggleEngineStatus = asyncHandler(async (req: Request, res: Respons
   const { isRunning } = req.body;
   const newState = toggleEngine(isRunning);
   res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});
+
+export const sendManualMessage = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { leadId, channel, templateId, message } = req.body;
+
+  if (!leadId || !channel) {
+    throw new Error('leadId and channel are required');
+  }
+
+  // Mock sending the message, we just record the engagement event
+  const event = await prisma.engagementEvent.create({
+    data: {
+      leadId: parseInt(leadId as string),
+      campaignId: parseInt(id as string),
+      channel,
+      eventType: 'SENT',
+      details: JSON.stringify({ isManual: true, templateId, message })
+    }
+  });
+
+  res.status(200).json({ message: 'Manual message sent successfully', data: event });
 });

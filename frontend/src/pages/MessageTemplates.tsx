@@ -23,7 +23,8 @@ export const MessageTemplates = () => {
     subject: '',
     type: 'EMAIL',
     status: 'PENDING',
-    content: ''
+    content: '',
+    isShared: false
   });
 
   const fetchTemplates = async () => {
@@ -50,7 +51,8 @@ export const MessageTemplates = () => {
         subject: template.subject || '',
         type: template.type,
         status: template.status,
-        content: template.content
+        content: template.content,
+        isShared: template.isShared || false
       });
     } else {
       setEditingTemplate(null);
@@ -59,7 +61,8 @@ export const MessageTemplates = () => {
         subject: '',
         type: 'EMAIL',
         status: 'PENDING',
-        content: ''
+        content: '',
+        isShared: false
       });
     }
     setIsModalOpen(true);
@@ -139,7 +142,14 @@ export const MessageTemplates = () => {
             ) : (
               templates.map((template) => (
                 <tr key={template.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="p-4 font-medium text-gray-900">{template.name}</td>
+                  <td className="p-4 font-medium text-gray-900">
+                    {template.name}
+                    {template.isShared && (
+                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 uppercase tracking-wider">
+                        Shared
+                      </span>
+                    )}
+                  </td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium
                       ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' :
@@ -253,6 +263,19 @@ export const MessageTemplates = () => {
                     <option value="PENDING">Pending Approval</option>
                     <option value="APPROVED">Approved</option>
                   </select>
+                </div>
+
+                <div className="col-span-2 flex items-center mt-2 mb-2">
+                  <input
+                    type="checkbox"
+                    id="isShared"
+                    checked={formData.isShared}
+                    onChange={(e) => setFormData({ ...formData, isShared: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="isShared" className="ml-2 block text-sm font-medium text-gray-700">
+                    Share this template with other users/teams
+                  </label>
                 </div>
 
                 <div className="col-span-2">

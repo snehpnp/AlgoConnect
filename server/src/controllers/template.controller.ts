@@ -23,7 +23,7 @@ export const getTemplateById = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const createTemplate = asyncHandler(async (req: Request, res: Response) => {
-  const { name, content, type, status } = req.body;
+  const { name, content, type, status, isShared } = req.body;
   
   if (!name || !content || !type) {
     throw new Error('Name, content, and type are required');
@@ -34,7 +34,8 @@ export const createTemplate = asyncHandler(async (req: Request, res: Response) =
       name,
       content,
       type,
-      status: status || 'PENDING'
+      status: status || 'PENDING',
+      isShared: isShared || false
     }
   });
   
@@ -43,7 +44,7 @@ export const createTemplate = asyncHandler(async (req: Request, res: Response) =
 
 export const updateTemplate = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, content, type, status } = req.body;
+  const { name, content, type, status, isShared } = req.body;
   
   const template = await prisma.messageTemplate.update({
     where: { id: parseInt(id as string) },
@@ -51,7 +52,8 @@ export const updateTemplate = asyncHandler(async (req: Request, res: Response) =
       name,
       content,
       type,
-      status
+      status,
+      isShared
     }
   });
   

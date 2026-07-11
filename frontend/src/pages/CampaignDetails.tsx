@@ -4,6 +4,7 @@ import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight } fro
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { automationService, type CampaignAutomation } from '../services/automation.service';
 import toast from 'react-hot-toast';
+import { getTemplates, type MessageTemplate } from '../services/template.service';
 
 export const CampaignDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,17 +19,24 @@ export const CampaignDetails = () => {
   const [currentAutomation, setCurrentAutomation] = useState<Partial<CampaignAutomation>>({ status: 'ACTIVE' });
   const [infoLanguage, setInfoLanguage] = useState<'en' | 'hi'>('hi');
 
+  // Manual Message State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualFormData, setManualFormData] = useState({ leadId: '', channel: 'EMAIL', templateId: '', message: '' });
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+
   const fetchData = async () => {
     if (!id) return;
     try {
-      const [campRes, autoRes, statsRes] = await Promise.all([
+      const [campRes, autoRes, statsRes, tmplRes] = await Promise.all([
         campaignService.getCampaignById(Number(id)),
         automationService.getAutomations(Number(id)),
-        campaignService.getCampaignStats(Number(id))
+        campaignService.getCampaignStats(Number(id)),
+        getTemplates()
       ]);
       setCampaign(campRes.data);
       setAutomations(autoRes.data || []);
       setStats(statsRes.data || { sends: [], engagements: [] });
+      setTemplates(tmplRes.data || []);
     } catch (err) {
       toast.error('Failed to load campaign details');
     } finally {
@@ -70,6 +78,26 @@ export const CampaignDetails = () => {
     }
   };
 
+  const handleSendManualMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaign?.id) return;
+
+    try {
+      await campaignService.sendManualMessage(campaign.id, {
+        leadId: Number(manualFormData.leadId),
+        channel: manualFormData.channel,
+        templateId: manualFormData.templateId ? Number(manualFormData.templateId) : undefined,
+        message: manualFormData.message || undefined
+      });
+      toast.success('Manual message sent successfully!');
+      setIsManualModalOpen(false);
+      setManualFormData({ leadId: '', channel: 'EMAIL', templateId: '', message: '' });
+      fetchData(); // Refresh stats
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send manual message');
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading campaign details...</div>;
   }
@@ -106,6 +134,15 @@ export const CampaignDetails = () => {
           {campaign.description && (
             <p className="text-[#64748B] text-sm mt-1">{campaign.description}</p>
           )}
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsManualModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-colors"
+          >
+            <Megaphone className="h-4 w-4" />
+            Send Manual Message
+          </button>
         </div>
       </div>
 
@@ -436,6 +473,78 @@ export const CampaignDetails = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Message Modal */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md border border-[#E2E8F0] bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-lg font-bold text-[#0F172A] mb-4 border-b border-[#E2E8F0] pb-4">
+                Send Manual Message
+              </h2>
+              <form onSubmit={handleSendManualMessage} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Select Lead *</label>
+                  <select 
+                    required 
+                    value={manualFormData.leadId} 
+                    onChange={(e) => setManualFormData({ ...manualFormData, leadId: e.target.value })} 
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">-- Select a Lead --</option>
+                    {campaign?.leads?.map(lead => (
+                      <option key={lead.id} value={lead.id}>{lead.name} {lead.email ? `(${lead.email})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Channel *</label>
+                  <select 
+                    required 
+                    value={manualFormData.channel} 
+                    onChange={(e) => setManualFormData({ ...manualFormData, channel: e.target.value, templateId: '' })} 
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="EMAIL">Email</option>
+                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="SMS">SMS</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Template (Optional)</label>
+                  <select 
+                    value={manualFormData.templateId} 
+                    onChange={(e) => setManualFormData({ ...manualFormData, templateId: e.target.value })} 
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">-- Custom Message --</option>
+                    {templates.filter(t => t.type === manualFormData.channel).map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {!manualFormData.templateId && (
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Message Content *</label>
+                    <textarea 
+                      required={!manualFormData.templateId}
+                      value={manualFormData.message}
+                      onChange={(e) => setManualFormData({ ...manualFormData, message: e.target.value })}
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary resize-none h-24"
+                      placeholder="Type your message here..."
+                    />
+                  </div>
+                )}
+                
+                <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0] mt-6">
+                  <button type="button" onClick={() => setIsManualModalOpen(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold">Cancel</button>
+                  <button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-6 py-2 text-sm font-semibold text-white">Send</button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
