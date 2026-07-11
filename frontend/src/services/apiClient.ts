@@ -24,7 +24,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect if it's NOT the login endpoint. 
+    // We want the Login component to handle its own 401 (wrong credentials).
+    const isLoginEndpoint = error.config?.url?.includes('/auth/login');
+    
+    if (error.response?.status === 401 && !isLoginEndpoint) {
       // Clear stale session and redirect to login
       localStorage.removeItem('algoconnect_token');
       localStorage.removeItem('algoconnect_user');

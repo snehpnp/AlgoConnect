@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -122,9 +122,9 @@ export const Login: React.FC = () => {
                 <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-[#64748B]">
                   Password
                 </label>
-                <a href="#" className="text-xs font-semibold text-primary hover:underline">
+                <Link to="/forgot-password" className="text-xs font-semibold text-primary hover:underline">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <input
                 id="password"

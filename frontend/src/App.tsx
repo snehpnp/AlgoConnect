@@ -10,6 +10,7 @@ import { Unauthorized } from './pages/Unauthorized';
 import AdminUsers from './pages/AdminUsers';
 import StatusDictionary from './pages/StatusDictionary';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { AddLead } from './pages/AddLead';
 import { ImportLeads } from './pages/ImportLeads';
 import { LeadDetails } from './pages/LeadDetails';
@@ -44,6 +45,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes Wrapper */}
           <Route element={<ProtectedRoute />}>
