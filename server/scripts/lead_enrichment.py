@@ -48,7 +48,7 @@ from bs4 import BeautifulSoup
 
 # ------------------------------------------------------------------ config --
 REQUEST_TIMEOUT = 12
-DELAY_BETWEEN_LEADS = 2.0
+DELAY_BETWEEN_LEADS = 0.5  # reduced for speed
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 PHONE_RE = re.compile(r"(\+?91[\-\s]?)?[6-9]\d{9}")
@@ -560,7 +560,7 @@ def main():
     parser.add_argument("--limit", type=int, default=0, help="0 = saare empty-website leads (~3000)")
     parser.add_argument("--use-llm", action="store_true", help="Groq se about/services summary structure karo")
     parser.add_argument("--api-keys", default="", help="Comma-separated Tavily keys (overrides TAVILY_API_KEY)")
-    parser.add_argument("--workers", type=int, default=5)
+    parser.add_argument("--workers", type=int, default=10)
     args = parser.parse_args()
 
     try:
