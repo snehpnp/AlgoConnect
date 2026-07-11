@@ -26,8 +26,8 @@ Environment variables (.env ya shell me set karein):
     GROQ_API_KEY         -> https://console.groq.com se free key milti hai
 
 Usage:
-    python lead_enrichment_empty_website.py --limit 3000 --use-llm --workers 5
-    python lead_enrichment_empty_website.py --limit 50 --use-llm   # pehle chhote batch pe test karein
+    python scripts\lead_enrichment.py --limit 3000 --use-llm --workers 5
+    python scripts\lead_enrichment.py --limit 50 --use-llm   # pehle chhote batch pe test karein
 """
 
 import argparse
@@ -71,7 +71,7 @@ SKIP_DOMAINS = {
     "wikipedia.org", "youtube.com", "sebi.gov.in", "moneycontrol.com",
     "economictimes.indiatimes.com", "google.com", "justdial.com",
     "algotest.in", "instagram.com", "facebook.com", "twitter.com", "x.com",
-    "linkedin.com", "indiamart.com", "sulekha.com",
+    "linkedin.com", "indiamart.com", "sulekha.com", "esi.in",
 }
 
 DIRECTORY_DOMAINS = {
@@ -84,7 +84,7 @@ DIRECTORY_DOMAINS = {
 def search_company(query: str, api_key: str, max_results: int = 5) -> list:
     if not api_key:
         return []
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             resp = requests.post(
                 "https://api.tavily.com/search",
@@ -97,17 +97,18 @@ def search_company(query: str, api_key: str, max_results: int = 5) -> list:
                 timeout=REQUEST_TIMEOUT,
             )
             if resp.status_code in (429, 432):
-                time.sleep(2 + attempt * 2)
+                time.sleep(3 + attempt * 3)
                 continue
             resp.raise_for_status()
             return resp.json().get("results", [])
         except requests.RequestException as e:
             err_msg = e.response.text if getattr(e, "response", None) else str(e)
-            if getattr(e, "response", None) and e.response.status_code in (429, 432) and attempt < 2:
-                time.sleep(3)
+            if getattr(e, "response", None) and e.response.status_code in (429, 432) and attempt < 4:
+                time.sleep(3 + attempt * 3)
                 continue
             print(f"  [search error] {e} -> {err_msg}")
             return []
+    print(f"  [TAVILY RATE LIMIT] Exhausted 5 retries for query: {query}")
     return []
 
 
@@ -289,7 +290,7 @@ Return ONLY a JSON object (no markdown, no preamble) with these fields:
   "notes": ""
 }}
 If a field is unknown, leave it empty string / empty list. Do not guess."""
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -305,7 +306,7 @@ If a field is unknown, leave it empty string / empty list. Do not guess."""
                 timeout=30,
             )
             if resp.status_code == 429:
-                time.sleep(2 + attempt * 2)
+                time.sleep(4 + attempt * 4)
                 continue
             resp.raise_for_status()
             data = resp.json()
@@ -314,11 +315,12 @@ If a field is unknown, leave it empty string / empty list. Do not guess."""
             return json.loads(text)
         except Exception as e:
             err_msg = e.response.text if getattr(e, "response", None) else str(e)
-            if getattr(e, "response", None) and e.response.status_code == 429 and attempt < 2:
-                time.sleep(3)
+            if getattr(e, "response", None) and e.response.status_code == 429 and attempt < 4:
+                time.sleep(4 + attempt * 4)
                 continue
             print(f"  [llm error] {e} -> {err_msg}")
             return {}
+    print("  [GROQ RATE LIMIT] Exhausted 5 retries.")
     return {}
 
 
