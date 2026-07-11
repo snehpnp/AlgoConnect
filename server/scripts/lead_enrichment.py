@@ -26,8 +26,8 @@ Environment variables (.env ya shell me set karein):
     GROQ_API_KEY         -> https://console.groq.com se free key milti hai
 
 Usage:
-    python scripts\lead_enrichment.py --limit 3000 --use-llm --workers 5
-    python scripts\lead_enrichment.py --limit 50 --use-llm   # pehle chhote batch pe test karein
+    python scripts/lead_enrichment.py --limit 3000 --use-llm --workers 5
+    python scripts/lead_enrichment.py --limit 50 --use-llm   # pehle chhote batch pe test karein
 """
 
 import argparse
@@ -39,6 +39,7 @@ import time
 import threading
 import urllib.robotparser
 import concurrent.futures
+import random
 from urllib.parse import urlparse, urljoin
 
 import psycopg2
@@ -97,14 +98,14 @@ def search_company(query: str, api_key: str, max_results: int = 5) -> list:
                 timeout=REQUEST_TIMEOUT,
             )
             if resp.status_code in (429, 432):
-                time.sleep(3 + attempt * 3)
+                time.sleep(4 + attempt * 3 + random.uniform(0, 3))
                 continue
             resp.raise_for_status()
             return resp.json().get("results", [])
         except requests.RequestException as e:
             err_msg = e.response.text if getattr(e, "response", None) else str(e)
             if getattr(e, "response", None) and e.response.status_code in (429, 432) and attempt < 4:
-                time.sleep(3 + attempt * 3)
+                time.sleep(4 + attempt * 3 + random.uniform(0, 3))
                 continue
             print(f"  [search error] {e} -> {err_msg}")
             return []

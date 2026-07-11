@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignById = exports.getCampaigns = void 0;
+exports.sendManualMessage = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignById = exports.getCampaigns = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
+const emailService_1 = require("../utils/emailService");
 exports.getCampaigns = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const campaigns = await prismaClient_1.default.campaign.findMany({
         orderBy: { createdAt: 'desc' },
@@ -25,6 +26,7 @@ exports.getCampaignById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         include: {
             segments: { select: { id: true, name: true } },
             automations: true,
+            leads: { select: { id: true, name: true, email: true, phone: true } },
             _count: { select: { leads: true } }
         }
     });
@@ -199,4 +201,95 @@ exports.removeLeadFromCampaign = (0, asyncHandler_1.asyncHandler)(async (req, re
         }
     });
     res.status(200).json({ message: 'Lead removed from campaign successfully', data: campaign });
+});
+exports.getCampaignStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const engagements = await prismaClient_1.default.engagementEvent.groupBy({
+        by: ['eventType'],
+        where: { campaignId: parseInt(id) },
+        _count: {
+            eventType: true
+        }
+    });
+    res.status(200).json({ data: { sends: [], engagements } });
+});
+const campaignRunner_service_1 = require("../services/campaignRunner.service");
+exports.getEngineStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    res.status(200).json({ data: { isRunning: (0, campaignRunner_service_1.getEngineState)() } });
+});
+exports.toggleEngineStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { isRunning } = req.body;
+    const newState = (0, campaignRunner_service_1.toggleEngine)(isRunning);
+    res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});
+exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const { leadId, channel, templateId, message } = req.body;
+    if (!leadId || !channel) {
+        throw new Error('leadId and channel are required');
+    }
+    const lead = await prismaClient_1.default.lead.findUnique({ where: { id: parseInt(leadId) } });
+    if (!lead)
+        throw new Error('Lead not found');
+    let content = message || '';
+    let subject = 'Message from AlgoConnect';
+    if (templateId) {
+        const template = await prismaClient_1.default.messageTemplate.findUnique({ where: { id: parseInt(templateId) } });
+        if (template) {
+            content = template.content;
+            subject = template.subject || subject;
+        }
+    }
+    if (!content) {
+        throw new Error('Message content is required');
+    }
+    content = content
+        .replace(/{{name}}/g, lead.name || '')
+        .replace(/{{contact_name}}/g, lead.contactPerson || lead.name || '')
+        .replace(/{{company}}/g, lead.name || '');
+    let recipient = '';
+    if (channel === 'EMAIL') {
+        recipient = lead.email || lead.scrapedEmail || lead.email2 || '';
+        if (!recipient)
+            throw new Error('Lead has no email address');
+        try {
+            const transporter = await (0, emailService_1.getEmailTransporter)();
+            const sender = await (0, emailService_1.getEmailSenderId)();
+            await transporter.sendMail({
+                from: sender,
+                to: recipient,
+                subject,
+                html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+            });
+        }
+        catch (err) {
+            await prismaClient_1.default.engagementEvent.create({
+                data: {
+                    leadId: lead.id,
+                    campaignId: parseInt(id),
+                    channel,
+                    eventType: 'FAILED',
+                    details: JSON.stringify({ isManual: true, error: err.message })
+                }
+            });
+            throw new Error(`Failed to send email: ${err.message}`);
+        }
+    }
+    else {
+        // For SMS/Whatsapp, ensure phone exists
+        recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
+        if (!recipient)
+            throw new Error(`Lead has no phone number for ${channel}`);
+        console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
+    }
+    const event = await prismaClient_1.default.engagementEvent.create({
+        data: {
+            leadId: parseInt(leadId),
+            campaignId: parseInt(id),
+            channel,
+            eventType: 'SENT',
+            details: JSON.stringify({ isManual: true, templateId, message: content, recipient })
+        }
+    });
+    res.status(200).json({ message: 'Manual message sent successfully', data: event });
 });

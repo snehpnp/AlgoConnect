@@ -42,6 +42,8 @@ app.use((req, res) => {
 });
 const errorHandler_1 = require("./middlewares/errorHandler");
 app.use(errorHandler_1.errorHandler);
+const campaignRunner_service_1 = require("./services/campaignRunner.service");
+(0, campaignRunner_service_1.startCampaignRunner)();
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

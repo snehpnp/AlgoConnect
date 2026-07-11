@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.testIntegration = exports.updateSetting = exports.getAllSettings = void 0;
+exports.getMessageLogs = exports.testIntegration = exports.updateSetting = exports.getAllSettings = void 0;
 const client_1 = require("@prisma/client");
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const prisma = new client_1.PrismaClient();
@@ -140,3 +140,51 @@ const testIntegration = async (req, res) => {
     }
 };
 exports.testIntegration = testIntegration;
+const getMessageLogs = async (req, res) => {
+    try {
+        const { channel, status, dateFrom, dateTo, page = '1', limit = '50' } = req.query;
+        const where = {};
+        if (channel && channel !== 'ALL') {
+            where.channel = channel;
+        }
+        if (status && status !== 'ALL') {
+            where.eventType = status;
+        }
+        if (dateFrom || dateTo) {
+            where.createdAt = {};
+            if (dateFrom)
+                where.createdAt.gte = new Date(dateFrom);
+            if (dateTo) {
+                const to = new Date(dateTo);
+                to.setHours(23, 59, 59, 999);
+                where.createdAt.lte = to;
+            }
+        }
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const take = parseInt(limit);
+        const [logs, total] = await Promise.all([
+            prisma.engagementEvent.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+                include: {
+                    lead: { select: { id: true, name: true, email: true, phone: true } },
+                    campaign: { select: { id: true, name: true } }
+                }
+            }),
+            prisma.engagementEvent.count({ where })
+        ]);
+        res.json({
+            data: logs,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / take)
+        });
+    }
+    catch (error) {
+        console.error('Error fetching message logs:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.getMessageLogs = getMessageLogs;

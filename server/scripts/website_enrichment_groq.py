@@ -29,7 +29,7 @@ Env vars (.env file ya export karo):
   # (purana single GROQ_API_KEY bhi chalega, backward-compatible hai)
 
 Run:
-  python website_enrichment_groq.py --limit 50 --workers 1
+  python scripts\website_enrichment_groq.py --limit 50 --workers 1
 """
 
 import os
@@ -183,6 +183,24 @@ def claim_one_lead():
         return row
     finally:
         conn.close()
+
+
+def get_total_pending_leads():
+    sql = """
+        SELECT COUNT(id)
+        FROM "Lead"
+        WHERE "isEnriched" = true
+          AND website IS NOT NULL
+          AND website <> ''
+          AND ("servicesSummary" IS NULL OR "servicesSummary" = '')
+          AND ("enrichmentNotes" IS NULL OR "enrichmentNotes" NOT LIKE '[CLAIMED]%%')
+    """
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        count = cur.fetchone()[0]
+    conn.close()
+    return count
 
 
 def update_lead(lead_id, data: dict):
@@ -590,14 +608,15 @@ def is_blocked_domain(url: str) -> bool:
     return any(blocked in domain for blocked in BLOCKED_WEBSITE_DOMAINS)
 
 
-def process_lead(lead: dict):
+def process_lead(lead: dict, current_count: int = 0, total_pending: int = 0):
     lead_id = lead["id"]
     url = normalize_url(lead["website"])
-    log.info(f"[{lead_id}] {lead['name']} ({lead.get('registrationNo')}) -> {url}")
+    progress_str = f"[{current_count}/{total_pending}] " if total_pending > 0 else ""
+    log.info(f"{progress_str}ID: {lead_id} | {lead['name']} ({lead.get('registrationNo')}) -> {url}")
 
     if is_blocked_domain(url):
         mark_failed(lead_id, f"skipped - directory/aggregator listing, not a real company website: {url}")
-        log.warning(f"[{lead_id}] directory/aggregator site hai (JustDial/Scribd/etc.), skip kar rahe hain.")
+        log.warning(f"{progress_str}[{lead_id}] directory/aggregator site hai (JustDial/Scribd/etc.), skip kar rahe hain.")
         return
 
     try:
@@ -684,7 +703,7 @@ def process_lead(lead: dict):
 # ---------------------------------------------------------------------------
 # ENTRYPOINT
 # ---------------------------------------------------------------------------
-def worker_loop(worker_id: int, max_leads: int):
+def worker_loop(worker_id: int, max_leads: int, total_pending: int = 0, shared_counter = None):
     processed = 0
     log.info(f"[Worker-{worker_id}] shuru ho gaya.")
     while processed < max_leads:
@@ -692,8 +711,15 @@ def worker_loop(worker_id: int, max_leads: int):
         if not lead:
             log.info(f"[Worker-{worker_id}] koi pending lead nahi mila, band ho raha hai.")
             break
+            
+        current_count = 0
+        if shared_counter:
+            with shared_counter.get_lock():
+                shared_counter.value += 1
+                current_count = shared_counter.value
+
         try:
-            process_lead(lead)
+            process_lead(lead, current_count, total_pending)
         except Exception as e:
             log.error(f"[Worker-{worker_id}] lead {lead['id']} process karte waqt crash: {e}")
             mark_failed(lead["id"], f"worker crash: {e}")
@@ -708,17 +734,22 @@ def main():
     parser.add_argument("--workers", type=int, default=1, help="Kitne parallel processes chalane hain")
     args = parser.parse_args()
 
+    total_pending = get_total_pending_leads()
+    print(f"\n--- Total DB se {total_pending} leads nikle hain website enrichment ke liye. ---\n")
+
+    from multiprocessing import Process, Value
+    shared_counter = Value('i', 0)
+
     if args.workers <= 1:
-        worker_loop(worker_id=1, max_leads=args.limit)
+        worker_loop(1, args.limit, total_pending, shared_counter)
         log.info("Enrichment run complete.")
         return
 
     per_worker_limit = (args.limit // args.workers) + 5
 
-    from multiprocessing import Process
     processes = []
     for w in range(1, args.workers + 1):
-        p = Process(target=worker_loop, args=(w, per_worker_limit))
+        p = Process(target=worker_loop, args=(w, per_worker_limit, total_pending, shared_counter))
         p.start()
         processes.append(p)
 

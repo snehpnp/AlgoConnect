@@ -6,6 +6,5 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
 const prisma = new client_1.PrismaClient();
 exports.default = prisma;

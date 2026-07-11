@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
+import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
 
 export const getCampaigns = asyncHandler(async (req: Request, res: Response) => {
   const campaigns = await prisma.campaign.findMany({
@@ -255,14 +256,69 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     throw new Error('leadId and channel are required');
   }
 
-  // Mock sending the message, we just record the engagement event
+  const lead = await prisma.lead.findUnique({ where: { id: parseInt(leadId as string) } });
+  if (!lead) throw new Error('Lead not found');
+
+  let content = message || '';
+  let subject = 'Message from AlgoConnect';
+
+  if (templateId) {
+    const template = await prisma.messageTemplate.findUnique({ where: { id: parseInt(templateId) } });
+    if (template) {
+      content = template.content;
+      subject = template.subject || subject;
+    }
+  }
+
+  if (!content) {
+    throw new Error('Message content is required');
+  }
+
+  content = content
+    .replace(/{{name}}/g, lead.name || '')
+    .replace(/{{contact_name}}/g, lead.contactPerson || lead.name || '')
+    .replace(/{{company}}/g, lead.name || '');
+
+  let recipient = '';
+  if (channel === 'EMAIL') {
+    recipient = lead.email || lead.scrapedEmail || lead.email2 || '';
+    if (!recipient) throw new Error('Lead has no email address');
+
+    try {
+      const transporter = await getEmailTransporter();
+      const sender = await getEmailSenderId();
+      await transporter.sendMail({
+        from: sender,
+        to: recipient,
+        subject,
+        html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+      });
+    } catch (err: any) {
+      await prisma.engagementEvent.create({
+        data: {
+          leadId: lead.id,
+          campaignId: parseInt(id as string),
+          channel,
+          eventType: 'FAILED',
+          details: JSON.stringify({ isManual: true, error: err.message })
+        }
+      });
+      throw new Error(`Failed to send email: ${err.message}`);
+    }
+  } else {
+    // For SMS/Whatsapp, ensure phone exists
+    recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
+    if (!recipient) throw new Error(`Lead has no phone number for ${channel}`);
+    console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
+  }
+
   const event = await prisma.engagementEvent.create({
     data: {
       leadId: parseInt(leadId as string),
       campaignId: parseInt(id as string),
       channel,
       eventType: 'SENT',
-      details: JSON.stringify({ isManual: true, templateId, message })
+      details: JSON.stringify({ isManual: true, templateId, message: content, recipient })
     }
   });
 

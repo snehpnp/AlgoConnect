@@ -6,4 +6,5 @@ const router = (0, express_1.Router)();
 router.get('/integrations', settings_controller_1.getAllSettings);
 router.put('/integrations/:type', settings_controller_1.updateSetting);
 router.post('/integrations/:type/test', settings_controller_1.testIntegration);
+router.get('/message-logs', settings_controller_1.getMessageLogs);
 exports.default = router;
