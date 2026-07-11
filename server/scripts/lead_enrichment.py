@@ -49,10 +49,14 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------------ config --
 REQUEST_TIMEOUT = 12
 DELAY_BETWEEN_LEADS = 2.0
-USER_AGENT = "AlgoConnectLeadBot/1.0 (+contact: your-email@example.com)"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 PHONE_RE = re.compile(r"(\+?91[\-\s]?)?[6-9]\d{9}")
-HEADERS = {"User-Agent": USER_AGENT}
+HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
 
 SOCIAL_DOMAINS = {
     "linkedin.com": "linkedin",
@@ -151,7 +155,7 @@ def robots_allows(url: str) -> bool:
 
 
 def fetch_page(url: str) -> str:
-    if not url or not robots_allows(url):
+    if not url or url.startswith(("mailto:", "tel:", "javascript:")) or not robots_allows(url):
         return ""
     try:
         resp = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
@@ -166,7 +170,9 @@ def find_about_page(base_url: str, html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for a in soup.find_all("a", href=True):
         text = (a.get_text() or "").strip().lower()
-        href = a["href"].lower()
+        href = a["href"].lower().strip()
+        if href.startswith(("mailto:", "tel:", "javascript:")):
+            continue
         if "about" in text or "about" in href:
             return urljoin(base_url, a["href"])
     return ""
@@ -176,7 +182,10 @@ def find_contact_page(base_url: str, html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for a in soup.find_all("a", href=True):
         text = (a.get_text() or "").strip().lower()
-        if "contact" in text or "contact" in a["href"].lower():
+        href = a["href"].lower().strip()
+        if href.startswith(("mailto:", "tel:", "javascript:")):
+            continue
+        if "contact" in text or "contact" in href:
             return urljoin(base_url, a["href"])
     return ""
 
