@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Search, Target, Users, Shield, Briefcase, Zap, ShieldCheck, Database, Megaphone, Settings } from 'lucide-react';
+import { BookOpen, Search, Target, Users, Shield, Briefcase, Zap, ShieldCheck, Database, Megaphone } from 'lucide-react';
 
 interface StatusDefinition {
   name: string;
