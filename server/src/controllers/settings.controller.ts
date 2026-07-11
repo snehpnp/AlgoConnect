@@ -133,3 +133,56 @@ export const testIntegration = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+export const getMessageLogs = async (req: Request, res: Response) => {
+  try {
+    const { channel, status, dateFrom, dateTo, page = '1', limit = '50' } = req.query;
+
+    const where: any = {};
+
+    if (channel && channel !== 'ALL') {
+      where.channel = channel as string;
+    }
+
+    if (status && status !== 'ALL') {
+      where.eventType = status as string;
+    }
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+      if (dateTo) {
+        const to = new Date(dateTo as string);
+        to.setHours(23, 59, 59, 999);
+        where.createdAt.lte = to;
+      }
+    }
+
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
+    const [logs, total] = await Promise.all([
+      prisma.engagementEvent.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          lead: { select: { id: true, name: true, email: true, phone: true } },
+          campaign: { select: { id: true, name: true } }
+        }
+      }),
+      prisma.engagementEvent.count({ where })
+    ]);
+
+    res.json({
+      data: logs,
+      total,
+      page: parseInt(page as string),
+      totalPages: Math.ceil(total / take)
+    });
+  } catch (error) {
+    console.error('Error fetching message logs:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
