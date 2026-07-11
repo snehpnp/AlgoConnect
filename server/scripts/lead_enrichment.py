@@ -70,6 +70,11 @@ SKIP_DOMAINS = {
     "linkedin.com", "indiamart.com", "sulekha.com",
 }
 
+DIRECTORY_DOMAINS = {
+    "justdial.com", "indiamart.com", "sulekha.com", "tradeindia.com", "crunchbase.com", "zaubacorp.com",
+    "ambitionbox.com", "glassdoor.co.in", "startupindia.gov.in"
+}
+
 
 # ---------------------------------------------------------------- search ----
 def search_company(query: str, api_key: str, max_results: int = 5) -> list:
@@ -110,6 +115,14 @@ def pick_official_website(results: list) -> str:
             return url
     return ""
 
+
+def pick_directory_website(results: list) -> str:
+    for r in results:
+        url = r.get("url", "")
+        domain = urlparse(url).netloc.replace("www.", "")
+        if domain and any(dd in domain for dd in DIRECTORY_DOMAINS):
+            return url
+    return ""
 
 def pick_social_links(results: list) -> dict:
     socials = {}
@@ -325,12 +338,15 @@ def enrich_lead(lead: dict, tavily_key: str, groq_key: str, use_llm: bool) -> di
     query = build_search_query(lead, city)
     results = search_company(query, tavily_key)
     website = pick_official_website(results)
+    directory_url = pick_directory_website(results)
     socials = pick_social_links(results)
 
     # Step 2: agar pehli try me nahi mila to sirf name+city se retry
     if not website and company:
         results2 = search_company(f"{company} {city}".strip(), tavily_key)
         website = pick_official_website(results2)
+        if not directory_url:
+            directory_url = pick_directory_website(results2)
         for k, v in pick_social_links(results2).items():
             socials.setdefault(k, v)
         results = results + results2
@@ -378,6 +394,7 @@ def enrich_lead(lead: dict, tavily_key: str, groq_key: str, use_llm: bool) -> di
     return {
         "lead": lead,
         "website": website,
+        "directory_url": directory_url,
         "has_own_website": bool(website),
         "registration_verified_on_site": verified,
         "socials": socials,
@@ -418,6 +435,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
     socials = e.get("socials") or {}
 
     website = e.get("website", "")
+    directory_url = e.get("directory_url", "")
     has_own_website = e.get("has_own_website", False)
     linkedin = socials.get("linkedin", llm.get("linkedin", ""))
     twitter = socials.get("twitter", llm.get("twitter", ""))
@@ -444,9 +462,9 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
     scraped_email = found_emails[0] if found_emails else None
     scraped_phone = found_phones[0] if found_phones else None
 
-    # website sirf tab update karo jab kuch mila ho — khaali string se overwrite mat karo
-    if not website:
-        print(f"  [skip update] lead {lead_id}: no website found, DB row untouched (isEnriched not set)")
+    # update karo agar website ya directory url mila ho
+    if not website and not directory_url:
+        print(f"  [skip update] lead {lead_id}: no website or directory found, DB row untouched (isEnriched not set)")
         return
 
     conn = psycopg2.connect(db_url)
@@ -456,6 +474,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
             "isEnriched" = true,
             "hasOwnWebsite" = %s,
             "website" = %s,
+            "directoryUrl" = %s,
             "linkedin" = %s,
             "twitter" = %s,
             "facebook" = %s,
@@ -471,7 +490,7 @@ def update_lead_in_db(db_url: str, lead_id: int, e: dict):
         WHERE id = %s
     '''
     cur.execute(update_q, (
-        has_own_website, website, linkedin, twitter, facebook,
+        has_own_website, website, directory_url, linkedin, twitter, facebook,
         services, products, algo, broker, size, notes,
         logo_url, scraped_email, scraped_phone, lead_id,
     ))
@@ -501,6 +520,7 @@ def save_outputs(enriched: list, out_csv: str, out_json: str):
             "state": lead.get("state", ""),
             "address": lead.get("address", ""),
             "website": e.get("website", ""),
+            "directory_url": e.get("directory_url", ""),
             "registration_verified_on_site": e.get("registration_verified_on_site", ""),
             "logo_url": e.get("logoUrl", ""),
             "linkedin": e.get("socials", {}).get("linkedin", llm.get("linkedin", "")),
