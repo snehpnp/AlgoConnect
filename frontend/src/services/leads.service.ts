@@ -41,6 +41,7 @@ export interface Lead {
   companySizeEstimate?: string | null;
   enrichmentNotes?: string | null;
   logoUrl?: string | null;
+  otherListings?: string | null;
 }
 
 export interface GetLeadsResponse {
@@ -80,7 +81,7 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc' }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },

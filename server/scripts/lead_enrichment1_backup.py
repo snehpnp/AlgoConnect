@@ -125,25 +125,11 @@ def search_company(query: str, api_key: str, max_results: int = 5) -> list:
     return []
 
 
-def pick_official_website(results: list, other_listings_str: str = "") -> str:
-    existing_domains = set()
-    if other_listings_str:
-        try:
-            parsed = json.loads(other_listings_str)
-            for item in parsed:
-                if isinstance(item, dict) and item.get("url"):
-                    d = urlparse(item["url"]).netloc.replace("www.", "")
-                    if d:
-                        existing_domains.add(d)
-        except Exception:
-            pass
-
+def pick_official_website(results: list) -> str:
     for r in results:
         url = r.get("url", "")
         domain = urlparse(url).netloc.replace("www.", "")
         if domain and not any(sd in domain for sd in SKIP_DOMAINS):
-            if domain in existing_domains:
-                continue
             return url
     return ""
 
@@ -375,15 +361,14 @@ def enrich_lead(lead: dict, serper_key: str, groq_key: str, use_llm: bool) -> di
     # Step 1: search
     query = build_search_query(lead, city)
     results = search_company(query, serper_key)
-    other_listings_str = lead.get("otherListings") or ""
-    website = pick_official_website(results, other_listings_str)
+    website = pick_official_website(results)
     directory_url = pick_directory_website(results)
     socials = pick_social_links(results)
 
     # Step 2: agar pehli try me nahi mila to sirf name+city se retry
     if not website and company:
         results2 = search_company(f"{company} {city}".strip(), serper_key)
-        website = pick_official_website(results2, other_listings_str)
+        website = pick_official_website(results2)
         if not directory_url:
             directory_url = pick_directory_website(results2)
         for k, v in pick_social_links(results2).items():
@@ -451,9 +436,12 @@ def fetch_leads_with_empty_website(db_url: str, limit: int = 0) -> list:
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     query = '''
-    SELECT *
-        FROM "Lead"
-        WHERE website ='' OR website is null
+        SELECT * FROM "Lead"
+        WHERE ("website" IS NULL OR TRIM("website") = '')
+        ORDER BY
+            CASE WHEN "registrationNo" ILIKE 'INH%' THEN 1 ELSE 2 END,
+            CASE WHEN "state" ILIKE '%Madhya%' OR "address" ILIKE '%Madhya%' THEN 1 ELSE 2 END,
+            id ASC
     '''
     if limit > 0:
         query += f" LIMIT {limit}"

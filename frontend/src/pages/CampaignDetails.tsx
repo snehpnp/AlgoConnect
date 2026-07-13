@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight, Activity, ChevronLeft, ChevronRight, MailOpen, MessageSquare, Phone, CheckCircle2, XCircle, MousePointerClick, Send, Eye, X } from 'lucide-react';
+import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight, Activity, ChevronLeft, ChevronRight, MailOpen, MessageSquare, Phone, CheckCircle2, XCircle, MousePointerClick, Send, Eye, X, Loader2 } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { automationService, type CampaignAutomation } from '../services/automation.service';
 import toast from 'react-hot-toast';
@@ -453,24 +453,25 @@ export const CampaignDetails = () => {
                           </td>
                           <td className="px-5 py-3.5">
                             {log.eventType === 'SENT' && (
-                              <button
-                                onClick={async () => {
-                                  setPreviewLoading(true);
-                                  try {
-                                    const res = await campaignService.getCampaignLogDetail(Number(id), log.id);
-                                    setPreviewLog(res.data);
-                                  } catch {
-                                    toast.error('Could not load email preview');
-                                  } finally {
-                                    setPreviewLoading(false);
-                                  }
-                                }}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold transition-colors"
-                                title="View email content"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                View
-                              </button>
+                                <button
+                                  onClick={async () => {
+                                    setPreviewLoading(true);
+                                    try {
+                                      const res = await campaignService.getCampaignLogDetail(Number(id), log.id);
+                                      setPreviewLog(res.data);
+                                    } catch {
+                                      toast.error('Could not load email preview');
+                                    } finally {
+                                      setPreviewLoading(false);
+                                    }
+                                  }}
+                                  disabled={previewLoading}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold transition-colors disabled:opacity-50"
+                                  title="View email content"
+                                >
+                                  {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                                  {previewLoading ? 'Loading...' : 'View'}
+                                </button>
                             )}
                           </td>
                         </tr>

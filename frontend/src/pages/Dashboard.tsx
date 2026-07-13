@@ -7,7 +7,13 @@ import {
   UserCheck,
   AlertCircle,
   MessageCircle,
-  PhoneCall
+  PhoneCall,
+  Mail,
+  MessageSquare,
+  Phone,
+  Clock,
+  ArrowRight,
+  Activity
 } from 'lucide-react';
 import { dashboardService } from '../services/dashboard.service';
 import type { DashboardResponse } from '../services/dashboard.service';
@@ -42,6 +48,7 @@ export const Dashboard: React.FC = () => {
     engagedLeads: 0, activeCampaigns: 0 
   };
   const analytics = data?.analytics || [];
+  const recentCommunications = data?.recentCommunications || [];
 
   const statCards = [
     { 
@@ -213,6 +220,90 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Communication Trace Report */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="h-5 w-5 text-indigo-600" />
+          <h2 className="text-lg font-bold text-[#0F172A]">Recent Communications Trace</h2>
+        </div>
+        
+        {recentCommunications.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {recentCommunications.map((event) => {
+              // Determine styles based on eventType and channel
+              let icon = <Mail className="h-4 w-4" />;
+              let colorClass = 'text-blue-600 bg-blue-50 border-blue-100';
+              
+              if (event.channel === 'WHATSAPP') {
+                icon = <MessageSquare className="h-4 w-4" />;
+                colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+              } else if (event.channel === 'SMS') {
+                icon = <Phone className="h-4 w-4" />;
+                colorClass = 'text-amber-600 bg-amber-50 border-amber-100';
+              }
+
+              let statusColor = 'bg-slate-100 text-slate-600';
+              let nextStep = 'Wait for response';
+              if (event.eventType === 'SENT') {
+                statusColor = 'bg-blue-100 text-blue-700';
+                nextStep = 'Wait for delivery';
+              } else if (event.eventType === 'DELIVERED') {
+                statusColor = 'bg-cyan-100 text-cyan-700';
+                nextStep = 'Wait for open/read';
+              } else if (event.eventType === 'OPENED' || event.eventType === 'READ') {
+                statusColor = 'bg-purple-100 text-purple-700';
+                nextStep = 'Follow up via call';
+              } else if (event.eventType === 'CLICKED') {
+                statusColor = 'bg-amber-100 text-amber-700';
+                nextStep = 'Hot lead - call immediately';
+              } else if (event.eventType === 'REPLIED') {
+                statusColor = 'bg-emerald-100 text-emerald-800';
+                nextStep = 'Respond to reply';
+              } else if (event.eventType === 'BOUNCED' || event.eventType === 'FAILED') {
+                statusColor = 'bg-red-100 text-red-700';
+                nextStep = 'Update contact info';
+              }
+
+              return (
+                <div key={event.id} className="group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer" onClick={() => navigate(`/leads`)}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className={`p-2 rounded-lg border ${colorClass}`}>
+                      {icon}
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusColor}`}>
+                      {event.eventType}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-slate-900 truncate" title={event.lead.name}>{event.lead.name}</h3>
+                    <p className="text-xs text-slate-500 truncate" title={event.campaign?.name || 'Direct Message'}>
+                      {event.campaign?.name || 'Direct Message'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 mt-auto">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{new Date(event.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                    <div className="flex items-center gap-1 font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span>{nextStep}</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center p-8 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+            <Activity className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-slate-500 text-sm">No recent communications found.</p>
+          </div>
+        )}
       </div>
     </div>
   );

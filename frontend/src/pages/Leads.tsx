@@ -175,6 +175,9 @@ export const Leads: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [salesStageFilter, setSalesStageFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
+  const [stateFilter, setStateFilter] = useState('All');
+  const [cityFilter, setCityFilter] = useState('All');
+  const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[] }>({ states: [], cities: [], types: [] });
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -185,13 +188,20 @@ export const Leads: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [scoreSort, setScoreSort] = useState<'none' | 'asc' | 'desc'>('none');
+  const [scoreSort, setScoreSort] = useState<'none' | 'asc' | 'desc'>('desc');
 
   const sortedLeads = useMemo(() => {
     return leads;
   }, [leads]);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Load filter options
+  useEffect(() => {
+    leadsService.getFilterOptions(stateFilter !== 'All' ? stateFilter : undefined)
+      .then(setFilterOptions)
+      .catch(err => console.error('Error fetching filter options', err));
+  }, [stateFilter]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -310,6 +320,8 @@ export const Leads: React.FC = () => {
         search: searchQuery || undefined,
         salesStage: salesStageFilter === 'All' ? undefined : salesStageFilter,
         type: typeFilter === 'All' ? undefined : typeFilter,
+        state: stateFilter === 'All' ? undefined : stateFilter,
+        city: cityFilter === 'All' ? undefined : cityFilter,
         sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
         order: scoreSort !== 'none' ? scoreSort : undefined
       });
@@ -328,12 +340,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, salesStageFilter, typeFilter, scoreSort]);
+  }, [page, searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, salesStageFilter, typeFilter, scoreSort]);
+  }, [searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -435,6 +447,31 @@ export const Leads: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={stateFilter}
+              onChange={(e) => {
+                setStateFilter(e.target.value);
+                setCityFilter('All'); // Reset city when state changes
+              }}
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary max-w-[150px]"
+            >
+              <option value="All">All States</option>
+              {filterOptions.states.map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary max-w-[150px]"
+            >
+              <option value="All">All Cities</option>
+              {filterOptions.cities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -1021,100 +1058,224 @@ export const Leads: React.FC = () => {
             )}
 
             {activeTab === 'enrichment' && (
-              <div className="space-y-6">
-                {selectedLead.isEnriched ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 bg-slate-50/50 rounded-xl p-5 border border-slate-100">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    selectedLead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {selectedLead.isEnriched ? '✓ Enriched' : '⏳ Not Enriched Yet'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-6 bg-slate-50/50 rounded-xl p-5 border border-slate-100">
+
+                  {/* Website */}
+                  {selectedLead.website && (
                     <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
                       <Globe className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Website</p>
-                        {selectedLead.website ? (
-                          <a href={selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{selectedLead.website}</a>
-                        ) : (
-                          <p className="text-sm text-slate-400 mt-0.5">—</p>
-                        )}
+                        <a href={selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{selectedLead.website}</a>
                       </div>
                     </div>
+                  )}
 
+                  {/* Directory URL */}
+                  {(selectedLead as any).directoryUrl && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <Globe className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Directory URL</p>
+                        <a href={(selectedLead as any).directoryUrl.startsWith('http') ? (selectedLead as any).directoryUrl : `https://${(selectedLead as any).directoryUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{(selectedLead as any).directoryUrl}</a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scraped Email */}
+                  {(selectedLead as any).scrapedEmail && (
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Scraped Email</p>
+                        <a href={`mailto:${(selectedLead as any).scrapedEmail}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{(selectedLead as any).scrapedEmail}</a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scraped Phone */}
+                  {(selectedLead as any).scrapedPhone && (
+                    <div className="flex items-start gap-3">
+                      <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Scraped Phone</p>
+                        <a href={`tel:${(selectedLead as any).scrapedPhone}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 block">{(selectedLead as any).scrapedPhone}</a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scraped Address */}
+                  {(selectedLead as any).scrapedAddress && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Scraped Address</p>
+                        <p className="text-sm text-slate-700 mt-0.5 leading-relaxed">{(selectedLead as any).scrapedAddress}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Social Links */}
+                  {(selectedLead.linkedin || selectedLead.twitter || selectedLead.facebook) && (
                     <div className="flex items-start gap-3">
                       <LinkIcon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Social Links</p>
-                        <div className="mt-1.5 space-y-2">
-                          {selectedLead.linkedin ? (
-                            <a href={selectedLead.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-700 hover:underline flex items-center gap-1">LinkedIn</a>
-                          ) : null}
-                          {selectedLead.twitter ? (
-                            <a href={selectedLead.twitter} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-400 hover:underline flex items-center gap-1">Twitter</a>
-                          ) : null}
-                          {selectedLead.facebook ? (
-                            <a href={selectedLead.facebook} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">Facebook</a>
-                          ) : null}
-                          {!selectedLead.linkedin && !selectedLead.twitter && !selectedLead.facebook && <span className="text-xs text-slate-400">None found</span>}
+                        <div className="mt-1.5 space-y-1.5">
+                          {selectedLead.linkedin && <a href={selectedLead.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-700 hover:underline block">LinkedIn ↗</a>}
+                          {selectedLead.twitter && <a href={selectedLead.twitter} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-400 hover:underline block">Twitter/X ↗</a>}
+                          {selectedLead.facebook && <a href={selectedLead.facebook} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-600 hover:underline block">Facebook ↗</a>}
                         </div>
                       </div>
                     </div>
+                  )}
 
+                  {/* Company Size */}
+                  {selectedLead.companySizeEstimate && selectedLead.companySizeEstimate !== 'Unknown' && (
                     <div className="flex items-start gap-3">
                       <Briefcase className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Company Size</p>
-                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.companySizeEstimate || '—'}</p>
+                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.companySizeEstimate}</p>
                       </div>
                     </div>
+                  )}
 
-                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
-                      <Sparkles className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Services Summary</p>
-                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{selectedLead.servicesSummary || '—'}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
-                      <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Products Offered</p>
-                        <p className="text-sm text-slate-700 mt-1">{selectedLead.productsOffered || '—'}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Broker Partner</p>
-                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.brokerPartner || '—'}</p>
-                      </div>
-                    </div>
-
+                  {/* Sells Algo Trading */}
+                  {selectedLead.sellsAlgoTrading && selectedLead.sellsAlgoTrading !== 'Unknown' && (
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</p>
-                        <span className="inline-flex items-center mt-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{selectedLead.sellsAlgoTrading || 'Unknown'}</span>
+                        <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
+                          selectedLead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
+                          selectedLead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>{selectedLead.sellsAlgoTrading}</span>
                       </div>
                     </div>
+                  )}
 
-                    {selectedLead.enrichmentNotes && (
-                      <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
-                        <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                        <div className="min-w-0 flex-1 bg-amber-50 rounded-lg p-3 border border-amber-100">
-                          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1">Enrichment Notes / Alerts</p>
-                          <p className="text-sm text-amber-900 leading-relaxed break-words">{selectedLead.enrichmentNotes}</p>
+                  {/* Broker Partner */}
+                  {selectedLead.brokerPartner && (
+                    <div className="flex items-start gap-3">
+                      <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Broker Partner</p>
+                        <p className="text-sm font-medium text-slate-900 mt-0.5">{selectedLead.brokerPartner}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Company Description */}
+                  {(selectedLead as any).companyDescription && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <Sparkles className="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Company Description</p>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{(selectedLead as any).companyDescription}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Services Summary */}
+                  {selectedLead.servicesSummary && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <Sparkles className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Services Summary</p>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{selectedLead.servicesSummary}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Products Offered */}
+                  {selectedLead.productsOffered && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Products Offered</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {selectedLead.productsOffered.split(',').map((p: string) => (
+                            <span key={p.trim()} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">{p.trim()}</span>
+                          ))}
                         </div>
                       </div>
-                    )}
-
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-10">
-                    <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                      <Search className="h-5 w-5 text-slate-400" />
                     </div>
-                    <p className="text-sm font-medium text-slate-900">Not enriched yet</p>
-                    <p className="text-xs text-slate-500 mt-1 text-center max-w-xs">Run the lead enrichment script to fetch public web data for this lead.</p>
-                  </div>
-                )}
+                  )}
+
+                  {/* Enrichment Notes */}
+                  {selectedLead.enrichmentNotes && !selectedLead.enrichmentNotes.startsWith('[CLAIMED]') && !selectedLead.enrichmentNotes.startsWith('[SCRAPE_FAILED]') && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1 bg-amber-50 rounded-lg p-3 border border-amber-100">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1">Enrichment Notes</p>
+                        <p className="text-sm text-amber-900 leading-relaxed break-words">{selectedLead.enrichmentNotes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scrape Failed */}
+                  {selectedLead.enrichmentNotes?.startsWith('[SCRAPE_FAILED]') && (
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                      <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1 bg-red-50 rounded-lg p-3 border border-red-100">
+                        <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">Scrape Failed</p>
+                        <p className="text-xs text-red-600 break-words">{selectedLead.enrichmentNotes.replace('[SCRAPE_FAILED] ', '')}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other Platform Listings (RA only) */}
+                  {(() => {
+                    const raw = (selectedLead as any).otherListings;
+                    let listings: any[] = [];
+                    if (raw) {
+                      try { listings = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch {}
+                    }
+                    if (!listings || listings.length === 0) return null;
+                    return (
+                      <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
+                        <Globe className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                            Registered On Other Platforms ({listings.length})
+                          </p>
+                          <div className="space-y-2">
+                            {listings.map((item: any, idx: number) => (
+                              <a
+                                key={idx}
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-start gap-2 p-2 rounded-lg border border-slate-100 bg-white hover:bg-indigo-50 hover:border-indigo-200 transition-colors group"
+                              >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 shrink-0 group-hover:bg-indigo-200">
+                                  {item.platform}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-slate-700 group-hover:text-indigo-700 truncate">{item.title || item.url}</p>
+                                  {item.snippet && <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.snippet}</p>}
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+
+                </div>
               </div>
             )}
 

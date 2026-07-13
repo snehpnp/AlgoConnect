@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Mail, Shield, Clock, ShieldCheck, UserCircle, Briefcase, Lock, X, Loader2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { base_url } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 
 export const Profile = () => {
   const { user, updateUserContext } = useAuth();
@@ -16,7 +16,6 @@ export const Profile = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
   if (!user) return null;
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -28,21 +27,7 @@ export const Profile = () => {
 
     setIsChangingPassword(true);
     try {
-      const token = localStorage.getItem('algoconnect_token');
-      const response = await fetch(`${base_url}/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to change password');
-      }
+      await apiClient.post('/auth/change-password', { currentPassword, newPassword });
 
       toast.success('Password updated successfully!');
       setIsPasswordModalOpen(false);
@@ -99,18 +84,8 @@ export const Profile = () => {
           // Compress to JPEG with 0.8 quality
           const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-          // Upload to backend
-          const token = localStorage.getItem('algoconnect_token');
-          const response = await fetch(`${base_url}/users/${user.id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ avatar: optimizedBase64 })
-          });
-
-          if (!response.ok) throw new Error('Failed to update avatar');
+          // Upload to backend using apiClient to automatically send cookies
+          await apiClient.put(`/users/${user.id}`, { avatar: optimizedBase64 });
 
           updateUserContext({ avatar: optimizedBase64 });
           toast.success('Profile picture updated successfully!');

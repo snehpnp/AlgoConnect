@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Users, Search, Edit, Trash2, X, Shield, Mail, Calendar, Loader2, AlertCircle, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { base_url } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 
 interface Role {
   id: number;
@@ -41,11 +40,9 @@ const AdminUsers = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
-
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${base_url}/users`, axiosConfig);
+      const response = await apiClient.get(`/users`);
       setUsers(response.data.data);
     } catch (error) {
       toast.error('Failed to fetch users');
@@ -54,7 +51,7 @@ const AdminUsers = () => {
 
   const fetchRoles = async () => {
     try {
-      const response = await axios.get(`${base_url}/users/roles`, axiosConfig);
+      const response = await apiClient.get(`/users/roles`);
       setRoles(response.data.data);
     } catch (error) {
       toast.error('Failed to fetch roles');
@@ -90,10 +87,10 @@ const AdminUsers = () => {
 
     try {
       if (modalMode === 'ADD') {
-        await axios.post(`${base_url}/users`, formData, axiosConfig);
+        await apiClient.post(`/users`, formData);
         toast.success('User added successfully');
       } else {
-        await axios.put(`${base_url}/users/${formData.id}`, formData, axiosConfig);
+        await apiClient.put(`/users/${formData.id}`, formData);
         toast.success('User updated successfully');
       }
       await fetchUsers();
@@ -110,7 +107,7 @@ const AdminUsers = () => {
   const confirmDelete = async () => {
     if (!userToDelete) return;
     try {
-      await axios.delete(`${base_url}/users/${userToDelete.id}`, axiosConfig);
+      await apiClient.delete(`/users/${userToDelete.id}`);
       toast.success('User deleted successfully');
       await fetchUsers();
       setShowDeleteModal(false);

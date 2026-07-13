@@ -6,15 +6,12 @@ export const apiClient = axios.create({
   baseURL: base_url,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+  withCredentials: true,
 });
 
-// --- Request Interceptor: attach JWT token from localStorage ---
+// --- Request Interceptor: Attach credentials if not using cookie-parser automatically (it's automatic for cookies) ---
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('algoconnect_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -24,14 +21,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect if it's NOT the login endpoint. 
-    // We want the Login component to handle its own 401 (wrong credentials).
+    // Only redirect if it's NOT the login endpoint and not the me endpoint
     const isLoginEndpoint = error.config?.url?.includes('/auth/login');
+    const isMeEndpoint = error.config?.url?.includes('/auth/me');
     
-    if (error.response?.status === 401 && !isLoginEndpoint) {
-      // Clear stale session and redirect to login
-      localStorage.removeItem('algoconnect_token');
-      localStorage.removeItem('algoconnect_user');
+    if (error.response?.status === 401 && !isLoginEndpoint && !isMeEndpoint) {
       window.location.href = '/login';
     }
     return Promise.reject(error);

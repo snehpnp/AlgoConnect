@@ -24,6 +24,25 @@ export interface Activity {
   createdAt: string;
 }
 
+export interface CommunicationEvent {
+  id: number;
+  channel: string;
+  eventType: string;
+  details: string | null;
+  createdAt: string;
+  lead: {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+  };
+  campaign: {
+    id: number;
+    name: string;
+    type: string;
+  } | null;
+}
+
 export interface DashboardResponse {
   message: string;
   data: {
@@ -31,6 +50,7 @@ export interface DashboardResponse {
     leadTypes: { type: string, count: number }[];
     analytics: MonthlyAnalytics[];
     activities: Activity[];
+    recentCommunications?: CommunicationEvent[];
   };
 }
 

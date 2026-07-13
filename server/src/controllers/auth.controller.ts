@@ -34,9 +34,47 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     { expiresIn: '1d' }
   );
 
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  });
+
   res.status(200).json({
     message: 'Login successful',
-    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role.name,
+      avatar: user.avatar,
+    },
+  });
+});
+
+// ─── LOGOUT ──────────────────────────────────────────────────────────────────
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  res.clearCookie('token');
+  res.status(200).json({ message: 'Logged out successfully' });
+});
+
+// ─── GET CURRENT USER ────────────────────────────────────────────────────────
+export const me = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError('Not authenticated', 401);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: { role: true },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  res.status(200).json({
     user: {
       id: user.id,
       name: user.name,

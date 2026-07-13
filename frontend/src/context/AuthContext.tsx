@@ -26,28 +26,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Restore session from localStorage on page load
-    const savedUser = localStorage.getItem('algoconnect_user');
-    if (savedUser) {
+    // Restore session from HTTP-only cookie by checking with backend
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem('algoconnect_user');
-        localStorage.removeItem('algoconnect_token');
+        const response = await authService.me();
+        if (response.user) {
+          setUser({
+            id: response.user.id,
+            name: response.user.name,
+            email: response.user.email,
+            role: response.user.role as UserRole,
+            avatar: response.user.avatar,
+          });
+        }
+      } catch (error) {
+        // Not authenticated or session expired
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       const response = await authService.login({ email, password });
-
-      // Persist JWT token
-      localStorage.setItem('algoconnect_token', response.token);
-
-      // Persist user info
+      
       const userData: User = {
         id: response.user.id,
         name: response.user.name,
@@ -55,7 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: response.user.role as UserRole,
         avatar: response.user.avatar,
       };
-      localStorage.setItem('algoconnect_user', JSON.stringify(userData));
       setUser(userData);
     } finally {
       setIsLoading(false);
@@ -64,16 +69,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUserContext = (updates: Partial<User>) => {
     if (user) {
-      const updated = { ...user, ...updates };
-      setUser(updated);
-      localStorage.setItem('algoconnect_user', JSON.stringify(updated));
+      setUser({ ...user, ...updates });
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('algoconnect_user');
-    localStorage.removeItem('algoconnect_token');
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

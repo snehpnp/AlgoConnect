@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import {
   Bell,
   Search,
-  ChevronDown,
   User as UserIcon,
   LogOut,
   Settings,
@@ -120,19 +119,15 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
               setDropdownOpen(!dropdownOpen);
               setNotificationOpen(false); // close notifications if open
             }}
-            className="flex items-center gap-2.5 rounded-full bg-[#F8FAFC] pl-1.5 pr-3 py-1.5 hover:bg-[#F1F5F9] transition-all border border-[#E2E8F0]"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
           >
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-base font-bold overflow-hidden border-2 border-white shadow-md ring-1 ring-slate-200">
               {user?.avatar ? (
                 <img src={user.avatar} alt={user?.name} className="h-full w-full object-cover" />
               ) : (
                 user?.name?.charAt(0).toUpperCase() || 'U'
               )}
             </div>
-            <span className="text-sm font-semibold text-[#0F172A] hidden sm:block">
-              {user?.name || 'Administrator'}
-            </span>
-            <ChevronDown className="h-4 w-4 text-[#64748B]" />
           </button>
 
           {dropdownOpen && (

@@ -22,4 +22,13 @@ export const authService = {
     const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
     return response.data;
   },
+  
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout');
+  },
+  
+  me: async (): Promise<{ user: LoginResponse['user'] }> => {
+    const response = await apiClient.get<{ user: LoginResponse['user'] }>('/auth/me');
+    return response.data;
+  }
 };
