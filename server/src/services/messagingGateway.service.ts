@@ -6,20 +6,31 @@ export interface SendMessageOptions {
   templateId: number;
   channel: 'EMAIL' | 'WHATSAPP' | 'SMS';
   recipient: string;
-  content: string;
+  content: string;      // plain/HTML body
+  subject?: string;     // email subject
+  htmlContent?: string; // full rendered HTML (optional, fallback to content)
 }
 
 export const messagingGateway = {
   async sendMessage(options: SendMessageOptions) {
 
     try {
+      const sentDetails = JSON.stringify({
+        recipient: options.recipient,
+        subject: options.subject || null,
+        htmlContent: options.htmlContent || options.content,
+        templateId: options.templateId,
+        sentAt: new Date().toISOString(),
+        providerMessageId: `mock_${options.channel.toLowerCase()}_${Date.now()}`
+      });
+
       const sentEvent = await prisma.engagementEvent.create({
         data: {
           campaignId: options.campaignId,
           leadId: options.leadId,
           channel: options.channel,
           eventType: 'SENT',
-          details: `providerMessageId: mock_${options.channel.toLowerCase()}_${Date.now()}`
+          details: sentDetails
         }
       });
 

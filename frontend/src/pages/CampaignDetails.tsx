@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Megaphone, Plus, Trash2, Edit2, Zap, Clock, ArrowRight, Activity, ChevronLeft, ChevronRight, MailOpen, MessageSquare, Phone, CheckCircle2, XCircle, MousePointerClick, Send, Eye, X } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { automationService, type CampaignAutomation } from '../services/automation.service';
 import toast from 'react-hot-toast';
@@ -13,6 +13,16 @@ export const CampaignDetails = () => {
   const [automations, setAutomations] = useState<CampaignAutomation[]>([]);
   const [stats, setStats] = useState<any>({ sends: [], engagements: [] });
   const [loading, setLoading] = useState(true);
+
+  // Logs & Pagination
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsMeta, setLogsMeta] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'logs'>('overview');
+
+  // Email Preview Modal
+  const [previewLog, setPreviewLog] = useState<any | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Automation Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -44,8 +54,23 @@ export const CampaignDetails = () => {
     }
   };
 
+  const fetchLogs = useCallback(async (page = 1) => {
+    if (!id) return;
+    setLogsLoading(true);
+    try {
+      const res = await campaignService.getCampaignLogs(Number(id), page, 10);
+      setLogs(res.data || []);
+      setLogsMeta(res.meta || { total: 0, page: 1, limit: 10, totalPages: 1 });
+    } catch {
+      toast.error('Failed to load activity logs');
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchData();
+    fetchLogs(1);
   }, [id]);
 
   const handleSaveAutomation = async (e: React.FormEvent) => {
@@ -106,6 +131,22 @@ export const CampaignDetails = () => {
     return <div className="p-8 text-center text-red-500">Campaign not found.</div>;
   }
 
+  // ---------- helpers ----------
+  const eventTypeConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+    SENT:      { label: 'Sent',      className: 'bg-blue-50 text-blue-700 border-blue-200',     icon: <Send className="h-3 w-3" /> },
+    DELIVERED: { label: 'Delivered', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+    OPENED:    { label: 'Opened',    className: 'bg-purple-50 text-purple-700 border-purple-200',  icon: <MailOpen className="h-3 w-3" /> },
+    CLICKED:   { label: 'Clicked',   className: 'bg-amber-50 text-amber-700 border-amber-200',    icon: <MousePointerClick className="h-3 w-3" /> },
+    FAILED:    { label: 'Failed',    className: 'bg-red-50 text-red-700 border-red-200',          icon: <XCircle className="h-3 w-3" /> },
+    REPLIED:   { label: 'Replied',   className: 'bg-teal-50 text-teal-700 border-teal-200',      icon: <MessageSquare className="h-3 w-3" /> },
+  };
+
+  const channelIcon = (ch: string) => {
+    if (ch === 'EMAIL') return <MailOpen className="h-3.5 w-3.5 text-indigo-500" />;
+    if (ch === 'WHATSAPP') return <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />;
+    return <Phone className="h-3.5 w-3.5 text-slate-400" />;
+  };
+
   return (
     <div className="space-y-8 animate-fade-in relative pb-10">
       {/* Header */}
@@ -146,8 +187,39 @@ export const CampaignDetails = () => {
         </div>
       </div>
 
+      {/* Tab Nav */}
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'overview'
+              ? 'bg-white shadow-sm text-indigo-600'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Zap className="h-4 w-4" />
+          Overview
+        </button>
+        <button
+          onClick={() => { setActiveTab('logs'); fetchLogs(logsMeta.page); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'logs'
+              ? 'bg-white shadow-sm text-indigo-600'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Activity className="h-4 w-4" />
+          Activity Logs
+          {logsMeta.total > 0 && (
+            <span className="ml-1 min-w-[20px] h-5 inline-flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold px-1.5">
+              {logsMeta.total}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {activeTab === 'overview' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Details */}
         <div className="lg:col-span-1 space-y-6">
@@ -304,7 +376,249 @@ export const CampaignDetails = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
+
+      {/* Activity Logs Tab */}
+      {activeTab === 'logs' && (
+        <div className="card !p-0 overflow-hidden">
+          <div className="border-b border-[#E2E8F0] p-5 bg-[#F8FAFC] flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-[#0F172A] flex items-center gap-2">
+                <Activity className="h-5 w-5 text-indigo-500" />
+                Activity Logs
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {logsMeta.total} total event{logsMeta.total !== 1 ? 's' : ''} &mdash; Page {logsMeta.page} of {logsMeta.totalPages}
+              </p>
+            </div>
+            <button
+              onClick={() => fetchLogs(logsMeta.page)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {logsLoading ? (
+            <div className="p-10 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+              <p className="mt-3 text-sm text-slate-500">Loading logs...</p>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="p-10 text-center">
+              <Activity className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-bold text-slate-600">No activity yet</p>
+              <p className="text-xs text-slate-400 mt-1">Messages sent to leads will appear here.</p>
+            </div>
+          ) : (
+            <>
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/70">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lead</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Channel</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Event</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Time</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {logs.map((log: any) => {
+                      const cfg = eventTypeConfig[log.eventType] || { label: log.eventType, className: 'bg-slate-100 text-slate-600 border-slate-200', icon: null };
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
+                          <td className="px-5 py-3.5">
+                            <p className="font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{log.lead?.name || '—'}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{log.lead?.email || log.lead?.phone || ''}</p>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                              {channelIcon(log.channel)}
+                              {log.channel}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.className}`}>
+                              {cfg.icon}
+                              {cfg.label}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString('en-IN', {
+                              day: '2-digit', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {log.eventType === 'SENT' && (
+                              <button
+                                onClick={async () => {
+                                  setPreviewLoading(true);
+                                  try {
+                                    const res = await campaignService.getCampaignLogDetail(Number(id), log.id);
+                                    setPreviewLog(res.data);
+                                  } catch {
+                                    toast.error('Could not load email preview');
+                                  } finally {
+                                    setPreviewLoading(false);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold transition-colors"
+                                title="View email content"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                View
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {logsMeta.totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 bg-slate-50/50">
+                  <p className="text-xs text-slate-500">
+                    Showing <span className="font-semibold text-slate-700">{(logsMeta.page - 1) * logsMeta.limit + 1}</span>–
+                    <span className="font-semibold text-slate-700">{Math.min(logsMeta.page * logsMeta.limit, logsMeta.total)}</span> of{' '}
+                    <span className="font-semibold text-slate-700">{logsMeta.total}</span>
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => fetchLogs(logsMeta.page - 1)}
+                      disabled={logsMeta.page <= 1}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </button>
+
+                    {/* Page numbers */}
+                    {Array.from({ length: logsMeta.totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === logsMeta.totalPages || Math.abs(p - logsMeta.page) <= 1)
+                      .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, i) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${i}`} className="px-2 text-slate-400 text-xs">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => fetchLogs(p as number)}
+                            className={`min-w-[32px] h-8 rounded-lg text-xs font-semibold transition-all border ${
+                              logsMeta.page === p
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'border-slate-200 text-slate-600 hover:bg-white'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+
+                    <button
+                      onClick={() => fetchLogs(logsMeta.page + 1)}
+                      disabled={logsMeta.page >= logsMeta.totalPages}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Email Preview Modal */}
+      {previewLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setPreviewLog(null)}>
+          <div
+            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                  <MailOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Email Preview</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Sent to <span className="font-semibold text-indigo-600">{previewLog.parsedDetails?.recipient || previewLog.lead?.email || '—'}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewLog(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Meta Info */}
+            <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Subject</p>
+                <p className="text-sm font-semibold text-slate-800">{previewLog.parsedDetails?.subject || '(No subject)'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Lead</p>
+                <p className="text-sm font-semibold text-slate-800">{previewLog.lead?.name || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Sent At</p>
+                <p className="text-xs text-slate-600">
+                  {previewLog.parsedDetails?.sentAt
+                    ? new Date(previewLog.parsedDetails.sentAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : new Date(previewLog.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Type</p>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                  {previewLog.parsedDetails?.isManual ? '✉ Manual Send' : '🤖 Automated'}
+                </span>
+              </div>
+            </div>
+
+            {/* Email HTML Body */}
+            <div className="flex-1 overflow-y-auto p-0">
+              {previewLog.parsedDetails?.htmlContent ? (
+                <div
+                  className="p-6 prose prose-sm max-w-none text-slate-800"
+                  style={{ fontFamily: 'sans-serif', lineHeight: 1.7 }}
+                  dangerouslySetInnerHTML={{ __html: previewLog.parsedDetails.htmlContent }}
+                />
+              ) : (
+                <div className="p-6 text-center text-slate-400">
+                  <p className="text-sm">No email content stored for this event.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setPreviewLog(null)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Automation Form Modal */}
       {isFormOpen && (

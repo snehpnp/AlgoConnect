@@ -61,6 +61,16 @@ export const campaignService = {
     return response.data;
   },
 
+  getCampaignLogs: async (id: number, page: number = 1, limit: number = 10): Promise<any> => {
+    const response = await apiClient.get(`/campaigns/${id}/logs?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+
+  getCampaignLogDetail: async (campaignId: number, logId: number): Promise<any> => {
+    const response = await apiClient.get(`/campaigns/${campaignId}/logs/${logId}`);
+    return response.data;
+  },
+
   sendManualMessage: async (id: number, data: { leadId: number; channel: string; templateId?: number; message?: string }): Promise<any> => {
     const response = await apiClient.post(`/campaigns/${id}/manual-message`, data);
     return response.data;

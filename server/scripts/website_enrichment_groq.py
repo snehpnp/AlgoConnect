@@ -157,10 +157,9 @@ def claim_one_lead():
         WITH candidate AS (
             SELECT id
             FROM "Lead"
-            WHERE "isEnriched" = true
-              AND website IS NOT NULL
+            WHERE website IS NOT NULL
               AND website <> ''
-              AND ("servicesSummary" IS NULL OR "servicesSummary" = '')
+              AND ("logoUrl" IS NULL OR "logoUrl" = '')
               AND ("enrichmentNotes" IS NULL OR "enrichmentNotes" NOT LIKE '[CLAIMED]%%')
             ORDER BY
                 CASE WHEN "registrationNo" ILIKE 'INH%%' THEN 1 ELSE 2 END,
@@ -189,10 +188,9 @@ def get_total_pending_leads():
     sql = """
         SELECT COUNT(id)
         FROM "Lead"
-        WHERE "isEnriched" = true
-          AND website IS NOT NULL
+        WHERE website IS NOT NULL
           AND website <> ''
-          AND ("servicesSummary" IS NULL OR "servicesSummary" = '')
+          AND ("logoUrl" IS NULL OR "logoUrl" = '')
           AND ("enrichmentNotes" IS NULL OR "enrichmentNotes" NOT LIKE '[CLAIMED]%%')
     """
     conn = get_conn()

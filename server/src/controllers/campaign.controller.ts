@@ -236,6 +236,40 @@ export const getCampaignStats = asyncHandler(async (req: Request, res: Response)
   res.status(200).json({ data: { sends: [], engagements } });
 });
 
+export const getCampaignLogs = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+
+  const [logs, total] = await Promise.all([
+    prisma.engagementEvent.findMany({
+      where: { campaignId: parseInt(id as string) },
+      include: {
+        lead: {
+          select: { id: true, name: true, email: true, phone: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.engagementEvent.count({
+      where: { campaignId: parseInt(id as string) }
+    })
+  ]);
+
+  res.status(200).json({
+    data: logs,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
+});
+
 import { toggleEngine, getEngineState } from '../services/campaignRunner.service';
 
 export const getEngineStatus = asyncHandler(async (req: Request, res: Response) => {
@@ -312,15 +346,51 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
   }
 
+  const htmlSent = channel === 'EMAIL'
+    ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+    : content;
+
   const event = await prisma.engagementEvent.create({
     data: {
       leadId: parseInt(leadId as string),
       campaignId: parseInt(id as string),
       channel,
       eventType: 'SENT',
-      details: JSON.stringify({ isManual: true, templateId, message: content, recipient })
+      details: JSON.stringify({
+        isManual: true,
+        templateId: templateId || null,
+        recipient,
+        subject,
+        htmlContent: htmlSent,
+        sentAt: new Date().toISOString()
+      })
     }
   });
 
   res.status(200).json({ message: 'Manual message sent successfully', data: event });
+});
+
+export const getCampaignLogDetail = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const logId = req.params.logId as string;
+  const log = await prisma.engagementEvent.findFirst({
+    where: {
+      id: parseInt(logId),
+      campaignId: parseInt(id)
+    },
+    include: {
+      lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
+      campaign: { select: { id: true, name: true } }
+    }
+  });
+  if (!log) throw new Error('Log entry not found');
+
+  let parsedDetails: any = {};
+  try {
+    parsedDetails = log.details ? JSON.parse(log.details as string) : {};
+  } catch {
+    parsedDetails = { raw: log.details };
+  }
+
+  res.status(200).json({ data: { ...log, parsedDetails } });
 });
