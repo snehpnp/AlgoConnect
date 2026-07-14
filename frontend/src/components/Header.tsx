@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
   if (!user) return null;
 
   return (
-    <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[280px]'} z-30 flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/80 backdrop-blur-md px-4 sm:px-8 shadow-sm transition-all duration-300`}>
+    <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[280px]'} z-30 flex h-14 sm:h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md px-3 sm:px-6 shadow-sm transition-all duration-300`}>
       <div className="flex items-center gap-2 sm:gap-6 w-full max-w-xl">
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-5">
         {/* Notifications */}
         <div className="relative">
           <button
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                 className="fixed inset-0 z-10"
                 onClick={() => setNotificationOpen(false)}
               ></div>
-              <div className="absolute right-0 mt-3 w-80 origin-top-right rounded-2xl border border-[#E2E8F0] bg-white shadow-xl ring-1 ring-black/5 z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-3 w-[calc(100vw-1.5rem)] sm:w-80 origin-top-right rounded-2xl border border-[#E2E8F0] bg-white shadow-xl ring-1 ring-black/5 z-20 overflow-hidden">
                 <div className="flex items-center justify-between border-b border-[#E2E8F0] bg-slate-50/50 px-4 py-3">
                   <h3 className="font-bold text-[#0F172A]">Notifications</h3>
                   <button className="text-xs font-semibold text-primary hover:text-blue-700 transition-colors">
@@ -113,15 +113,16 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
         </div>
 
         {/* User Dropdown */}
-        <div className="relative">
+        <div className="relative" id="user-menu">
           <button
             onClick={() => {
               setDropdownOpen(!dropdownOpen);
               setNotificationOpen(false); // close notifications if open
             }}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none min-h-[44px] min-w-[44px] justify-center"
+            aria-label="User menu"
           >
-            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-base font-bold overflow-hidden border-2 border-white shadow-md ring-1 ring-slate-200">
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-base font-bold overflow-hidden border-2 border-white shadow-md ring-1 ring-slate-200">
               {user?.avatar ? (
                 <img src={user.avatar} alt={user?.name} className="h-full w-full object-cover" />
               ) : (
@@ -138,7 +139,10 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                 onClick={() => setDropdownOpen(false)}
               ></div>
 
-              <div className="absolute right-0 mt-2.5 w-56 origin-top-right rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-20">
+              {/* Dropdown panel — fixed on mobile to avoid overflow */}
+              <div className="fixed right-3 mt-1 w-[calc(100vw-1.5rem)] max-w-[240px] sm:absolute sm:right-0 sm:w-56 origin-top-right rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-20"
+                style={{ top: 'calc(3.5rem + 4px)' }}
+              >
                 <div className="border-b border-[#E2E8F0] px-3.5 py-2.5">
                   <p className="text-xs text-[#64748B]">Signed in as</p>
                   <p className="truncate text-sm font-medium text-[#0F172A]">{user.email}</p>
@@ -150,9 +154,9 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                       setDropdownOpen(false);
                       navigate('/profile');
                     }}
-                    className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2 text-sm text-[#0F172A]"
+                    className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2.5 text-sm text-[#0F172A] min-h-[44px]"
                   >
-                    <UserIcon className="h-4.5 w-4.5" />
+                    <UserIcon className="h-4 w-4 shrink-0" />
                     <span>My Profile</span>
                   </button>
                   {user.role === 'System Admin' && (
@@ -161,16 +165,12 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                         setDropdownOpen(false);
                         navigate('/settings/integrations');
                       }}
-                      className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2 text-sm text-[#0F172A]"
+                      className="flex w-full items-center gap-2.5 hover:bg-[#F8FAFC] rounded-lg px-3.5 py-2.5 text-sm text-[#0F172A] min-h-[44px]"
                     >
-                      <Settings className="h-4.5 w-4.5" />
+                      <Settings className="h-4 w-4 shrink-0" />
                       <span>Integrations</span>
                     </button>
                   )}
-                  {/* <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-[#0F172A] cursor-not-allowed opacity-60">
-                    <Settings className="h-4.5 w-4.5" />
-                    <span>Account Settings</span>
-                  </div> */}
                 </div>
 
                 <div className="border-t border-[#E2E8F0] pt-1">
@@ -179,9 +179,9 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                       setDropdownOpen(false);
                       logout();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3.5 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors min-h-[44px]"
                   >
-                    <LogOut className="h-4.5 w-4.5" />
+                    <LogOut className="h-4 w-4 shrink-0" />
                     <span>Sign Out</span>
                   </button>
                 </div>

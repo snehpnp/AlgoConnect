@@ -253,8 +253,8 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto min-h-[300px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-left" style={{ minWidth: '700px' }}>
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Campaign Name</th>

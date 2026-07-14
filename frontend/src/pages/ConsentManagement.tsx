@@ -206,8 +206,8 @@ export const ConsentManagement = () => {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <table className="w-full min-w-[700px] text-left text-sm">
                 <thead className="bg-[#F8FAFC] text-xs font-bold uppercase text-[#64748B]">
                   <tr>
                     <th className="px-6 py-4 w-16">Id</th>

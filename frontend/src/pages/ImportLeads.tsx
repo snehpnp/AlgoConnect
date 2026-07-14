@@ -190,20 +190,20 @@ export const ImportLeads = () => {
           <ArrowLeft className="h-4 w-4" />
           Back to Leads
         </button>
-        <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
-          <FileSpreadsheet className="h-8 w-8 text-emerald-500" />
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2 sm:gap-3">
+          <FileSpreadsheet className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500" />
           Streaming Excel Import (1GB+)
         </h1>
-        <p className="text-[#64748B] text-sm">
+        <p className="text-[#64748B] text-xs sm:text-sm">
           Upload massive SEBI/NSE lists (XLS, XLSX, CSV). The system automatically chunks the file and streams it directly to the database without crashing your browser.
         </p>
       </div>
 
       {!file && (
-        <div className="mt-4 rounded-2xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-12 text-center hover:bg-slate-50 transition-colors">
-          <UploadCloud className="mx-auto h-16 w-16 text-[#94A3B8] mb-4" />
-          <h3 className="text-lg font-bold text-[#0F172A] mb-2">Upload Massive File</h3>
-          <p className="text-sm text-[#64748B] mb-6">Files up to 1GB are fully supported. We slice the file into 5MB chunks and stream it.</p>
+        <div className="mt-4 rounded-2xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-6 sm:p-12 text-center hover:bg-slate-50 transition-colors">
+          <UploadCloud className="mx-auto h-10 w-10 sm:h-16 sm:w-16 text-[#94A3B8] mb-3 sm:mb-4" />
+          <h3 className="text-base sm:text-lg font-bold text-[#0F172A] mb-2">Upload Massive File</h3>
+          <p className="text-xs sm:text-sm text-[#64748B] mb-4 sm:mb-6">Files up to 1GB are fully supported. We slice the file into 5MB chunks and stream it.</p>
           <input 
             type="file" 
             ref={fileInputRef} 

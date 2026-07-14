@@ -5,31 +5,74 @@
 }
 
 @layer base {
+  /* Mobile WebView optimizations */
+  html {
+    -webkit-text-size-adjust: 100%; /* prevent iOS font scaling */
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    overscroll-behavior: none; /* prevent bounce in WebView */
+  }
+
   body {
     @apply bg-[#F1F5F9] text-[#0F172A] antialiased;
+    overflow-x: hidden;
+    /* iOS safe areas */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    -webkit-tap-highlight-color: transparent; /* remove tap flash on WebView */
+    touch-action: manipulation; /* disable double-tap zoom */
+  }
+
+  /* Global touch target minimum */
+  button, a, [role="button"] {
+    min-height: 36px;
+    cursor: pointer;
+  }
+
+  /* Responsive images */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Prevent horizontal overflow globally */
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Input zoom prevention on iOS */
+  input, select, textarea {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  @media (min-width: 768px) {
+    input, select, textarea {
+      font-size: 14px;
+    }
   }
 }
 
 @layer components {
   /* Unified Cards */
   .card {
-    @apply rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-300;
+    @apply rounded-xl border border-[#E2E8F0] bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow duration-300;
   }
 
-  /* Unified Buttons */
+  /* Unified Buttons — min touch target 44px */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
   }
 
   /* Unified Inputs */
   .input-base {
-    @apply w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300;
+    @apply w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300 min-h-[44px];
   }
 
   /* Unified Status Badges */
@@ -48,8 +91,8 @@
 
   /* Custom Scrollbar for sidebar/tables */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
@@ -60,4 +103,39 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
   }
+
+  /* Mobile-friendly table scroll wrapper */
+  .table-scroll {
+    @apply w-full overflow-x-auto -mx-0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Mobile modal sizing */
+  .modal-mobile {
+    @apply w-[95vw] max-w-lg sm:max-w-xl md:max-w-2xl;
+  }
+
+  /* Mobile page title */
+  .page-title {
+    @apply text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#0F172A];
+  }
+
+  /* Responsive filter bar */
+  .filter-bar {
+    @apply flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3;
+  }
+
+  /* Safe bottom area for mobile */
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
 }

@@ -136,11 +136,11 @@ const AdminUsers = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2 sm:gap-3">
+            <Users className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             User Management
           </h1>
-          <p className="text-[#64748B] text-sm mt-1">
+          <p className="text-[#64748B] text-xs sm:text-sm mt-1">
             Add, edit, or remove staff members and assign their roles.
           </p>
         </div>
@@ -183,8 +183,8 @@ const AdminUsers = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-[#F8FAFC] text-xs font-bold uppercase text-[#64748B] border-b border-[#E2E8F0]">
               <tr>
                 <th className="px-6 py-4">S No.</th>

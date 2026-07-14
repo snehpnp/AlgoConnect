@@ -406,36 +406,36 @@ export const Leads: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">Leads</h1>
-            <p className="text-sm text-[#64748B]">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A]">Leads</h1>
+            <p className="text-xs sm:text-sm text-[#64748B]">
               Manage, track, and score your inbound and outbound leads.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/leads/import')}
-              className="btn-secondary"
+              className="btn-secondary !px-3 sm:!px-4"
             >
               <Upload className="h-4 w-4" />
-              Import CSV/Excel
+              <span className="hidden sm:inline">Import CSV/Excel</span>
             </button>
-            <button className="btn-secondary">
+            <button className="btn-secondary !px-3 sm:!px-4">
               <Download className="h-4 w-4" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </button>
             <button
               onClick={() => handleOpenForm()}
-              className="btn-primary"
+              className="btn-primary !px-3 sm:!px-4"
             >
               <Plus className="h-4 w-4" />
-              Add Lead
+              <span className="hidden sm:inline">Add Lead</span>
             </button>
           </div>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-col gap-4 rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm sm:flex-row sm:items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4 shadow-sm">
+          <div className="relative">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
@@ -446,7 +446,7 @@ export const Leads: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <select
               value={stateFilter}
               onChange={(e) => {
@@ -534,8 +534,8 @@ export const Leads: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-sm">
+              <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full border-collapse text-left text-sm" style={{ minWidth: '900px' }}>
                   <thead>
                     <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
                       <th className="py-4 px-6 w-[4%] min-w-[50px]">Id</th>
@@ -807,7 +807,7 @@ export const Leads: React.FC = () => {
       {/* Quick-View Modal */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="w-[95vw] max-w-2xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-4 sm:p-6 relative max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4">
               <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">
@@ -1307,7 +1307,7 @@ export const Leads: React.FC = () => {
       {/* Add/Edit Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <div className="w-[95vw] max-w-3xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-4 sm:p-6 relative max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
               <h2 className="text-lg font-bold text-[#0F172A]">
                 {formData.id ? 'Edit Lead' : 'Add New Lead'}

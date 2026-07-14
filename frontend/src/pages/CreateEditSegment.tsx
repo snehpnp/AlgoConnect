@@ -359,8 +359,8 @@ export const CreateEditSegment = () => {
                   <p className="text-sm font-medium">No leads currently match this segment.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-[#E2E8F0]">
-                  <table className="w-full text-left whitespace-nowrap text-sm">
+                <div className="overflow-x-auto rounded-xl border border-[#E2E8F0] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <table className="w-full text-left whitespace-nowrap text-sm" style={{ minWidth: '600px' }}>
                     <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                       <tr>
                         <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase">Entity Name</th>

@@ -143,10 +143,10 @@ export const ChatBot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
-        <div className="mb-4 w-96 max-h-[500px] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transition-all duration-300 ease-in-out transform origin-bottom-right">
+        <div className="mb-4 w-[calc(100vw-1.5rem)] sm:w-96 max-h-[85vh] sm:max-h-[500px] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transition-all duration-300 ease-in-out transform origin-bottom-right">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex justify-between items-center border-b border-indigo-500/30">
             <div className="flex items-center space-x-3">

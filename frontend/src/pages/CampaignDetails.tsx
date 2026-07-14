@@ -413,8 +413,8 @@ export const CampaignDetails = () => {
           ) : (
             <>
               {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-sm" style={{ minWidth: '650px' }}>
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/70">
                       <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lead</th>

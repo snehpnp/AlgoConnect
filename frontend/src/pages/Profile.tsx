@@ -105,16 +105,16 @@ export const Profile = () => {
     <div className="w-full max-w-6xl mx-auto space-y-6">
       {/* Header Section */}
       <div className="flex flex-col gap-2 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
-          <UserCircle className="h-8 w-8 text-primary" />
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2 sm:gap-3">
+          <UserCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           My Profile
         </h1>
-        <p className="text-[#64748B] text-sm">
+        <p className="text-[#64748B] text-xs sm:text-sm">
           View your personal information, role details, and account settings.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6">
         {/* Left Column: Avatar & Basic Info */}
         <div className="md:col-span-1 space-y-6">
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm flex flex-col items-center text-center relative">

@@ -112,11 +112,11 @@ export const Dashboard: React.FC = () => {
   const totalDist = stats.newLeads + stats.contactedLeads + stats.qualifiedLeads + stats.convertedLeads;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5 sm:space-y-8 animate-fade-in pb-10">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">Dashboard Overview</h1>
-          <p className="text-sm text-[#64748B]">Welcome back! Here is a summary of your lead pipelines and campaigns.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A]">Dashboard Overview</h1>
+          <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">Welcome back! Here is a summary of your lead pipelines and campaigns.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-primary">
@@ -127,26 +127,26 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* 8 Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, i) => (
           <div 
             key={i} 
             onClick={stat.action}
-            className="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+            className="rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between">
-              <div className={`rounded-xl p-3 ${stat.bg} group-hover:scale-110 transition-transform`}>{stat.icon}</div>
-              <span className="text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">View &rarr;</span>
+              <div className={`rounded-xl p-2 sm:p-3 ${stat.bg} group-hover:scale-110 transition-transform`}>{stat.icon}</div>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-400 group-hover:text-blue-500 transition-colors">View &rarr;</span>
             </div>
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-[#64748B]">{stat.name}</h3>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-[#0F172A]">{stat.value}</p>
+            <div className="mt-3 sm:mt-4">
+              <h3 className="text-xs sm:text-sm font-medium text-[#64748B]">{stat.name}</h3>
+              <p className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-[#0F172A]">{stat.value}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-4">
         <div className="card lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
@@ -230,7 +230,7 @@ export const Dashboard: React.FC = () => {
         </div>
         
         {recentCommunications.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {recentCommunications.map((event) => {
               // Determine styles based on eventType and channel
               let icon = <Mail className="h-4 w-4" />;
