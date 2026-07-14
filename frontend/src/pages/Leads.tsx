@@ -414,21 +414,21 @@ export const Leads: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/leads/import')}
-              className="btn-secondary !px-3 sm:!px-4"
+              className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Import CSV/Excel</span>
+              <span>Import</span>
             </button>
-            <button className="btn-secondary !px-3 sm:!px-4">
+            <button className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm">
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
+              <span>Export</span>
             </button>
             <button
               onClick={() => handleOpenForm()}
-              className="btn-primary !px-3 sm:!px-4"
+              className="btn-primary !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Lead</span>
+              <span>Add Lead</span>
             </button>
           </div>
         </div>
