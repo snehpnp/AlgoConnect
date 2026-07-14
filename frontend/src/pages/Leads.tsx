@@ -43,7 +43,7 @@ const getLeadScore = (lead: Lead): number => {
   let score = 0;
 
   // --- PART 1: STATUS COMPONENTS (Max 60 points) ---
-  
+
   // 1. Sales Stage component (Max 20 points)
   switch (lead.salesStage) {
     case 'Client Won':
@@ -132,7 +132,7 @@ const getLeadScore = (lead: Lead): number => {
   }
 
   // --- PART 2: DATA COMPLETENESS & RICHNESS (Max 46 points) ---
-  
+
   // 5. Contact Completeness (Max 8 points)
   if (hasValue(lead.email)) score += 3;
   if (hasValue(lead.email2)) score += 1;
@@ -545,7 +545,7 @@ export const Leads: React.FC = () => {
                       <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
                       <th className="py-4 px-6 w-[8%] min-w-[90px] text-center">Sales Stage</th>
                       <th className="py-4 px-6 w-[8%] min-w-[95px] text-center">Verification</th>
-                      <th 
+                      <th
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
                         }}
@@ -589,8 +589,8 @@ export const Leads: React.FC = () => {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-9 w-9 flex-shrink-0 select-none">
                                   {lead.logoUrl ? (
-                                    <img 
-                                      src={lead.logoUrl} 
+                                    <img
+                                      src={lead.logoUrl}
                                       alt={lead.name}
                                       onError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -600,7 +600,7 @@ export const Leads: React.FC = () => {
                                       className="h-9 w-9 rounded-full object-cover border border-slate-200 bg-white"
                                     />
                                   ) : null}
-                                  <div 
+                                  <div
                                     style={{ display: lead.logoUrl ? 'none' : 'flex' }}
                                     className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-600/10 text-primary border border-primary/20 items-center justify-center font-bold text-sm"
                                   >
@@ -688,35 +688,56 @@ export const Leads: React.FC = () => {
 
 
                             {/* Row Actions */}
-                            <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
-                              <div className="relative flex justify-end gap-2">
-                                <button
+                            <td className="py-2 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className=" flex justify-center gap-3 ">
+                                {/* <button
                                   onClick={() => handleRowClick(lead)}
-                                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                   className=""
                                   title="View Details"
                                 >
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button
+                                  <Eye className="h-8 w-8" />
+                                </button> */}
+                                {/* <button
                                   onClick={() => handleOpenForm(lead)}
-                                  className="rounded-lg p-1.5 text-blue-500 hover:bg-blue-50 transition-colors"
+
                                   title="Edit Lead"
                                 >
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
+                                  <Edit2 className="h-8 w-8" />
+                                </button> */}
                                 <button
+
                                   onClick={(e) => {
                                     if (openMenuId === lead.id) {
                                       setOpenMenuId(null);
                                     } else {
                                       const rect = e.currentTarget.getBoundingClientRect();
-                                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+
+                                      const MENU_HEIGHT = 220;
+                                      const GAP = 4;
+
+                                      const spaceBelow = window.innerHeight - rect.bottom;
+
+                                      let top;
+
+                                      if (spaceBelow < MENU_HEIGHT) {
+                                        // niche space nahi hai -> upar kholo
+                                        top = rect.top - MENU_HEIGHT - GAP;
+                                      } else {
+                                        // niche kholo
+                                        top = rect.bottom + GAP;
+                                      }
+
+                                      setMenuPos({
+                                        top,
+                                        right: window.innerWidth - rect.right,
+                                      });
+
                                       setOpenMenuId(lead.id);
                                     }
                                   }}
-                                  className={`rounded-lg p-1.5 transition-colors ${openMenuId === lead.id ? 'bg-slate-100 text-[#0F172A]' : 'text-slate-400 hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
+                                  className={`rounded-lg  transition-colors ${openMenuId === lead.id ? 'bg-slate-100 text-[#0F172A]' : 'text-slate-400 hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}
                                 >
-                                  <MoreVertical className="h-4 w-4" />
+                                  <MoreVertical className="h-6 w-6 " />
                                 </button>
 
                                 {/* Dropdown Menu */}
@@ -1060,9 +1081,8 @@ export const Leads: React.FC = () => {
             {activeTab === 'enrichment' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    selectedLead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${selectedLead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}>
                     {selectedLead.isEnriched ? '✓ Enriched' : '⏳ Not Enriched Yet'}
                   </span>
                 </div>
@@ -1156,11 +1176,10 @@ export const Leads: React.FC = () => {
                       <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</p>
-                        <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
-                          selectedLead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
-                          selectedLead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>{selectedLead.sellsAlgoTrading}</span>
+                        <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${selectedLead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
+                            selectedLead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
+                              'bg-slate-100 text-slate-600'
+                          }`}>{selectedLead.sellsAlgoTrading}</span>
                       </div>
                     </div>
                   )}
@@ -1240,7 +1259,7 @@ export const Leads: React.FC = () => {
                     const raw = (selectedLead as any).otherListings;
                     let listings: any[] = [];
                     if (raw) {
-                      try { listings = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch {}
+                      try { listings = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { }
                     }
                     if (!listings || listings.length === 0) return null;
                     return (
@@ -1281,8 +1300,8 @@ export const Leads: React.FC = () => {
 
 
             {/* Drawer Actions */}
-            <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex gap-3">
-              <button
+            <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex  justify-end gap-3">
+              {/* <button
                 onClick={() => {
                   setSelectedLead(null);
                   handleOpenForm(selectedLead);
@@ -1291,10 +1310,10 @@ export const Leads: React.FC = () => {
               >
                 <Edit2 className="h-4 w-4" />
                 Edit Lead
-              </button>
+              </button> */}
               <button
                 onClick={() => setSelectedLead(null)}
-                className="inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-900 bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
               >
                 Close
                 <ArrowRight className="h-4 w-4 ml-1" />
