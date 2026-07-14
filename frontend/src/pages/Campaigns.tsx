@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
@@ -36,6 +37,26 @@ export const Campaigns: React.FC = () => {
 
   // Row Action Menu
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close menu on scroll
+  useEffect(() => {
+    const handleScroll = () => setOpenMenuId(null);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, []);
+
+  // Close the row action menu when clicking anywhere outside it
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchCampaigns = async () => {
     try {
@@ -309,14 +330,42 @@ export const Campaigns: React.FC = () => {
                     </td>
                     <td className="py-4 px-6 text-right relative">
                       <button
-                        onClick={() => setOpenMenuId(openMenuId === camp.id ? null : camp.id)}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        onClick={(e) => {
+                          if (openMenuId === camp.id) {
+                            setOpenMenuId(null);
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const MENU_HEIGHT = isAdmin ? 170 : 130;
+                            const GAP = 4;
+                            const spaceBelow = window.innerHeight - rect.bottom;
+
+                            let top;
+                            if (spaceBelow < MENU_HEIGHT) {
+                              // niche space nahi hai -> upar kholo
+                              top = rect.top - MENU_HEIGHT - GAP;
+                            } else {
+                              // niche kholo
+                              top = rect.bottom + GAP;
+                            }
+
+                            setMenuPos({
+                              top,
+                              right: window.innerWidth - rect.right,
+                            });
+                            setOpenMenuId(camp.id);
+                          }
+                        }}
+                        className={`rounded-lg p-2 transition-colors ${openMenuId === camp.id ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'}`}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </button>
 
-                      {openMenuId === camp.id && (
-                        <div className="absolute right-8 top-10 z-10 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                      {openMenuId === camp.id && createPortal(
+                        <div
+                          ref={menuRef}
+                          style={{ top: menuPos.top, right: menuPos.right }}
+                          className="fixed z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden"
+                        >
                           {isAdmin && (
                             <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
                               <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
@@ -332,7 +381,8 @@ export const Campaigns: React.FC = () => {
                           <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
                             <Trash2 className="h-4 w-4" /> Delete
                           </button>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </td>
                   </tr>

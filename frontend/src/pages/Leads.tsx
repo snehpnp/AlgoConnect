@@ -434,15 +434,15 @@ export const Leads: React.FC = () => {
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4 shadow-sm">
-          <div className="relative">
+        <div className="flex flex-col lg:flex-row gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4 shadow-sm items-stretch lg:items-center">
+          <div className="relative flex-1">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
               placeholder="Search by name, email, ID, city, or state..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-base !pl-9"
+              className="input-base !pl-9 w-full"
             />
           </div>
 
