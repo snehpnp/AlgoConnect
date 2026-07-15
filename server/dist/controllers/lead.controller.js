@@ -92,6 +92,9 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const engagementStatus = req.query.engagementStatus || 'All';
     const consentStatus = req.query.consentStatus || 'All';
     const type = req.query.type || 'All';
+    const state = req.query.state || 'All';
+    const city = req.query.city || 'All';
+    const websiteStatus = req.query.websiteStatus || 'All';
     const skip = (page - 1) * limit;
     const where = {};
     if (salesStage && salesStage !== 'All')
@@ -104,6 +107,28 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         where.consentStatus = consentStatus;
     if (type && type !== 'All')
         where.type = type;
+    if (state && state !== 'All')
+        where.state = state;
+    if (city && city !== 'All')
+        where.city = city;
+    if (websiteStatus === 'NoWebsite') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({
+            OR: [
+                { website: null },
+                { website: '' }
+            ]
+        });
+    }
+    else if (websiteStatus === 'HasWebsite') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({
+            website: { not: null },
+            NOT: { website: '' }
+        });
+    }
     if (search) {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },

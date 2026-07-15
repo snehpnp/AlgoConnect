@@ -4,13 +4,15 @@ import { Target, Plus, Search, Trash2, Loader2, AlertCircle, Calendar, Eye, X } 
 import toast from 'react-hot-toast';
 import type { Segment } from '../services/segment.service';
 import { segmentService } from '../services/segment.service';
+import { SegmentBuilderDrawer } from '../components/SegmentBuilderDrawer';
 
 export const SegmentList = () => {
   const navigate = useNavigate();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
   const [previewLeads, setPreviewLeads] = useState<any[]>([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -56,7 +58,7 @@ export const SegmentList = () => {
     }
   };
 
-  const filteredSegments = segments.filter(seg => 
+  const filteredSegments = segments.filter(seg =>
     seg.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -85,7 +87,7 @@ export const SegmentList = () => {
             />
           </div>
           <button
-            onClick={() => navigate('/segments/create')}
+            onClick={() => setIsDrawerOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 transition-colors"
           >
             <Plus className="h-4 w-4" />
@@ -158,7 +160,7 @@ export const SegmentList = () => {
                     if (!value || value === 'All') return null;
                     return (
                       <span key={key} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700">
-                        <span className="capitalize text-slate-500 mr-1">{key.replace(/([A-Z])/g, ' $1').trim()}:</span> 
+                        <span className="capitalize text-slate-500 mr-1">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
                         {value}
                       </span>
                     );
@@ -189,7 +191,7 @@ export const SegmentList = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="overflow-auto flex-1 p-6">
               {isPreviewLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -228,7 +230,7 @@ export const SegmentList = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="border-t border-[#E2E8F0] p-4 bg-[#F8FAFC] flex justify-end rounded-b-xl">
               <button
                 onClick={() => navigate('/leads')}
@@ -240,6 +242,13 @@ export const SegmentList = () => {
           </div>
         </div>
       )}
+
+      {/* Segment Builder Drawer */}
+      <SegmentBuilderDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        onSave={() => fetchSegments()} 
+      />
     </div>
   );
 };
