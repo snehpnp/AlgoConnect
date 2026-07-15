@@ -31,3 +31,28 @@ export const trackEmailOpen = async (req: Request, res: Response) => {
     res.end(trackingPixel);
   }
 };
+
+export const trackLinkClick = async (req: Request, res: Response) => {
+  try {
+    const trackingId = req.params.trackingId as string;
+    const reqInfo = {
+      ip: req.ip || (req.socket.remoteAddress as string),
+      device: Array.isArray(req.headers['user-agent']) ? req.headers['user-agent'][0] : req.headers['user-agent'],
+      browser: Array.isArray(req.headers['user-agent']) ? req.headers['user-agent'][0] : req.headers['user-agent'],
+      country: 'Unknown' // Ideally from geo-ip lookup
+    };
+
+    const originalUrl = await emailTrackingService.trackLinkClick(trackingId, reqInfo);
+
+    if (originalUrl) {
+      return res.redirect(302, originalUrl);
+    } else {
+      // If tracking ID not found, just redirect to home or a safe fallback
+      return res.redirect(302, process.env.FRONTEND_URL || 'http://localhost:5173');
+    }
+  } catch (error) {
+    console.error('[Tracking Link] Error:', error);
+    return res.redirect(302, process.env.FRONTEND_URL || 'http://localhost:5173');
+  }
+};
+

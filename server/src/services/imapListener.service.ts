@@ -57,11 +57,38 @@ export const pollImapForReplies = async () => {
       const headerStr = headerPart ? headerPart.body : '';
       
       const parsed = await simpleParser(headerStr + '\r\n\r\n' + bodyData);
-      
-      // Look for In-Reply-To or References
-      let replyToId = parsed.inReplyTo || (parsed.references && parsed.references[0]);
-      
-      if (replyToId) {
+      const fromAddress = parsed.from?.value[0]?.address?.toLowerCase() || '';
+
+      // Check if it's a bounce report
+      if (fromAddress.includes('mailer-daemon') || fromAddress.includes('postmaster') || parsed.subject?.toLowerCase().includes('delivery status') || parsed.subject?.toLowerCase().includes('undeliverable') || parsed.subject?.toLowerCase().includes('failure')) {
+        const bodyText = parsed.text || '';
+        // Try to find the original message ID in the bounce text
+        const match = bodyText.match(/(auto_email_\d+)/);
+        if (match) {
+          const providerMessageId = match[1];
+          const messageSend = await prisma.messageSend.findFirst({
+            where: { providerMessageId: providerMessageId }
+          });
+          if (messageSend && messageSend.status !== 'BOUNCED') {
+            await prisma.engagementEvent.create({
+              data: {
+                messageSendId: messageSend.id,
+                eventType: 'BOUNCED',
+                metadataJson: { error: 'Delivery Status Notification via IMAP' }
+              }
+            });
+            await prisma.messageSend.update({
+              where: { id: messageSend.id },
+              data: { status: 'BOUNCED', bouncedAt: new Date() }
+            });
+            console.log(`[IMAP Listener] Processed bounce for message ${providerMessageId}`);
+          }
+        }
+      } else {
+        // Look for In-Reply-To or References
+        let replyToId = parsed.inReplyTo || (parsed.references && parsed.references[0]);
+        
+        if (replyToId) {
         // Strip < > if present
         replyToId = replyToId.replace(/^<|>$/g, '');
         
@@ -107,6 +134,7 @@ export const pollImapForReplies = async () => {
             console.log(`[IMAP Listener] Processed reply for message ${providerMessageId}`);
           }
         }
+      }
       }
 
       // Mark message as seen

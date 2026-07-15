@@ -36,6 +36,32 @@ export const messagingGateway = {
       // 2. Dispatch real message if channel is EMAIL
       if (options.channel === 'EMAIL') {
         const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
+        
+        // Rewrite links for click tracking
+        const hrefRegex = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/gi;
+        let match;
+        let modifiedHtmlContent = finalHtmlContent;
+
+        while ((match = hrefRegex.exec(finalHtmlContent)) !== null) {
+          const originalUrl = match[1];
+          if (originalUrl.startsWith('mailto:') || originalUrl.startsWith('tel:') || originalUrl.startsWith('#')) continue;
+
+          // Create tracking string
+          const trackingUrlId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          
+          await prisma.emailLinkTracking.create({
+            data: {
+              messageSendId: msg.id,
+              originalUrl: originalUrl,
+              trackingUrl: trackingUrlId
+            }
+          });
+          
+          const newUrl = `${backendUrl}/api/track/click/${trackingUrlId}`;
+          modifiedHtmlContent = modifiedHtmlContent.replace(`href="${originalUrl}"`, `href="${newUrl}"`);
+        }
+        finalHtmlContent = modifiedHtmlContent;
+
         const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
 
         finalHtmlContent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${finalHtmlContent}</div>${trackingPixel}`;
