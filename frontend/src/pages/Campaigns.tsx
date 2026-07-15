@@ -7,6 +7,7 @@ import { getTemplates, type MessageTemplate } from '../services/template.service
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Campaign360Drawer } from '../components/Campaign360Drawer';
 
 export const Campaigns: React.FC = () => {
   const { user } = useAuth();
@@ -26,6 +27,10 @@ export const Campaigns: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
+  
+  // Drawer state
+  const [selectedCampaignForDrawer, setSelectedCampaignForDrawer] = useState<Campaign | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Leads connection state
   const [availableLeads, setAvailableLeads] = useState<Lead[]>([]);
@@ -146,12 +151,12 @@ export const Campaigns: React.FC = () => {
 
   // Debounced search for Modal
   useEffect(() => {
-    if (!isLeadsModalOpen) return;
+    if (!isLeadsModalOpen && !isFormOpen) return;
     const delayDebounceFn = setTimeout(() => {
       fetchModalLeads(modalSearch, modalSalesStage);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [modalSearch, modalSalesStage, isLeadsModalOpen]);
+  }, [modalSearch, modalSalesStage, isLeadsModalOpen, isFormOpen]);
 
   const handleAddLeads = async () => {
     if (!currentCampaign.id || selectedLeadIds.size === 0) return;
@@ -276,7 +281,10 @@ export const Campaigns: React.FC = () => {
                     <td className="py-4 px-6">
                       <div 
                         className="flex items-center gap-3 cursor-pointer group-hover:text-primary transition-colors"
-                        onClick={() => navigate(`/campaigns/${camp.id}`)}
+                        onClick={() => {
+                          setSelectedCampaignForDrawer(camp);
+                          setIsDrawerOpen(true);
+                        }}
                       >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
                           <Megaphone className="h-5 w-5" />
@@ -326,7 +334,7 @@ export const Campaigns: React.FC = () => {
                           <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
                           </button>
-                          <button onClick={() => { setCurrentCampaign({ ...camp, segmentIds: camp.segments?.map(s => s.id) || [] }); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <button onClick={() => { setCurrentCampaign({ ...camp, segmentIds: camp.segments?.map(s => s.id) || [], leadIds: camp.leads?.map(l => l.id) || [] }); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
                           <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
@@ -346,7 +354,7 @@ export const Campaigns: React.FC = () => {
       {/* Add/Edit Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
               <h2 className="text-lg font-bold text-[#0F172A]">{currentCampaign.id ? 'Edit Campaign' : 'Create Campaign'}</h2>
               <button onClick={() => setIsFormOpen(false)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC]">
@@ -389,6 +397,43 @@ export const Campaigns: React.FC = () => {
                   {segments.length === 0 && <span className="text-xs text-slate-500">No segments available</span>}
                 </div>
               </div>
+              
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Direct Leads (Optional)</label>
+                <div className="relative mb-2">
+                  <Search className="absolute top-1/2 left-3 h-3 w-3 -translate-y-1/2 text-[#64748B]" />
+                  <input
+                    type="text"
+                    placeholder="Search leads..."
+                    value={modalSearch}
+                    onChange={(e) => setModalSearch(e.target.value)}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] pl-8 pr-3 py-1.5 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
+                  {leadsLoading ? (
+                    <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
+                  ) : availableLeads.map(lead => (
+                    <label key={lead.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(currentCampaign.leadIds || []).includes(lead.id)}
+                        onChange={(e) => {
+                          const currentIds = currentCampaign.leadIds || [];
+                          if (e.target.checked) {
+                            setCurrentCampaign({ ...currentCampaign, leadIds: [...currentIds, lead.id] });
+                          } else {
+                            setCurrentCampaign({ ...currentCampaign, leadIds: currentIds.filter((id: number) => id !== lead.id) });
+                          }
+                        }}
+                      />
+                      <span className="truncate">{lead.name} {lead.email ? `(${lead.email})` : ''}</span>
+                    </label>
+                  ))}
+                  {!leadsLoading && availableLeads.length === 0 && <span className="text-xs text-slate-500">No leads found</span>}
+                </div>
+              </div>
+
               <div>
                 <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Status</label>
                 <select value={currentCampaign.status || 'DRAFT'} onChange={(e) => setCurrentCampaign({ ...currentCampaign, status: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
@@ -581,6 +626,14 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
       )}
+      <Campaign360Drawer
+        campaign={selectedCampaignForDrawer}
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedCampaignForDrawer(null);
+        }}
+      />
     </div>
   );
 };

@@ -13,6 +13,7 @@ export interface Campaign {
   segmentId?: number | null;
   segment?: { id: number; name: string } | null;
   segmentIds?: number[];
+  leadIds?: number[];
   segments?: { id: number; name: string }[];
   emailTemplateId?: number | null;
   whatsappTemplateId?: number | null;

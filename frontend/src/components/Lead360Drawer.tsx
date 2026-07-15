@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { Lead } from '../services/leads.service';
 import { leadsService } from '../services/leads.service';
+import { apiClient } from '../services/apiClient';
 
 interface Lead360DrawerProps {
   isOpen: boolean;
@@ -30,20 +31,27 @@ const formatDate = (dateString?: string) => {
 const getLeadScore = (lead: any) => lead.leadScore || 0;
 
 export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerProps) => {
-  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'enrichment'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'enrichment' | 'email'>('details');
   const [logs, setLogs] = useState<any[]>([]);
+  const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   useEffect(() => {
     if (isOpen && lead) {
       setActiveTab('details');
       setIsLoadingLogs(true);
-      leadsService.getLeadLogs(lead.id)
-        .then(setLogs)
-        .catch(err => console.error('Error fetching logs', err))
+      Promise.all([
+        leadsService.getLeadLogs(lead.id).catch(() => []),
+        apiClient.get(`/messages/leads/${lead.id}`).then(res => res.data.data).catch(() => [])
+      ])
+        .then(([logsRes, emailRes]) => {
+          setLogs(logsRes);
+          setEmailLogs(emailRes);
+        })
         .finally(() => setIsLoadingLogs(false));
     } else {
       setLogs([]);
+      setEmailLogs([]);
     }
   }, [isOpen, lead]);
 
@@ -52,7 +60,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
       <div className="flex h-full w-full max-w-2xl flex-col bg-slate-50 shadow-2xl transition-transform duration-300 transform translate-x-0">
-        
+
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm z-10">
           <div>
@@ -73,7 +81,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
 
         {/* Drawer Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* Profile Section */}
           <div className="flex items-center gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             {lead.logoUrl ? (
@@ -122,6 +130,12 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             >
               Activity History
+            </button>
+            <button
+              onClick={() => setActiveTab('email')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'email' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+            >
+              Email History
             </button>
             <button
               onClick={() => setActiveTab('enrichment')}
@@ -282,19 +296,68 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             </div>
           )}
 
+          {/* Email History Tab */}
+          {activeTab === 'email' && (
+            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              {isLoadingLogs ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                </div>
+              ) : emailLogs.length === 0 ? (
+                <div className="text-center py-10 text-slate-500 text-sm">
+                  No email history available for this lead.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {emailLogs.map((msg) => (
+                    <div key={msg.id} className="p-4 border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">{msg.subject || '(No Subject)'}</h4>
+                          <p className="text-xs text-slate-500 mt-0.5">Campaign: {msg.campaign?.name}</p>
+                        </div>
+                        <span className={`px-2 py-1 text-[10px] font-bold rounded-full ${msg.status === 'REPLIED' ? 'bg-green-100 text-green-700' : msg.status === 'CLICKED' ? 'bg-purple-100 text-purple-700' : msg.status === 'OPENED' ? 'bg-emerald-100 text-emerald-700' : msg.status === 'DELIVERED' ? 'bg-cyan-100 text-cyan-700' : msg.status === 'QUEUED' || msg.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                          {msg.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100">
+                        <div className="text-xs text-slate-500">
+                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Sent</span>
+                          {formatDate(msg.sentAt) || '—'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Opened</span>
+                          {formatDate(msg.openedAt) || '—'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Clicked</span>
+                          {formatDate(msg.clickedAt) || '—'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Replied</span>
+                          {formatDate(msg.repliedAt) || '—'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Enrichment Tab */}
           {activeTab === 'enrichment' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${
-                  lead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${lead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
                   {lead.isEnriched ? '✓ Data Enriched' : '⏳ Pending Enrichment'}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-6 bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
-                
+
                 {lead.website && (
                   <div className="flex items-start gap-3 col-span-1 sm:col-span-2">
                     <Globe className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
@@ -354,11 +417,10 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                     <CheckCircle2 className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</p>
-                      <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
-                        lead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
-                        lead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>{lead.sellsAlgoTrading}</span>
+                      <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${lead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
+                          lead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-600'
+                        }`}>{lead.sellsAlgoTrading}</span>
                     </div>
                   </div>
                 )}

@@ -15,42 +15,54 @@ export const messagingGateway = {
   async sendMessage(options: SendMessageOptions) {
 
     try {
-      const sentDetails = JSON.stringify({
+      const sentDetails = {
         recipient: options.recipient,
         subject: options.subject || null,
         htmlContent: options.htmlContent || options.content,
         templateId: options.templateId,
-        sentAt: new Date().toISOString(),
-        providerMessageId: `mock_${options.channel.toLowerCase()}_${Date.now()}`
-      });
+      };
 
-      const sentEvent = await prisma.engagementEvent.create({
+      const msg = await prisma.messageSend.create({
         data: {
           campaignId: options.campaignId,
           leadId: options.leadId,
           channel: options.channel,
+          subject: options.subject || 'N/A',
+          status: 'SENT',
+          sentAt: new Date(),
+          providerMessageId: `mock_${options.channel.toLowerCase()}_${Date.now()}`
+        }
+      });
+
+      const sentEvent = await prisma.engagementEvent.create({
+        data: {
+          messageSendId: msg.id,
           eventType: 'SENT',
-          details: sentDetails
+          metadataJson: sentDetails
         }
       });
 
       setTimeout(async () => {
         try {
+          await prisma.messageSend.update({
+            where: { id: msg.id },
+            data: { status: 'DELIVERED', deliveredAt: new Date() }
+          });
           await prisma.engagementEvent.create({
             data: {
-              leadId: options.leadId,
-              campaignId: options.campaignId,
-              channel: options.channel,
+              messageSendId: msg.id,
               eventType: 'DELIVERED',
             }
           });
 
           if (Math.random() > 0.7) {
+            await prisma.messageSend.update({
+              where: { id: msg.id },
+              data: { status: 'OPENED', openedAt: new Date() }
+            });
             await prisma.engagementEvent.create({
               data: {
-                leadId: options.leadId,
-                campaignId: options.campaignId,
-                channel: options.channel,
+                messageSendId: msg.id,
                 eventType: 'OPENED',
               }
             });
@@ -64,13 +76,21 @@ export const messagingGateway = {
     } catch (error) {
       console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
 
-      await prisma.engagementEvent.create({
+      const msg = await prisma.messageSend.create({
         data: {
           campaignId: options.campaignId,
           leadId: options.leadId,
           channel: options.channel,
+          subject: options.subject || 'N/A',
+          status: 'FAILED',
+          providerMessageId: `mock-fail-${Date.now()}`
+        }
+      });
+      await prisma.engagementEvent.create({
+        data: {
+          messageSendId: msg.id,
           eventType: 'FAILED',
-          details: 'Failed to dispatch'
+          metadataJson: { error: 'Failed to dispatch' }
         }
       });
       return { success: false, error };

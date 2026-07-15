@@ -56,12 +56,11 @@ export const startCampaignRunner = () => {
           // Check each channel
           for (const channel of channels) {
             // Check if already sent in this campaign
-            const existingSend = await prisma.engagementEvent.findFirst({
+            const existingSend = await prisma.messageSend.findFirst({
               where: {
                 campaignId: campaign.id,
                 leadId: lead.id,
                 channel: channel,
-                eventType: 'SENT'
               }
             });
 
@@ -76,13 +75,21 @@ export const startCampaignRunner = () => {
 
             if (consent && consent.status === 'OPT_OUT') {
               // Log that it was skipped due to consent
-              await prisma.engagementEvent.create({
+              const msg = await prisma.messageSend.create({
                 data: {
                   campaignId: campaign.id,
                   leadId: lead.id,
                   channel: channel,
+                  subject: 'Skipped - Opt Out',
+                  status: 'FAILED',
+                  providerMessageId: `skip-optout-${Date.now()}`
+                }
+              });
+              await prisma.engagementEvent.create({
+                data: {
+                  messageSendId: msg.id,
                   eventType: 'FAILED',
-                  details: 'SKIPPED_OPT_OUT',
+                  metadataJson: { error: 'SKIPPED_OPT_OUT' },
                 }
               });
               continue;
@@ -105,13 +112,21 @@ export const startCampaignRunner = () => {
 
             if (!template || !recipient) {
               // Missing template or contact info
-              await prisma.engagementEvent.create({
+              const msg = await prisma.messageSend.create({
                 data: {
                   campaignId: campaign.id,
                   leadId: lead.id,
                   channel: channel,
+                  subject: 'Skipped - Missing Info',
+                  status: 'FAILED',
+                  providerMessageId: `skip-missing-${Date.now()}`
+                }
+              });
+              await prisma.engagementEvent.create({
+                data: {
+                  messageSendId: msg.id,
                   eventType: 'FAILED',
-                  details: 'SKIPPED_MISSING_INFO',
+                  metadataJson: { error: 'SKIPPED_MISSING_INFO' },
                 }
               });
               continue;

@@ -12,6 +12,8 @@ import settingsRoutes from './routes/settings.routes';
 import automationRoutes from './routes/automation.routes';
 import templateRoutes from './routes/template.routes';
 import chatRoutes from './routes/chat.routes';
+import webhookRoutes from './routes/webhook.routes';
+import messageRoutes from './routes/message.routes';
 
 const app = express();
 const port = process.env.PORT || 7700;
@@ -34,6 +36,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/automations', automationRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
