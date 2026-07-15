@@ -17,7 +17,7 @@ export const Layout: React.FC = () => {
         setIsCollapsed={setIsSidebarCollapsed} 
       />
       {/* On mobile: no left padding (sidebar is drawer). On lg+: sidebar width offset */}
-      <div className={`${isSidebarCollapsed ? 'lg:pl-[80px]' : 'lg:pl-[280px]'} flex flex-col min-h-screen transition-all duration-300 overflow-x-hidden`}>
+      <div className={`${isSidebarCollapsed ? 'lg:pl-[80px]' : 'lg:pl-[240px]'} flex flex-col min-h-screen transition-all duration-300 overflow-x-hidden`}>
         <Header setIsSidebarOpen={setIsSidebarOpen} isSidebarCollapsed={isSidebarCollapsed} />
         <main className="flex-1 pt-16 relative w-full overflow-x-hidden">
           {/* Subtle background decoration */}

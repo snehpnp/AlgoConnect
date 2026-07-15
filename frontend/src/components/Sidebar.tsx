@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-40 flex ${isCollapsed ? 'w-[80px]' : 'w-[280px]'} flex-col border-r border-slate-800/60 bg-gradient-to-b from-[#0F172A] to-[#0B1121] text-slate-400 shadow-xl transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 flex ${isCollapsed ? 'w-[80px]' : 'w-[240px]'} flex-col border-r border-slate-800/60 bg-gradient-to-b from-[#0F172A] to-[#0B1121] text-slate-400 shadow-xl transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Brand Header */}
         <div className={`flex h-[72px] items-center border-b border-slate-800/50 bg-[#0F172A]/80 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-start px-5 gap-3'}`}>
           {/* Logo Mark - Always visible */}

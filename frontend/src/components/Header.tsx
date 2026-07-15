@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
   if (!user) return null;
 
   return (
-    <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[280px]'} z-30 flex h-14 sm:h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md px-3 sm:px-6 shadow-sm transition-all duration-300`}>
+    <header className={`fixed top-0 right-0 left-0 ${isSidebarCollapsed ? 'lg:left-[80px]' : 'lg:left-[240px]'} z-30 flex h-14 sm:h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md px-3 sm:px-6 shadow-sm transition-all duration-300`}>
       <div className="flex items-center gap-2 sm:gap-6 w-full max-w-xl">
         <button
           onClick={() => setIsSidebarOpen(true)}
