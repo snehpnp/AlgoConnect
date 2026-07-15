@@ -55,7 +55,15 @@ import { errorHandler } from './middlewares/errorHandler';
 app.use(errorHandler);
 
 import { startCampaignRunner } from './services/campaignRunner.service';
+import { pollImapForReplies } from './services/imapListener.service';
+import cron from 'node-cron';
+
 startCampaignRunner();
+
+// Poll for email replies every 5 minutes
+cron.schedule('*/5 * * * *', () => {
+  pollImapForReplies();
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

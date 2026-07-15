@@ -46,7 +46,8 @@ export const messagingGateway = {
           from: sender,
           to: options.recipient,
           subject: options.subject,
-          html: finalHtmlContent
+          html: finalHtmlContent,
+          messageId: `${providerMessageId}@algoconnect.local`
         });
       }
 

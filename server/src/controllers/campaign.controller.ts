@@ -57,6 +57,10 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
               events: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
+              },
+              replies: {
+                orderBy: { receivedAt: 'desc' },
+                take: 1
               }
             }
           }
@@ -72,9 +76,12 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
   const formattedLeads = campaign.leads.map(lead => {
     const lastMessageSend = lead.messageSends[0];
     const lastEvent = lastMessageSend?.events[0];
+    const latestReply = lastMessageSend?.replies?.[0];
     
     let status = 'PENDING';
-    if (lastEvent) {
+    if (latestReply) {
+       status = 'REPLIED';
+    } else if (lastEvent) {
        status = lastEvent.eventType;
     } else if (lastMessageSend) {
        status = lastMessageSend.status;
@@ -86,7 +93,8 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
       email: lead.email || lead.scrapedEmail,
       phone: lead.phone || lead.scrapedPhone,
       status: status,
-      lastInteractionAt: lastEvent?.createdAt || lastMessageSend?.createdAt || null
+      latestReply: latestReply || null,
+      lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
     };
   });
 
@@ -439,7 +447,8 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
         from: sender,
         to: recipient,
         subject,
-        html: htmlSent
+        html: htmlSent,
+        messageId: `${providerMessageId}@algoconnect.local`
       });
     } catch (err: any) {
       const msg = await prisma.messageSend.create({

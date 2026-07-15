@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings } from 'lucide-react';
+import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings, Mail } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,10 @@ export const Campaigns: React.FC = () => {
   const [isConnectedLeadsModalOpen, setIsConnectedLeadsModalOpen] = useState(false);
   const [connectedLeads, setConnectedLeads] = useState<any[]>([]);
   const [connectedLeadsLoading, setConnectedLeadsLoading] = useState(false);
+  
+  // Reply Modal
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [currentReply, setCurrentReply] = useState<any>(null);
   
   // Drawer state
   const [selectedCampaignForDrawer, setSelectedCampaignForDrawer] = useState<Campaign | null>(null);
@@ -521,6 +525,7 @@ export const Campaigns: React.FC = () => {
                         <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Contact</th>
                         <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Status</th>
                         <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Last Updated</th>
+                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -546,6 +551,20 @@ export const Campaigns: React.FC = () => {
                           <td className="py-3 px-4 text-sm text-slate-500">
                             {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString() : 'N/A'}
                           </td>
+                          <td className="py-3 px-4 text-right">
+                            {lead.status === 'REPLIED' && lead.latestReply && (
+                              <button 
+                                onClick={() => {
+                                  setCurrentReply(lead.latestReply);
+                                  setReplyModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                View Reply
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -561,9 +580,38 @@ export const Campaigns: React.FC = () => {
         </div>
       )}
 
+      {/* View Reply Modal */}
+      {replyModalOpen && currentReply && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-emerald-500" />
+                Reply from Client
+              </h2>
+              <button onClick={() => setReplyModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto bg-slate-50">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
+                <div className="text-sm text-slate-500 mb-1">From: <span className="font-medium text-slate-800">{currentReply.fromEmail}</span></div>
+                <div className="text-sm text-slate-500 mb-3">Subject: <span className="font-medium text-slate-800">{currentReply.subject || 'No Subject'}</span></div>
+                <div className="text-sm text-slate-500 border-b border-slate-100 pb-2 mb-3">Date: {new Date(currentReply.receivedAt).toLocaleString()}</div>
+                
+                <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed font-sans">
+                  {currentReply.body}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedCampaignForDrawer && (
         <Campaign360Drawer
-          campaignId={selectedCampaignForDrawer.id}
+          campaign={selectedCampaignForDrawer}
           isOpen={isDrawerOpen}
           onClose={() => {
             setIsDrawerOpen(false);

@@ -381,8 +381,13 @@ export const Leads: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A]">Leads</h1>
-            <p className="text-xs sm:text-sm text-[#64748B]">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A]">Leads</h1>
+              <span className="text-xs sm:text-sm font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                {totalRecords} Total
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-[#64748B] mt-1">
               Manage, track, and score your inbound and outbound leads.
             </p>
           </div>
