@@ -1,3 +1,6 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -14,6 +17,7 @@ import templateRoutes from './routes/template.routes';
 import chatRoutes from './routes/chat.routes';
 import webhookRoutes from './routes/webhook.routes';
 import messageRoutes from './routes/message.routes';
+import trackingRoutes from './routes/tracking.routes';
 
 const app = express();
 const port = process.env.PORT || 7700;
@@ -34,6 +38,9 @@ app.use('/api/segments', segmentRoutes);
 app.use('/api/consents', consentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/automations', automationRoutes);
+app.use('/api/automation', automationRoutes);
+app.use('/api/track', trackingRoutes);
+app.use('/track', trackingRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/messages', messageRoutes);
@@ -54,6 +61,9 @@ app.use(errorHandler);
 
 import { startCampaignRunner } from './services/campaignRunner.service';
 startCampaignRunner();
+
+import { startEmailAutomationCron } from './jobs/cron';
+startEmailAutomationCron();
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

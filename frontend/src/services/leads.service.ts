@@ -129,5 +129,10 @@ export const leadsService = {
   getLeadLogs: async (id: number): Promise<any[]> => {
     const response = await apiClient.get<{ message: string; data: any[] }>(`/leads/${id}/logs`);
     return response.data.data;
+  },
+
+  markReplied: async (id: number): Promise<Lead> => {
+    const response = await apiClient.patch<{ message: string; data: Lead }>(`/leads/${id}/mark-replied`);
+    return response.data.data;
   }
 };

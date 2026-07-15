@@ -562,6 +562,7 @@ export const Leads: React.FC = () => {
                       <th className="py-4 px-6 w-[22%] min-w-[220px]">Email / Phone</th>
                       <th className="py-4 px-6 w-[6%] min-w-[70px]">Type</th>
                       <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
+                      <th className='py-4 px-6 w-[10%] min-w-[100px]'>Engagement Status</th>
                       <th className="py-4 px-6 w-[8%] min-w-[90px] text-center">Sales Stage</th>
                       <th className="py-4 px-6 w-[8%] min-w-[95px] text-center">Verification</th>
                       <th
@@ -669,6 +670,36 @@ export const Leads: React.FC = () => {
                                 </span>
                               ) : <span className="text-slate-400">—</span>}
 
+                            </td>
+                            <td className="py-4 px-6">
+                              {(() => {
+                                const status = lead?.engagementStatus || 'Not Engaged';
+                                if (status === 'Replied' || status === 'Demo Requested') {
+                                  return (
+                                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-700">
+                                      {status}
+                                    </span>
+                                  );
+                                } else if (status === 'Opened' || status === 'Clicked') {
+                                  return (
+                                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-700">
+                                      {status}
+                                    </span>
+                                  );
+                                } else if (status === 'Sent' || status === 'Delivered') {
+                                  return (
+                                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700">
+                                      {status}
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700">
+                                      {status}
+                                    </span>
+                                  );
+                                }
+                              })()}
                             </td>
 
                             <td className="py-4 px-6 text-center">
@@ -1319,17 +1350,26 @@ export const Leads: React.FC = () => {
 
 
             {/* Drawer Actions */}
-            <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex  justify-end gap-3">
-              {/* <button
-                onClick={() => {
-                  setSelectedLead(null);
-                  handleOpenForm(selectedLead);
-                }}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white py-2 text-sm font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
-              >
-                <Edit2 className="h-4 w-4" />
-                Edit Lead
-              </button> */}
+            <div className="mt-8 pt-4 border-t border-[#E2E8F0] flex justify-end gap-3">
+              {selectedLead.engagementStatus !== 'Replied' && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const updatedLead = await leadsService.markReplied(selectedLead.id);
+                      setSelectedLead(updatedLead);
+                      toast.success('Lead marked as Replied and sales notified.');
+                      fetchLeads();
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to mark lead as Replied');
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-700 shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Mark as Replied
+                </button>
+              )}
               <button
                 onClick={() => setSelectedLead(null)}
                 className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-900 bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"

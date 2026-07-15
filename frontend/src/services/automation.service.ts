@@ -32,5 +32,15 @@ export const automationService = {
 
   deleteAutomation: async (id: number): Promise<void> => {
     await apiClient.delete(`/automations/${id}`);
+  },
+
+  getGlobalToggle: async (): Promise<{ isEnabled: boolean }> => {
+    const response = await apiClient.get<{ isEnabled: boolean }>('/automation/toggle');
+    return response.data;
+  },
+
+  updateGlobalToggle: async (isEnabled?: boolean): Promise<{ isEnabled: boolean; message: string }> => {
+    const response = await apiClient.patch<{ isEnabled: boolean; message: string }>('/automation/toggle', { isEnabled });
+    return response.data;
   }
 };

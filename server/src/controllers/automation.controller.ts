@@ -62,3 +62,42 @@ export const deleteAutomation = asyncHandler(async (req: Request, res: Response)
 
   res.status(200).json({ message: 'Automation deleted successfully' });
 });
+
+export const getGlobalToggle = asyncHandler(async (req: Request, res: Response) => {
+  let setting = await prisma.automationSetting.findUnique({
+    where: { key: 'cron_toggle_global' }
+  });
+
+  if (!setting) {
+    setting = await prisma.automationSetting.create({
+      data: {
+        key: 'cron_toggle_global',
+        isEnabled: true
+      }
+    });
+  }
+
+  res.status(200).json({ isEnabled: setting.isEnabled });
+});
+
+export const updateGlobalToggle = asyncHandler(async (req: Request, res: Response) => {
+  const { isEnabled } = req.body;
+  
+  let setting = await prisma.automationSetting.findUnique({
+    where: { key: 'cron_toggle_global' }
+  });
+
+  const nextValue = isEnabled !== undefined ? Boolean(isEnabled) : !(setting?.isEnabled ?? true);
+
+  const updatedSetting = await prisma.automationSetting.upsert({
+    where: { key: 'cron_toggle_global' },
+    update: { isEnabled: nextValue },
+    create: {
+      key: 'cron_toggle_global',
+      isEnabled: nextValue
+    }
+  });
+
+  res.status(200).json({ isEnabled: updatedSetting.isEnabled, message: 'Global automation status updated.' });
+});
+

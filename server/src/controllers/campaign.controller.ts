@@ -467,3 +467,20 @@ export const getCampaignLogDetail = asyncHandler(async (req: Request, res: Respo
 
   res.status(200).json({ data: { log: mappedLog, details: parsedDetails } });
 });
+
+export const sendProductLaunchBroadcast = asyncHandler(async (req: Request, res: Response) => {
+  const { subject, content } = req.body;
+
+  if (!subject || !content) {
+    throw new Error('Subject and content are required for broadcast');
+  }
+
+  const { sendBroadcastCampaign } = require('../services/emailAutomation');
+  const stats = await sendBroadcastCampaign(subject, content);
+
+  res.status(200).json({
+    message: 'Broadcast campaign processed successfully',
+    data: stats
+  });
+});
+

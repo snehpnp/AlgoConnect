@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Key, Sliders, Database, Save, Sparkles } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { automationService } from '../services/automation.service';
 
 export const Settings: React.FC = () => {
+  const [automationEnabled, setAutomationEnabled] = useState(true);
+
+  useEffect(() => {
+    automationService.getGlobalToggle()
+      .then(res => setAutomationEnabled(res.isEnabled))
+      .catch(err => console.error('Failed to get automation settings', err));
+  }, []);
+
+  const toggleAutomation = async () => {
+    try {
+      const res = await automationService.updateGlobalToggle(!automationEnabled);
+      setAutomationEnabled(res.isEnabled);
+      toast.success(res.message || 'Automation setting updated.');
+    } catch (err: any) {
+      toast.error('Failed to toggle automation settings.');
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -35,6 +55,35 @@ export const Settings: React.FC = () => {
 
         {/* Configuration Body */}
         <div className="md:col-span-2 space-y-6">
+          {/* Card: Email Marketing Automation Toggle */}
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+            <h3 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Email Marketing Automation Loop
+            </h3>
+            <p className="text-xs text-[#64748B] mt-0.5">Pause or resume the daily automated welcome, drip, and winback sequences globally.</p>
+
+            <div className="mt-6 flex items-center justify-between border-slate-50 pb-3">
+              <div>
+                <span className="text-sm font-semibold text-slate-700 block">Daily Email Cron Job Status</span>
+                <span className="text-xs text-[#64748B] mt-0.5 block">Status: {automationEnabled ? 'Active (Running Daily at 9:00 AM)' : 'Suspended'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAutomation}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  automationEnabled ? 'bg-primary' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    automationEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
           {/* Card 1: Lead Scoring Config */}
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
             <h3 className="text-base font-bold text-[#0F172A] flex items-center gap-2">

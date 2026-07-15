@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
+import { triggerHotFollowUp, checkAndSendWelcomeEmail } from '../services/emailAutomation';
 
 export const importLeads = asyncHandler(async (req: Request, res: Response) => {
   const { leads } = req.body;
   const userId = req.user?.id;
-  
+
   if (!leads || !Array.isArray(leads)) {
     throw new Error('Please provide an array of leads');
   }
@@ -54,7 +55,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 50;
   const search = (req.query.search as string) || '';
-  
+
   // Status filters
   const salesStage = (req.query.salesStage as string) || 'All';
   const verificationStatus = (req.query.verificationStatus as string) || 'All';
@@ -64,10 +65,10 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const state = (req.query.state as string) || 'All';
   const city = (req.query.city as string) || 'All';
   const websiteStatus = (req.query.websiteStatus as string) || 'All';
-  
+
   const skip = (page - 1) * limit;
   const where: any = {};
-  
+
   if (salesStage && salesStage !== 'All') where.salesStage = salesStage;
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
   if (engagementStatus && engagementStatus !== 'All') where.engagementStatus = engagementStatus;
@@ -75,7 +76,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (type && type !== 'All') where.type = type;
   if (state && state !== 'All') where.state = state;
   if (city && city !== 'All') where.city = city;
-  
+
   if (websiteStatus === 'NoWebsite') {
     if (!where.AND) where.AND = [];
     where.AND.push({
@@ -91,7 +92,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       NOT: { website: '' }
     });
   }
-  
+
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -122,8 +123,8 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
     prisma.lead.count({ where })
   ]);
 
-  res.status(200).json({ 
-    data: leads, 
+  res.status(200).json({
+    data: leads,
     message: 'List of leads retrieved successfully',
     pagination: {
       total,
@@ -135,8 +136,8 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
-  const { 
-    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+  const {
+    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus,
     registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
     website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
   } = req.body;
@@ -148,8 +149,8 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
 
   const newLead = await prisma.lead.create({
     data: {
-      name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, 
-      source: source || 'MANUAL', 
+      name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName,
+      source: source || 'MANUAL',
       type: type || 'Manual',
       salesStage: salesStage || 'New',
       verificationStatus: verificationStatus || 'Unverified',
@@ -170,13 +171,20 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  // Trigger instant welcome email if matching any segment
+  try {
+    await checkAndSendWelcomeEmail(newLead.id);
+  } catch (err) {
+    console.error('Failed to trigger instant welcome email:', err);
+  }
+
   res.status(201).json({ message: 'Lead created successfully', data: newLead });
 });
 
 export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { 
-    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+  const {
+    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus,
     registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
     website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
   } = req.body;
@@ -188,7 +196,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
 
   const leadId = parseInt(id as string);
   const existingLead = await prisma.lead.findUnique({ where: { id: leadId } });
-  
+
   if (!existingLead) {
     throw new Error('Lead not found');
   }
@@ -201,6 +209,32 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
     }
   });
 
+  // If engagementStatus is updated to 'Replied' manually via edit form
+  if (engagementStatus === 'Replied' && existingLead.engagementStatus !== 'Replied') {
+    // Find the latest EmailLog for this lead and update it to replied
+    const latestEmailLog = await prisma.emailLog.findFirst({
+      where: { leadId },
+      orderBy: { sentAt: 'desc' }
+    });
+
+    if (latestEmailLog) {
+      await prisma.emailLog.update({
+        where: { id: latestEmailLog.id },
+        data: {
+          repliedAt: new Date(),
+          status: 'replied'
+        }
+      });
+    }
+
+    // Trigger event-driven Hot Follow-up notification
+    try {
+      await triggerHotFollowUp(leadId);
+    } catch (err) {
+      console.error('Failed to trigger hot follow-up notification in updateLead:', err);
+    }
+  }
+
   // Track changes
   if (userId) {
     const changes: any = {};
@@ -208,7 +242,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
     if (verificationStatus && existingLead.verificationStatus !== verificationStatus) changes.verificationStatus = { from: existingLead.verificationStatus, to: verificationStatus };
     if (engagementStatus && existingLead.engagementStatus !== engagementStatus) changes.engagementStatus = { from: existingLead.engagementStatus, to: engagementStatus };
     if (consentStatus && existingLead.consentStatus !== consentStatus) changes.consentStatus = { from: existingLead.consentStatus, to: consentStatus };
-    
+
     if (Object.keys(changes).length > 0) {
       await prisma.activityLog.create({
         data: {
@@ -281,10 +315,10 @@ export const getFilterOptions = asyncHandler(async (req: Request, res: Response)
     distinct: ['state'],
     orderBy: { state: 'asc' }
   });
-  
+
   // Fetch distinct cities
   const citiesObj = await prisma.lead.findMany({
-    where: { 
+    where: {
       city: { not: null },
       ...(stateQuery && stateQuery !== 'All' ? { state: stateQuery } : {})
     },
@@ -292,7 +326,7 @@ export const getFilterOptions = asyncHandler(async (req: Request, res: Response)
     distinct: ['city'],
     orderBy: { city: 'asc' }
   });
-  
+
   // Fetch distinct types (Entity Types)
   const typesObj = await prisma.lead.findMany({
     select: { type: true },
@@ -317,10 +351,10 @@ export const uploadChunk = asyncHandler(async (req: Request, res: Response) => {
   const { filename, chunkIndex, totalChunks } = req.body;
 
   if (!file) throw new Error('Chunk file missing');
-  
+
   const uploadDir = path.join(process.cwd(), 'uploads');
   const tempFilePath = path.join(uploadDir, `${filename}.tmp`);
-  
+
   // Append chunk to temp file
   const chunkData = fs.readFileSync(file.path);
   fs.appendFileSync(tempFilePath, chunkData);
@@ -374,13 +408,13 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       const rawJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-      
+
       let isHeaderFound = false;
       let headerRowNumber = 1;
-      
+
       for (let i = 0; i < rawJson.length; i++) {
         const rowValues = rawJson[i];
-        
+
         if (!isHeaderFound) {
           if (rowValues && rowValues.length > 0) {
             const rowStrings = rowValues.map(v => String(v || '').trim().toLowerCase());
@@ -391,13 +425,13 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
           }
           continue;
         }
-        
+
         // Map row using indices provided by frontend
         const getVal = (idx?: number) => idx !== undefined && rowValues[idx] ? String(rowValues[idx]).trim() : undefined;
-        
+
         const name = getVal(mappings.nameCol);
         if (!name || name === 'Unknown Entity' || name === '') continue; // Skip empty rows
-        
+
         batch.push({
           name,
           registrationNo: getVal(mappings.regNoCol),
@@ -424,7 +458,7 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
           await insertBatch();
         }
       }
-      
+
       // Insert remaining
       await insertBatch();
 
@@ -435,12 +469,12 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
         hyperlinks: 'ignore',
         worksheets: 'emit'
       };
-      
+
       const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(filePath, options as any);
-      
+
       let isHeaderFound = false;
       let headerRowNumber = 1;
-      
+
       for await (const worksheetReader of workbookReader) {
         for await (const row of worksheetReader) {
           if (!isHeaderFound) {
@@ -455,16 +489,16 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
             }
             continue;
           }
-          
+
           if (row.number > headerRowNumber) {
             const rowValues = row.values as any[];
-            
+
             // Map row using indices provided by frontend
             const getVal = (idx?: number) => idx !== undefined && rowValues[idx + 1] ? String(rowValues[idx + 1]).trim() : undefined;
-            
+
             const name = getVal(mappings.nameCol);
             if (!name || name === 'Unknown Entity' || name === '') continue; // Skip empty rows
-            
+
             batch.push({
               name,
               registrationNo: getVal(mappings.regNoCol),
@@ -494,7 +528,7 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
         }
         break; // Only parse the first worksheet
       }
-      
+
       // Insert remaining
       await insertBatch();
     }
@@ -519,3 +553,55 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
 
   res.status(200).json({ message: 'File processed and leads imported successfully', count: importedCount });
 });
+
+export const markLeadReplied = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const leadId = parseInt(id as string);
+
+  if (isNaN(leadId)) {
+    throw new Error('Invalid Lead ID');
+  }
+
+  // Update Lead to engagementStatus = 'Replied'
+  const lead = await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      engagementStatus: 'Replied'
+    }
+  });
+
+  // Find the latest EmailLog for this lead and update it to replied
+  const latestEmailLog = await prisma.emailLog.findFirst({
+    where: { leadId },
+    orderBy: { sentAt: 'desc' }
+  });
+
+  if (latestEmailLog) {
+    await prisma.emailLog.update({
+      where: { id: latestEmailLog.id },
+      data: {
+        repliedAt: new Date(),
+        status: 'replied'
+      }
+    });
+  }
+
+  // Log Activity
+  await prisma.activityLog.create({
+    data: {
+      leadId,
+      action: 'LEAD_REPLIED_MANUAL',
+      details: 'Lead was manually marked as Replied by sales team.'
+    }
+  });
+
+  // Trigger event-driven Hot Follow-up notification
+  try {
+    await triggerHotFollowUp(leadId);
+  } catch (err) {
+    console.error('Failed to trigger hot follow-up notification:', err);
+  }
+
+  res.status(200).json({ message: 'Lead marked as Replied and sales notified.', data: lead });
+});
+

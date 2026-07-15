@@ -88,6 +88,13 @@ model Lead {
   consents        Consent[]
   messageSends    MessageSend[]
   emailReplies    EmailReply[]
+
+  followUpCount         Int       @default(0)
+  lastEmailSentAt       DateTime?
+  isArchived            Boolean   @default(false)
+  demoRequested         Boolean   @default(false)
+  salesNotificationSent Boolean   @default(false)
+  emailLogs             EmailLog[]
 }
 
 model Campaign {
@@ -111,6 +118,7 @@ model Campaign {
   smsTemplate   MessageTemplate? @relation("CampaignSmsTemplate", fields: [smsTemplateId], references: [id])
   automations CampaignAutomation[]
   messageSends    MessageSend[]
+  emailLogs       EmailLog[]
 }
 
 model MessageTemplate {
@@ -254,4 +262,27 @@ model EmailLinkTracking {
   device          String?
   browser         String?
   country         String?
+}
+
+model EmailLog {
+  id           Int       @id @default(autoincrement())
+  leadId       Int
+  lead         Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaignId   Int?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  emailType    String    // welcome/drip1/drip2/drip3/reengage/winback/broadcast
+  sentAt       DateTime  @default(now())
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  repliedAt    DateTime?
+  subject      String
+  status       String    // sent/delivered/opened/clicked/replied/failed
+}
+
+model AutomationSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  isEnabled Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }

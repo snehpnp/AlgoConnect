@@ -3,11 +3,16 @@ import {
   getAutomations, 
   createAutomation, 
   updateAutomation, 
-  deleteAutomation 
+  deleteAutomation,
+  getGlobalToggle,
+  updateGlobalToggle
 } from '../controllers/automation.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
+
+router.get('/toggle', authenticate, getGlobalToggle);
+router.patch('/toggle', authenticate, updateGlobalToggle);
 
 router.get('/', authenticate, getAutomations);
 router.post('/', authenticate, createAutomation);
