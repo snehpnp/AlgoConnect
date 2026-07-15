@@ -14,6 +14,7 @@ import templateRoutes from './routes/template.routes';
 import chatRoutes from './routes/chat.routes';
 import webhookRoutes from './routes/webhook.routes';
 import messageRoutes from './routes/message.routes';
+import trackingRoutes from './routes/tracking.routes';
 
 const app = express();
 const port = process.env.PORT || 7700;
@@ -38,6 +39,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/track', trackingRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

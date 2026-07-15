@@ -17,7 +17,7 @@ export const getEngineState = () => {
 
 export const startCampaignRunner = () => {
   // Run every 10 minute 
-  cron.schedule('* 10 * * *', async () => {
+  cron.schedule('*/10 10-17 * * *', async () => {
     if (!isEngineRunning) {
       return;
     }

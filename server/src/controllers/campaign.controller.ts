@@ -360,9 +360,18 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     .replace(/{{company}}/g, lead.name || '');
 
   let recipient = '';
+  const providerMessageId = `manual-${Date.now()}`;
+  let htmlSent = '';
+
   if (channel === 'EMAIL') {
     recipient = lead.email || lead.scrapedEmail || lead.email2 || '';
     if (!recipient) throw new Error('Lead has no email address');
+
+    // Generate tracking URL (fallback to localhost for local testing)
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
+    const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
+    
+    htmlSent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>${trackingPixel}`;
 
     try {
       const transporter = await getEmailTransporter();
@@ -371,7 +380,7 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
         from: sender,
         to: recipient,
         subject,
-        html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+        html: htmlSent
       });
     } catch (err: any) {
       const msg = await prisma.messageSend.create({
@@ -397,12 +406,9 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     // For SMS/Whatsapp, ensure phone exists
     recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
     if (!recipient) throw new Error(`Lead has no phone number for ${channel}`);
+    htmlSent = content;
     console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
   }
-
-  const htmlSent = channel === 'EMAIL'
-    ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
-    : content;
 
   const msg = await prisma.messageSend.create({
     data: {
@@ -411,7 +417,7 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
       channel,
       subject,
       status: 'SENT',
-      providerMessageId: `manual-${Date.now()}`,
+      providerMessageId,
       sentAt: new Date()
     }
   });

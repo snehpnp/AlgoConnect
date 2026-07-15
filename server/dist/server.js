@@ -17,6 +17,9 @@ const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 const automation_routes_1 = __importDefault(require("./routes/automation.routes"));
 const template_routes_1 = __importDefault(require("./routes/template.routes"));
 const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
+const webhook_routes_1 = __importDefault(require("./routes/webhook.routes"));
+const message_routes_1 = __importDefault(require("./routes/message.routes"));
+const tracking_routes_1 = __importDefault(require("./routes/tracking.routes"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 7700;
 // Middleware
@@ -36,6 +39,9 @@ app.use('/api/settings', settings_routes_1.default);
 app.use('/api/automations', automation_routes_1.default);
 app.use('/api/templates', template_routes_1.default);
 app.use('/api/chat', chat_routes_1.default);
+app.use('/api/messages', message_routes_1.default);
+app.use('/api/webhooks', webhook_routes_1.default);
+app.use('/api/track', tracking_routes_1.default);
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', message: 'AlgoConnect Server is running' });

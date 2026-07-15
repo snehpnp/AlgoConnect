@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const message_controller_1 = require("../controllers/message.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get('/analytics/email', message_controller_1.getEmailAnalytics);
+router.get('/campaigns/:id/messages', message_controller_1.getCampaignMessages);
+router.post('/campaigns/:id/send', message_controller_1.simulateSend);
+router.get('/leads/:leadId', message_controller_1.getLeadMessages);
+router.get('/:id', message_controller_1.getMessageDetails);
+exports.default = router;

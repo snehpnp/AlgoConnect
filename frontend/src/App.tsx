@@ -18,9 +18,10 @@ import { LeadEdit } from './pages/LeadEdit';
 import { LeadEnrichmentHistory } from './pages/LeadEnrichmentHistory';
 import { SegmentList } from './pages/SegmentList';
 import { CreateEditSegment } from './pages/CreateEditSegment';
-import { CreateCampaign } from './pages/CreateCampaign';
+import { CampaignEditor } from './pages/CampaignEditor';
 import { CampaignDetails } from './pages/CampaignDetails';
 import { MessageTemplates } from './pages/MessageTemplates';
+import { TemplateEditor } from './pages/TemplateEditor';
 import { ConsentManagement } from './pages/ConsentManagement';
 import { SalesQueue } from './pages/SalesQueue';
 import { AnalyticsReports } from './pages/AnalyticsReports';
@@ -68,12 +69,15 @@ function App() {
               <Route element={<ProtectedRoute allowedRoles={['System Admin', 'Growth Operator', 'Compliance Admin']} />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/campaigns" element={<Campaigns />} />
-                <Route path="/campaigns/create" element={<CreateCampaign />} />
+                <Route path="/campaigns/create" element={<CampaignEditor />} />
+                <Route path="/campaigns/:id/edit" element={<CampaignEditor />} />
                 <Route path="/campaigns/:id" element={<CampaignDetails />} />
                 <Route path="/segments" element={<SegmentList />} />
                 <Route path="/segments/create" element={<CreateEditSegment />} />
                 <Route path="/segments/:id/edit" element={<CreateEditSegment />} />
                 <Route path="/templates" element={<MessageTemplates />} />
+                <Route path="/templates/create" element={<TemplateEditor />} />
+                <Route path="/templates/:id/edit" element={<TemplateEditor />} />
                 <Route path="/consent" element={<ConsentManagement />} />
                 <Route path="/reports" element={<AnalyticsReports />} />
               </Route>

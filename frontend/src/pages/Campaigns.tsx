@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
-import { segmentService, type Segment } from '../services/segment.service';
-import { getTemplates, type MessageTemplate } from '../services/template.service';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -15,8 +13,6 @@ export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isEngineRunning, setIsEngineRunning] = useState(true);
@@ -24,7 +20,6 @@ export const Campaigns: React.FC = () => {
   const [infoLanguage, setInfoLanguage] = useState<'en' | 'hi'>('hi');
 
   // Modals state
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
   
@@ -44,15 +39,11 @@ export const Campaigns: React.FC = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const [campRes, segRes, engineRes, tplRes] = await Promise.all([
+      const [campRes, engineRes] = await Promise.all([
         campaignService.getCampaigns(),
-        segmentService.getSegments(),
-        campaignService.getEngineStatus(),
-        getTemplates()
+        campaignService.getEngineStatus()
       ]);
       setCampaigns(campRes.data || []);
-      setSegments(segRes || []);
-      setTemplates(tplRes.data || []);
       setIsEngineRunning(engineRes.data?.isRunning ?? true);
     } catch (error) {
       toast.error('Failed to load campaigns and segments');
@@ -64,38 +55,6 @@ export const Campaigns: React.FC = () => {
   useEffect(() => {
     fetchCampaigns();
   }, []);
-
-  const handleSaveCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentCampaign.name || !currentCampaign.type) {
-      toast.error('Name and Type are required');
-      return;
-    }
-    
-    // Auto-fill the correct template ID based on type
-    let finalCampaignData = { ...currentCampaign };
-    if (finalCampaignData.type === 'EMAIL') {
-      finalCampaignData.channels = ['EMAIL'];
-    } else if (finalCampaignData.type === 'SMS') {
-      finalCampaignData.channels = ['SMS'];
-    } else if (finalCampaignData.type === 'WHATSAPP') {
-      finalCampaignData.channels = ['WHATSAPP'];
-    }
-
-    try {
-      if (currentCampaign.id) {
-        await campaignService.updateCampaign(currentCampaign.id, finalCampaignData);
-        toast.success('Campaign updated successfully');
-      } else {
-        await campaignService.createCampaign(finalCampaignData);
-        toast.success('Campaign created successfully');
-      }
-      setIsFormOpen(false);
-      fetchCampaigns();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save campaign');
-    }
-  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this campaign?')) return;
@@ -140,23 +99,34 @@ export const Campaigns: React.FC = () => {
   };
 
   const openManageLeads = async (campaign: Campaign) => {
-    setCurrentCampaign(campaign);
     setOpenMenuId(null);
     setIsLeadsModalOpen(true);
-    setSelectedLeadIds(new Set());
     setModalSearch('');
     setModalSalesStage('');
+    
+    // Fetch full campaign details to get already connected leads
+    try {
+      setLeadsLoading(true);
+      const campRes = await campaignService.getCampaignById(campaign.id);
+      setCurrentCampaign(campRes.data);
+      const existingLeadIds = campRes.data.leads?.map((l: any) => l.id) || [];
+      setSelectedLeadIds(new Set(existingLeadIds));
+    } catch (error) {
+      toast.error('Failed to load campaign details');
+      setSelectedLeadIds(new Set());
+    }
+    
     await fetchModalLeads();
   };
 
   // Debounced search for Modal
   useEffect(() => {
-    if (!isLeadsModalOpen && !isFormOpen) return;
+    if (!isLeadsModalOpen) return;
     const delayDebounceFn = setTimeout(() => {
       fetchModalLeads(modalSearch, modalSalesStage);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [modalSearch, modalSalesStage, isLeadsModalOpen, isFormOpen]);
+  }, [modalSearch, modalSalesStage, isLeadsModalOpen]);
 
   const handleAddLeads = async () => {
     if (!currentCampaign.id || selectedLeadIds.size === 0) return;
@@ -222,7 +192,7 @@ export const Campaigns: React.FC = () => {
           <p className="text-sm text-[#64748B]">Create, deploy, and monitor outreach campaigns.</p>
         </div>
         <button
-          onClick={() => { setCurrentCampaign({ type: 'EMAIL', status: 'DRAFT' }); setIsFormOpen(true); }}
+          onClick={() => navigate('/campaigns/create')}
           className="btn-primary"
         >
           <Plus className="h-4.5 w-4.5" />
@@ -334,7 +304,7 @@ export const Campaigns: React.FC = () => {
                           <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
                           </button>
-                          <button onClick={() => { setCurrentCampaign({ ...camp, segmentIds: camp.segments?.map(s => s.id) || [], leadIds: camp.leads?.map(l => l.id) || [] }); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
                           <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
@@ -350,134 +320,6 @@ export const Campaigns: React.FC = () => {
           </table>
         </div>
       </div>
-
-      {/* Add/Edit Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
-              <h2 className="text-lg font-bold text-[#0F172A]">{currentCampaign.id ? 'Edit Campaign' : 'Create Campaign'}</h2>
-              <button onClick={() => setIsFormOpen(false)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveCampaign} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Campaign Name</label>
-                <input type="text" required value={currentCampaign.name || ''} onChange={(e) => setCurrentCampaign({ ...currentCampaign, name: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
-                <select value={currentCampaign.type || 'EMAIL'} onChange={(e) => setCurrentCampaign({ ...currentCampaign, type: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
-                  <option value="EMAIL">Email</option>
-                  <option value="SMS">SMS</option>
-                  <option value="WHATSAPP">WhatsApp</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Target Segments</label>
-                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
-                  {segments.map(seg => (
-                    <label key={seg.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(currentCampaign.segmentIds || []).includes(seg.id)}
-                        onChange={(e) => {
-                          const currentIds = currentCampaign.segmentIds || [];
-                          if (e.target.checked) {
-                            setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
-                          } else {
-                            setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter((id: number) => id !== seg.id) });
-                          }
-                        }}
-                      />
-                      {seg.name}
-                    </label>
-                  ))}
-                  {segments.length === 0 && <span className="text-xs text-slate-500">No segments available</span>}
-                </div>
-              </div>
-              
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Direct Leads (Optional)</label>
-                <div className="relative mb-2">
-                  <Search className="absolute top-1/2 left-3 h-3 w-3 -translate-y-1/2 text-[#64748B]" />
-                  <input
-                    type="text"
-                    placeholder="Search leads..."
-                    value={modalSearch}
-                    onChange={(e) => setModalSearch(e.target.value)}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] pl-8 pr-3 py-1.5 text-xs outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
-                  {leadsLoading ? (
-                    <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
-                  ) : availableLeads.map(lead => (
-                    <label key={lead.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(currentCampaign.leadIds || []).includes(lead.id)}
-                        onChange={(e) => {
-                          const currentIds = currentCampaign.leadIds || [];
-                          if (e.target.checked) {
-                            setCurrentCampaign({ ...currentCampaign, leadIds: [...currentIds, lead.id] });
-                          } else {
-                            setCurrentCampaign({ ...currentCampaign, leadIds: currentIds.filter((id: number) => id !== lead.id) });
-                          }
-                        }}
-                      />
-                      <span className="truncate">{lead.name} {lead.email ? `(${lead.email})` : ''}</span>
-                    </label>
-                  ))}
-                  {!leadsLoading && availableLeads.length === 0 && <span className="text-xs text-slate-500">No leads found</span>}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Status</label>
-                <select value={currentCampaign.status || 'DRAFT'} onChange={(e) => setCurrentCampaign({ ...currentCampaign, status: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
-                  <option value="DRAFT">Draft</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Message Template</label>
-                <select 
-                  value={
-                    currentCampaign.type === 'EMAIL' ? (currentCampaign.emailTemplateId || '') :
-                    currentCampaign.type === 'SMS' ? (currentCampaign.smsTemplateId || '') :
-                    (currentCampaign.whatsappTemplateId || '')
-                  } 
-                  onChange={(e) => {
-                    const id = e.target.value ? parseInt(e.target.value) : null;
-                    if (currentCampaign.type === 'EMAIL') {
-                      setCurrentCampaign({ ...currentCampaign, emailTemplateId: id });
-                    } else if (currentCampaign.type === 'SMS') {
-                      setCurrentCampaign({ ...currentCampaign, smsTemplateId: id });
-                    } else {
-                      setCurrentCampaign({ ...currentCampaign, whatsappTemplateId: id });
-                    }
-                  }} 
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
-                >
-                  <option value="">Select a template...</option>
-                  {templates.filter(t => t.type === currentCampaign.type).map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Select the content template to send to the leads.</p>
-              </div>
-              <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0]">
-                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold">Cancel</button>
-                <button type="submit" className="rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-white">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Connect Leads Modal */}
       {isLeadsModalOpen && (

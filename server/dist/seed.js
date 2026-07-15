@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const prismaClient_1 = __importDefault(require("./models/prismaClient"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 async function seed() {
-    console.log('🌱 Seeding database...');
     // 1. Create Roles
     const adminRole = await prismaClient_1.default.role.upsert({
         where: { name: 'admin' },

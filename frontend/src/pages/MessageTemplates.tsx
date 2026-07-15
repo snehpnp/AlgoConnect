@@ -1,31 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getTemplates,
-  createTemplate,
-  updateTemplate,
   deleteTemplate,
   type MessageTemplate
 } from '../services/template.service';
 import { Plus, Edit2, Trash2, X, Eye, PhoneCall, Mail } from 'lucide-react';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { useNavigate } from 'react-router-dom';
 
 export const MessageTemplates = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
-  const [showHtml, setShowHtml] = useState(false);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    subject: '',
-    type: 'EMAIL',
-    status: 'PENDING',
-    content: '',
-    isShared: false
-  });
 
   const fetchTemplates = async () => {
     try {
@@ -43,51 +29,9 @@ export const MessageTemplates = () => {
     fetchTemplates();
   }, []);
 
-  const openModal = (template?: MessageTemplate) => {
-    if (template) {
-      setEditingTemplate(template);
-      setFormData({
-        name: template.name,
-        subject: template.subject || '',
-        type: template.type,
-        status: template.status,
-        content: template.content,
-        isShared: template.isShared || false
-      });
-    } else {
-      setEditingTemplate(null);
-      setFormData({
-        name: '',
-        subject: '',
-        type: 'EMAIL',
-        status: 'PENDING',
-        content: '',
-        isShared: false
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingTemplate(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingTemplate) {
-        await updateTemplate(editingTemplate.id, formData);
-      } else {
-        await createTemplate(formData);
-      }
-      closeModal();
-      fetchTemplates();
-    } catch (error) {
-      console.error('Failed to save template', error);
-      alert('Failed to save template');
-    }
-  };
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
@@ -113,7 +57,7 @@ export const MessageTemplates = () => {
           <p className="text-sm text-gray-500">Manage your Email, SMS, and WhatsApp templates.</p>
         </div>
         <button
-          onClick={() => openModal()}
+          onClick={() => navigate('/templates/create')}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -178,7 +122,7 @@ export const MessageTemplates = () => {
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => openModal(template)}
+                      onClick={() => navigate(`/templates/${template.id}/edit`)}
                       className="text-gray-400 hover:text-blue-600 p-2 transition-colors"
                       title="Edit"
                     >
@@ -198,153 +142,6 @@ export const MessageTemplates = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingTemplate ? 'Edit Template' : 'Create Template'}
-              </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g., Welcome Email"
-                  />
-                </div>
-
-                {formData.type === 'EMAIL' && (
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Subject</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="e.g., Welcome to AlgoConnect!"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Channel Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="EMAIL">Email</option>
-                    <option value="SMS">SMS</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="PENDING">Pending Approval</option>
-                    <option value="APPROVED">Approved</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2 flex items-center mt-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="isShared"
-                    checked={formData.isShared}
-                    onChange={(e) => setFormData({ ...formData, isShared: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="isShared" className="ml-2 block text-sm font-medium text-gray-700">
-                    Share this template with other users/teams
-                  </label>
-                </div>
-
-                <div className="col-span-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Message Content</label>
-                    {formData.type === 'EMAIL' && (
-                      <button
-                        type="button"
-                        onClick={() => setShowHtml(!showHtml)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        {showHtml ? 'Show Visual Editor' : 'Show HTML Source'}
-                      </button>
-                    )}
-                  </div>
-                  {formData.type === 'EMAIL' ? (
-                    showHtml ? (
-                      <textarea
-                        required
-                        rows={8}
-                        value={formData.content}
-                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono text-sm"
-                        placeholder="<h1>Hello {{name}}</h1>"
-                      />
-                    ) : (
-                      <div className="bg-white">
-                        <ReactQuill
-                          theme="snow"
-                          value={formData.content}
-                          onChange={(content) => setFormData({ ...formData, content })}
-                          className="h-48 mb-12"
-                          placeholder="Hello {{name}}, welcome to our platform!"
-                        />
-                      </div>
-                    )
-                  ) : (
-                    <textarea
-                      required
-                      rows={6}
-                      value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                      placeholder="Hello {{name}}, welcome to our platform!"
-                    />
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">You can use variables like {'{{name}}'} if your sender supports them.</p>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  {editingTemplate ? 'Update Template' : 'Create Template'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Preview Modal */}
       {previewTemplate && (

@@ -51,14 +51,24 @@ exports.getDashboardStats = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         orderBy: { createdAt: 'desc' }
     });
     // 8. Recent Communications (Trace)
-    const recentCommunications = await prismaClient_1.default.engagementEvent.findMany({
+    const recentCommunicationsRaw = await prismaClient_1.default.engagementEvent.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
-            lead: { select: { id: true, name: true, email: true, phone: true } },
-            campaign: { select: { id: true, name: true, type: true } }
+            messageSend: {
+                include: {
+                    lead: { select: { id: true, name: true, email: true, phone: true } },
+                    campaign: { select: { id: true, name: true, type: true } }
+                }
+            }
         }
     });
+    const recentCommunications = recentCommunicationsRaw.map(event => ({
+        ...event,
+        lead: event.messageSend?.lead,
+        campaign: event.messageSend?.campaign,
+        channel: event.messageSend?.channel,
+    }));
     res.status(200).json({
         data: {
             stats: {
