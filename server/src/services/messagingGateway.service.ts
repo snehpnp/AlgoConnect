@@ -31,6 +31,15 @@ export const messagingGateway = {
         }
       });
 
+      // Update Lead engagementStatus if it's currently 'Not Engaged'
+      const lead = await prisma.lead.findUnique({ where: { id: options.leadId } });
+      if (lead && lead.engagementStatus === 'Not Engaged') {
+        await prisma.lead.update({
+          where: { id: options.leadId },
+          data: { engagementStatus: 'Sent' }
+        });
+      }
+
       let finalHtmlContent = options.htmlContent || options.content;
 
       // 2. Dispatch real message if channel is EMAIL

@@ -535,6 +535,7 @@ export const Leads: React.FC = () => {
                       <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
                       <th className="py-4 px-6 w-[8%] min-w-[90px] text-center">Sales Stage</th>
                       <th className="py-4 px-6 w-[8%] min-w-[95px] text-center">Verification</th>
+                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Engagement</th>
                       <th 
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
@@ -554,7 +555,7 @@ export const Leads: React.FC = () => {
                   <tbody className="divide-y divide-[#E2E8F0]">
                     {sortedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-16 text-center text-sm text-slate-400">
+                        <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
                           No leads found matching your filters.
                         </td>
                       </tr>
@@ -656,6 +657,22 @@ export const Leads: React.FC = () => {
                               <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
                                 {lead.verificationStatus}
                               </span>
+                            </td>
+
+                            <td className="py-4 px-6 text-center">
+                              {lead.engagementStatus && lead.engagementStatus !== 'Not Engaged' ? (
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                  lead.engagementStatus === 'Replied' ? 'bg-purple-100 text-purple-700' :
+                                  lead.engagementStatus === 'Opened' ? 'bg-blue-100 text-blue-700' :
+                                  lead.engagementStatus === 'Clicked' ? 'bg-emerald-100 text-emerald-700' :
+                                  lead.engagementStatus === 'Sent' ? 'bg-slate-100 text-slate-700' :
+                                  'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {lead.engagementStatus}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
                             </td>
 
                             {/* Lead Score */}

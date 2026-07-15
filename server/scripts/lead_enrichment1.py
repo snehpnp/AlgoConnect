@@ -9,7 +9,7 @@ import psycopg2.extras
 
 # --- Configuration ---
 DB_URL = "postgresql://postgres:123456@localhost:5432/algoconnect"
-SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "e43d60238bb0ad0f5b3296bfbf8ea55fc4643d22") 
+SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "fba285443f2f738108ab90784224999c43f40d58") 
 print("SERPER_API_KEY",SERPER_API_KEY)
 # In sites ko ignore karna hai (taki khud ki website mile, koi directory nahi)
 SKIP_DOMAINS = {
@@ -20,7 +20,7 @@ SKIP_DOMAINS = {
     "nseindia.com", "bseindia.com", "mca.gov.in", "companycheck.co.in", 
     "probe42.in", "screener.in", "tofler.in", "zoominfo.com", "pitchbook.com", 
     "crunchbase.com", "vakilsearch.com", "bloomberg.com", "algotest.in",
-    "glassdoor.co.in", "ambitionbox.com", "startupindia.gov.in", "tradeindia.com","esi.in","jalanco.in","tracxn.com","getdatarobot.com","rocketreach.co","scribd.com","apple.com","mind2markets.com"
+    "glassdoor.co.in", "ambitionbox.com", "startupindia.gov.in", "tradeindia.com","esi.in","jalanco.in","tracxn.com","getdatarobot.com","rocketreach.co","scribd.com","apple.com","mind2markets.com","indiafilings.com","instafinancials.com","avonmorecapital.in"
 }
 
 

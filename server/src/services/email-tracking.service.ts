@@ -101,6 +101,29 @@ export class EmailTrackingService {
         }
       });
 
+      // 6. Update Lead engagementStatus
+      let newLeadStatus = '';
+      if (eventType === 'OPENED') newLeadStatus = 'Opened';
+      else if (eventType === 'CLICKED') newLeadStatus = 'Clicked';
+      else if (eventType === 'REPLIED') newLeadStatus = 'Replied';
+      
+      if (newLeadStatus) {
+        const lead = await tx.lead.findUnique({ where: { id: messageSend.leadId } });
+        // Only upgrade status (Replied > Clicked > Opened > Sent)
+        const statusHierarchy: Record<string, number> = {
+          'Not Engaged': 0, 'Sent': 1, 'Delivered': 2, 'Opened': 3, 'Clicked': 4, 'Demo Requested': 5, 'Replied': 6
+        };
+        const currentRank = statusHierarchy[lead?.engagementStatus || 'Not Engaged'] || 0;
+        const newRank = statusHierarchy[newLeadStatus] || 0;
+
+        if (newRank > currentRank) {
+          await tx.lead.update({
+            where: { id: messageSend.leadId },
+            data: { engagementStatus: newLeadStatus }
+          });
+        }
+      }
+
       return event;
     });
   }

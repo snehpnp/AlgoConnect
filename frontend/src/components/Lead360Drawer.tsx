@@ -126,6 +126,12 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               Details
             </button>
             <button
+              onClick={() => setActiveTab('enrichment')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'enrichment' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+            >
+              Scraped Data
+            </button>
+            <button
               onClick={() => setActiveTab('history')}
               className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             >
@@ -137,12 +143,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             >
               Email History
             </button>
-            <button
-              onClick={() => setActiveTab('enrichment')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'enrichment' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
-            >
-              Scraped Data
-            </button>
+
           </div>
 
           {/* Details Tab */}
@@ -418,8 +419,8 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                     <div className="min-w-0 flex-1">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</p>
                       <span className={`inline-flex items-center mt-1 rounded-md px-2 py-0.5 text-xs font-semibold ${lead.sellsAlgoTrading === 'Yes' ? 'bg-emerald-100 text-emerald-800' :
-                          lead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
-                            'bg-slate-100 text-slate-600'
+                        lead.sellsAlgoTrading === 'No' ? 'bg-red-100 text-red-700' :
+                          'bg-slate-100 text-slate-600'
                         }`}>{lead.sellsAlgoTrading}</span>
                     </div>
                   </div>
