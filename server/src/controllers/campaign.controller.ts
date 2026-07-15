@@ -34,6 +34,65 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
 });
 
+export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const campaignId = parseInt(id as string);
+
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: {
+      leads: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          scrapedEmail: true,
+          scrapedPhone: true,
+          messageSends: {
+            where: { campaignId },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: {
+              events: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!campaign) {
+    throw new Error('Campaign not found');
+  }
+
+  const formattedLeads = campaign.leads.map(lead => {
+    const lastMessageSend = lead.messageSends[0];
+    const lastEvent = lastMessageSend?.events[0];
+    
+    let status = 'PENDING';
+    if (lastEvent) {
+       status = lastEvent.eventType;
+    } else if (lastMessageSend) {
+       status = lastMessageSend.status;
+    }
+
+    return {
+      id: lead.id,
+      name: lead.name,
+      email: lead.email || lead.scrapedEmail,
+      phone: lead.phone || lead.scrapedPhone,
+      status: status,
+      lastInteractionAt: lastEvent?.createdAt || lastMessageSend?.createdAt || null
+    };
+  });
+
+  res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
+});
+
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
   const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
@@ -417,59 +476,17 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
       channel,
       subject,
       status: 'SENT',
-      providerMessageId,
-      sentAt: new Date()
+      providerMessageId
     }
   });
 
-  const event = await prisma.engagementEvent.create({
+  await prisma.engagementEvent.create({
     data: {
       messageSendId: msg.id,
       eventType: 'SENT',
-      metadataJson: {
-        isManual: true,
-        templateId: templateId || null,
-        recipient,
-        htmlContent: htmlSent,
-      }
+      metadataJson: { isManual: true }
     }
   });
 
-  res.status(200).json({ message: 'Manual message sent successfully', data: event });
-});
-
-export const getCampaignLogDetail = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id as string;
-  const logId = req.params.logId as string;
-  const log = await prisma.engagementEvent.findFirst({
-    where: {
-      id: parseInt(logId),
-      messageSend: { campaignId: parseInt(id) }
-    },
-    include: {
-      messageSend: {
-        include: {
-          lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
-          campaign: { select: { id: true, name: true } }
-        }
-      }
-    }
-  });
-  if (!log) throw new Error('Log entry not found');
-
-  const mappedLog = {
-    ...log,
-    lead: log.messageSend?.lead,
-    campaign: log.messageSend?.campaign,
-    details: log.metadataJson ? JSON.stringify(log.metadataJson) : '{}'
-  };
-
-  let parsedDetails: any = {};
-  try {
-    parsedDetails = mappedLog.details ? JSON.parse(mappedLog.details as string) : {};
-  } catch (e) {
-    parsedDetails = { raw: mappedLog.details };
-  }
-
-  res.status(200).json({ data: { log: mappedLog, details: parsedDetails } });
+  res.status(200).json({ message: 'Message sent successfully', data: msg });
 });

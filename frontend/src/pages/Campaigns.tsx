@@ -23,6 +23,11 @@ export const Campaigns: React.FC = () => {
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
   
+  // Connected Leads Modal
+  const [isConnectedLeadsModalOpen, setIsConnectedLeadsModalOpen] = useState(false);
+  const [connectedLeads, setConnectedLeads] = useState<any[]>([]);
+  const [connectedLeadsLoading, setConnectedLeadsLoading] = useState(false);
+  
   // Drawer state
   const [selectedCampaignForDrawer, setSelectedCampaignForDrawer] = useState<Campaign | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -162,6 +167,20 @@ export const Campaigns: React.FC = () => {
     }
   };
 
+  const openConnectedLeadsModal = async (campaign: Campaign) => {
+    setCurrentCampaign(campaign);
+    setIsConnectedLeadsModalOpen(true);
+    setConnectedLeadsLoading(true);
+    try {
+      const res = await campaignService.getCampaignConnectedLeads(campaign.id);
+      setConnectedLeads(res.data || []);
+    } catch (err) {
+      toast.error('Failed to load connected leads');
+    } finally {
+      setConnectedLeadsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in relative pb-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -280,10 +299,13 @@ export const Campaigns: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                      <button
+                        onClick={() => openConnectedLeadsModal(camp)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
                         <Users className="w-3.5 h-3.5" />
                         {camp._count?.leads || 0}
-                      </span>
+                      </button>
                     </td>
                     <td className="py-4 px-6 text-right relative">
                       <button
@@ -468,14 +490,88 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
       )}
-      <Campaign360Drawer
-        campaign={selectedCampaignForDrawer}
-        isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setSelectedCampaignForDrawer(null);
-        }}
-      />
+
+      {/* Connected Leads Modal */}
+      {isConnectedLeadsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
+                <p className="text-sm text-slate-500 mt-1">{currentCampaign?.name}</p>
+              </div>
+              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              {connectedLeadsLoading ? (
+                <div className="py-12 flex justify-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : connectedLeads.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Name</th>
+                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Contact</th>
+                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Last Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {connectedLeads.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-slate-800">{lead.name}</td>
+                          <td className="py-3 px-4 text-sm text-slate-600">
+                            <div>{lead.email || 'No email'}</div>
+                            <div className="text-xs text-slate-400">{lead.phone || 'No phone'}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                              lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                              lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                              lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                              lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {lead.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-slate-500">
+                            {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString() : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedCampaignForDrawer && (
+        <Campaign360Drawer
+          campaignId={selectedCampaignForDrawer.id}
+          isOpen={isDrawerOpen}
+          onClose={() => {
+            setIsDrawerOpen(false);
+            setSelectedCampaignForDrawer(null);
+          }}
+        />
+      )}
+
     </div>
   );
 };
