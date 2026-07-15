@@ -8,6 +8,8 @@ export interface SegmentRule {
   leadScore?: string;
   existingProduct?: string;
   market?: string;
+  websiteStatus?: string;
+  algoStatus?: string;
 }
 
 export interface Segment {

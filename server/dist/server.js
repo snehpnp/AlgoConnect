@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const lead_routes_1 = __importDefault(require("./routes/lead.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
@@ -15,10 +16,12 @@ const consent_routes_1 = __importDefault(require("./routes/consent.routes"));
 const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 const automation_routes_1 = __importDefault(require("./routes/automation.routes"));
 const template_routes_1 = __importDefault(require("./routes/template.routes"));
+const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 7700;
 // Middleware
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({ origin: 'http://localhost:5173', credentials: true }));
+app.use((0, cookie_parser_1.default)());
 app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 // Routes
@@ -32,6 +35,7 @@ app.use('/api/consents', consent_routes_1.default);
 app.use('/api/settings', settings_routes_1.default);
 app.use('/api/automations', automation_routes_1.default);
 app.use('/api/templates', template_routes_1.default);
+app.use('/api/chat', chat_routes_1.default);
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', message: 'AlgoConnect Server is running' });

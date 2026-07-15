@@ -50,6 +50,15 @@ exports.getDashboardStats = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         take: 5,
         orderBy: { createdAt: 'desc' }
     });
+    // 8. Recent Communications (Trace)
+    const recentCommunications = await prismaClient_1.default.engagementEvent.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+            lead: { select: { id: true, name: true, email: true, phone: true } },
+            campaign: { select: { id: true, name: true, type: true } }
+        }
+    });
     res.status(200).json({
         data: {
             stats: {
@@ -65,7 +74,8 @@ exports.getDashboardStats = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
             },
             leadTypes,
             analytics: monthlyAnalytics,
-            activities: recentActivities
+            activities: recentActivities,
+            recentCommunications
         },
         message: 'Dashboard stats retrieved successfully'
     });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,12 +8,7 @@ import {
   Search,
   MoreVertical,
   X,
-  Phone as PhoneIcon,
-  Mail,
-  MapPin,
-  Clock,
   Sparkles,
-  ArrowRight,
   Edit2,
   Trash2,
   PhoneCall,
@@ -21,7 +16,11 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  Eye,
+  Mail,
+  Phone as PhoneIcon,
+  MapPin,
+  Clock,
+  ArrowRight,
   Globe,
   Link as LinkIcon,
   Briefcase
@@ -166,17 +165,31 @@ const getLeadScore = (lead: Lead): number => {
   return Math.max(0, Math.min(100, score));
 };
 
-
+const formatDate = (dateString?: string) => {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(d);
+};
 
 export const Leads: React.FC = () => {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'enrichment'>('details');
+  const [logs, setLogs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [salesStageFilter, setSalesStageFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('All');
+  const [websiteStatusFilter, setWebsiteStatusFilter] = useState('All');
   const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[] }>({ states: [], cities: [], types: [] });
 
   // Pagination State
@@ -253,20 +266,6 @@ export const Leads: React.FC = () => {
     registrationNo: '',
   });
 
-  const [logs, setLogs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'enrichment'>('details');
-
-  useEffect(() => {
-    if (selectedLead) {
-      leadsService.getLeadLogs(selectedLead.id)
-        .then(setLogs)
-        .catch(err => console.error('Error fetching logs', err));
-      setActiveTab('details');
-    } else {
-      setLogs([]);
-    }
-  }, [selectedLead]);
-
   // Close the row action menu when clicking anywhere outside it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -322,6 +321,7 @@ export const Leads: React.FC = () => {
         type: typeFilter === 'All' ? undefined : typeFilter,
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
+        websiteStatus: websiteStatusFilter === 'All' ? undefined : websiteStatusFilter,
         sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
         order: scoreSort !== 'none' ? scoreSort : undefined
       });
@@ -340,12 +340,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, scoreSort]);
+  }, [page, searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, scoreSort]);
+  }, [searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -361,6 +361,21 @@ export const Leads: React.FC = () => {
     return () => clearTimeout(delay);
   }, [page, fetchLeads]);
 
+
+  // Fetch logs when selectedLead changes
+  useEffect(() => {
+    if (selectedLead) {
+      setActiveTab('details');
+      leadsService.getLeadLogs(selectedLead.id)
+        .then(setLogs)
+        .catch(err => {
+          console.error('Error fetching lead logs:', err);
+          setLogs([]);
+        });
+    } else {
+      setLogs([]);
+    }
+  }, [selectedLead]);
 
   const handleRowClick = (lead: Lead) => {
     setSelectedLead(lead);
@@ -391,12 +406,6 @@ export const Leads: React.FC = () => {
 
 
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
-  };
-
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
   return (
@@ -414,21 +423,21 @@ export const Leads: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/leads/import')}
-              className="btn-secondary !px-3 sm:!px-4"
+              className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Import CSV/Excel</span>
+              <span>Import</span>
             </button>
-            <button className="btn-secondary !px-3 sm:!px-4">
+            <button className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm">
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
+              <span>Export</span>
             </button>
             <button
               onClick={() => handleOpenForm()}
-              className="btn-primary !px-3 sm:!px-4"
+              className="btn-primary !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Lead</span>
+              <span>Add Lead</span>
             </button>
           </div>
         </div>
@@ -497,6 +506,16 @@ export const Leads: React.FC = () => {
               <option value="Client Lost">Client Lost</option>
             </select>
 
+            <select
+              value={websiteStatusFilter}
+              onChange={(e) => setWebsiteStatusFilter(e.target.value)}
+              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
+            >
+              <option value="All">All Websites</option>
+              <option value="HasWebsite">Has Website</option>
+              <option value="NoWebsite">No Website</option>
+            </select>
+
             <button
               onClick={fetchLeads}
               disabled={isLoading}
@@ -558,7 +577,7 @@ export const Leads: React.FC = () => {
                           </span>
                         </div>
                       </th>
-                      <th className="py-4 px-6 w-[5%] min-w-[60px] text-right">Actions</th>
+                      <th className="py-4 px-6 w-[5%] min-w-[120px] text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]">

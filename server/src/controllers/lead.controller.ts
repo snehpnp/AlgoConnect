@@ -63,6 +63,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const type = (req.query.type as string) || 'All';
   const state = (req.query.state as string) || 'All';
   const city = (req.query.city as string) || 'All';
+  const websiteStatus = (req.query.websiteStatus as string) || 'All';
   
   const skip = (page - 1) * limit;
   const where: any = {};
@@ -74,6 +75,22 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (type && type !== 'All') where.type = type;
   if (state && state !== 'All') where.state = state;
   if (city && city !== 'All') where.city = city;
+  
+  if (websiteStatus === 'NoWebsite') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({
+      OR: [
+        { website: null },
+        { website: '' }
+      ]
+    });
+  } else if (websiteStatus === 'HasWebsite') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({
+      website: { not: null },
+      NOT: { website: '' }
+    });
+  }
   
   if (search) {
     where.OR = [

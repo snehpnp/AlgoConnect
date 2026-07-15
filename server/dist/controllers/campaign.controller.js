@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendManualMessage = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignById = exports.getCampaigns = void 0;
+exports.getCampaignLogDetail = exports.sendManualMessage = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignLogs = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignById = exports.getCampaigns = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const emailService_1 = require("../utils/emailService");
@@ -213,6 +213,37 @@ exports.getCampaignStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
     });
     res.status(200).json({ data: { sends: [], engagements } });
 });
+exports.getCampaignLogs = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const [logs, total] = await Promise.all([
+        prismaClient_1.default.engagementEvent.findMany({
+            where: { campaignId: parseInt(id) },
+            include: {
+                lead: {
+                    select: { id: true, name: true, email: true, phone: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prismaClient_1.default.engagementEvent.count({
+            where: { campaignId: parseInt(id) }
+        })
+    ]);
+    res.status(200).json({
+        data: logs,
+        meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        }
+    });
+});
 const campaignRunner_service_1 = require("../services/campaignRunner.service");
 exports.getEngineStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     res.status(200).json({ data: { isRunning: (0, campaignRunner_service_1.getEngineState)() } });
@@ -282,14 +313,48 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
             throw new Error(`Lead has no phone number for ${channel}`);
         console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
     }
+    const htmlSent = channel === 'EMAIL'
+        ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+        : content;
     const event = await prismaClient_1.default.engagementEvent.create({
         data: {
             leadId: parseInt(leadId),
             campaignId: parseInt(id),
             channel,
             eventType: 'SENT',
-            details: JSON.stringify({ isManual: true, templateId, message: content, recipient })
+            details: JSON.stringify({
+                isManual: true,
+                templateId: templateId || null,
+                recipient,
+                subject,
+                htmlContent: htmlSent,
+                sentAt: new Date().toISOString()
+            })
         }
     });
     res.status(200).json({ message: 'Manual message sent successfully', data: event });
+});
+exports.getCampaignLogDetail = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const id = req.params.id;
+    const logId = req.params.logId;
+    const log = await prismaClient_1.default.engagementEvent.findFirst({
+        where: {
+            id: parseInt(logId),
+            campaignId: parseInt(id)
+        },
+        include: {
+            lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
+            campaign: { select: { id: true, name: true } }
+        }
+    });
+    if (!log)
+        throw new Error('Log entry not found');
+    let parsedDetails = {};
+    try {
+        parsedDetails = log.details ? JSON.parse(log.details) : {};
+    }
+    catch {
+        parsedDetails = { raw: log.details };
+    }
+    res.status(200).json({ data: { ...log, parsedDetails } });
 });

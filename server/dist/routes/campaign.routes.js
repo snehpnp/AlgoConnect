@@ -9,6 +9,8 @@ router.post('/engine/toggle', auth_middleware_1.authenticate, campaign_controlle
 router.get('/', auth_middleware_1.authenticate, campaign_controller_1.getCampaigns);
 router.get('/:id', auth_middleware_1.authenticate, campaign_controller_1.getCampaignById);
 router.get('/:id/stats', auth_middleware_1.authenticate, campaign_controller_1.getCampaignStats);
+router.get('/:id/logs', auth_middleware_1.authenticate, campaign_controller_1.getCampaignLogs);
+router.get('/:id/logs/:logId', auth_middleware_1.authenticate, campaign_controller_1.getCampaignLogDetail);
 router.post('/', auth_middleware_1.authenticate, campaign_controller_1.createCampaign);
 router.put('/:id', auth_middleware_1.authenticate, campaign_controller_1.updateCampaign);
 router.delete('/:id', auth_middleware_1.authenticate, campaign_controller_1.deleteCampaign);

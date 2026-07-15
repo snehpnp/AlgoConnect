@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.changePassword = exports.register = exports.login = void 0;
+exports.resetPassword = exports.forgotPassword = exports.changePassword = exports.register = exports.me = exports.logout = exports.login = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -29,9 +29,41 @@ exports.login = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         throw new errorHandler_1.AppError('Invalid email or password.', 401);
     }
     const token = jsonwebtoken_1.default.sign({ id: user.id, roleId: user.roleId, role: user.role.name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+    res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
     res.status(200).json({
         message: 'Login successful',
-        token,
+        user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role.name,
+            avatar: user.avatar,
+        },
+    });
+});
+// ─── LOGOUT ──────────────────────────────────────────────────────────────────
+exports.logout = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    res.clearCookie('token');
+    res.status(200).json({ message: 'Logged out successfully' });
+});
+// ─── GET CURRENT USER ────────────────────────────────────────────────────────
+exports.me = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    if (!req.user) {
+        throw new errorHandler_1.AppError('Not authenticated', 401);
+    }
+    const user = await prismaClient_1.default.user.findUnique({
+        where: { id: req.user.id },
+        include: { role: true },
+    });
+    if (!user) {
+        throw new errorHandler_1.AppError('User not found', 404);
+    }
+    res.status(200).json({
         user: {
             id: user.id,
             name: user.name,

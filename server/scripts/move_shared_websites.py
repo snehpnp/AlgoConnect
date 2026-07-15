@@ -40,7 +40,7 @@ def main():
     WHERE website IS NOT NULL
       AND website <> ''
     GROUP BY domain
-    HAVING COUNT(*) > 1 
+    HAVING COUNT(*) > 1
     ORDER BY "Website_count" DESC;
     """
     

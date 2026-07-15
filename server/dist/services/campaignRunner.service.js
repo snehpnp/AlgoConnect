@@ -109,9 +109,13 @@ const startCampaignRunner = () => {
                             continue;
                         }
                         // Parse Merge Tags
-                        const content = template.content
+                        const renderedContent = template.content
                             .replace(/{{name}}/g, lead.name || '')
-                            .replace(/{{contact_name}}/g, lead.contactPerson || lead.name || '');
+                            .replace(/{{contact_name}}/g, lead.contactPerson || lead.name || '')
+                            .replace(/{{company}}/g, lead.name || '');
+                        const renderedSubject = (template.subject || '')
+                            .replace(/{{name}}/g, lead.name || '')
+                            .replace(/{{company}}/g, lead.name || '');
                         // Dispatch
                         await messagingGateway_service_1.messagingGateway.sendMessage({
                             campaignId: campaign.id,
@@ -119,7 +123,9 @@ const startCampaignRunner = () => {
                             templateId: template.id,
                             channel: channel,
                             recipient,
-                            content
+                            content: renderedContent,
+                            subject: renderedSubject,
+                            htmlContent: renderedContent,
                         });
                         processedCount++;
                     }

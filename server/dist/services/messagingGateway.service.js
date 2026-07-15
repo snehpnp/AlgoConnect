@@ -8,13 +8,21 @@ const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 exports.messagingGateway = {
     async sendMessage(options) {
         try {
+            const sentDetails = JSON.stringify({
+                recipient: options.recipient,
+                subject: options.subject || null,
+                htmlContent: options.htmlContent || options.content,
+                templateId: options.templateId,
+                sentAt: new Date().toISOString(),
+                providerMessageId: `mock_${options.channel.toLowerCase()}_${Date.now()}`
+            });
             const sentEvent = await prismaClient_1.default.engagementEvent.create({
                 data: {
                     campaignId: options.campaignId,
                     leadId: options.leadId,
                     channel: options.channel,
                     eventType: 'SENT',
-                    details: `providerMessageId: mock_${options.channel.toLowerCase()}_${Date.now()}`
+                    details: sentDetails
                 }
             });
             setTimeout(async () => {

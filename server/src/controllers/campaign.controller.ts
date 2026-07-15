@@ -35,7 +35,7 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
-  const { name, type, status, segmentIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
+  const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
   if (!name || !type) {
     throw new Error('Name and type are required');
@@ -87,12 +87,23 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
         select: { id: true }
       });
 
-      if (matchingLeads.length > 0) {
+      const allLeadIds = new Set<number>();
+      matchingLeads.forEach(l => allLeadIds.add(l.id));
+      if (leadIds && Array.isArray(leadIds)) {
+        leadIds.forEach(id => allLeadIds.add(parseInt(id as any)));
+      }
+
+      if (allLeadIds.size > 0) {
         data.leads = {
-          connect: matchingLeads
+          connect: Array.from(allLeadIds).map(id => ({ id }))
         };
       }
     }
+  } else if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
+    // If only leadIds are provided (no segments)
+    data.leads = {
+      connect: leadIds.map(id => ({ id: parseInt(id as any) }))
+    };
   }
 
   const newCampaign = await prisma.campaign.create({
@@ -108,7 +119,7 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
 
 export const updateCampaign = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, type, status, segmentIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
+  const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
   const dataToUpdate: any = { name, type, status, description, channels };
   if (schedule !== undefined) dataToUpdate.schedule = schedule ? new Date(schedule) : null;
@@ -148,13 +159,30 @@ export const updateCampaign = asyncHandler(async (req: Request, res: Response) =
           select: { id: true }
         });
 
+        const allLeadIds = new Set<number>();
+        matchingLeads.forEach(l => allLeadIds.add(l.id));
+        if (leadIds && Array.isArray(leadIds)) {
+          leadIds.forEach(id => allLeadIds.add(parseInt(id as any)));
+        }
+
         dataToUpdate.leads = {
-          set: matchingLeads
+          set: Array.from(allLeadIds).map(id => ({ id }))
         };
       }
     } else {
-      // Clear segments and leads
+      // Clear segments and handle leadIds if provided alone
       dataToUpdate.segments = { set: [] };
+      if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
+        dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id as any) })) };
+      } else {
+        dataToUpdate.leads = { set: [] };
+      }
+    }
+  } else if (leadIds !== undefined) {
+    // If only leadIds are updated
+    if (Array.isArray(leadIds) && leadIds.length > 0) {
+      dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id as any) })) };
+    } else {
       dataToUpdate.leads = { set: [] };
     }
   }
@@ -224,10 +252,18 @@ export const removeLeadFromCampaign = asyncHandler(async (req: Request, res: Res
 
 export const getCampaignStats = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
+  const campaignId = parseInt(id as string);
+  
+  const messageSends = await prisma.messageSend.findMany({
+    where: { campaignId },
+    select: { id: true }
+  });
+  
+  const messageSendIds = messageSends.map(ms => ms.id);
   
   const engagements = await prisma.engagementEvent.groupBy({
     by: ['eventType'],
-    where: { campaignId: parseInt(id as string) },
+    where: { messageSendId: { in: messageSendIds } },
     _count: {
       eventType: true
     }
@@ -242,12 +278,16 @@ export const getCampaignLogs = asyncHandler(async (req: Request, res: Response) 
   const limit = parseInt(req.query.limit as string) || 10;
   const skip = (page - 1) * limit;
 
-  const [logs, total] = await Promise.all([
+  const [logsRaw, total] = await Promise.all([
     prisma.engagementEvent.findMany({
-      where: { campaignId: parseInt(id as string) },
+      where: { messageSend: { campaignId: parseInt(id as string) } },
       include: {
-        lead: {
-          select: { id: true, name: true, email: true, phone: true }
+        messageSend: {
+          include: {
+            lead: {
+              select: { id: true, name: true, email: true, phone: true }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -255,9 +295,15 @@ export const getCampaignLogs = asyncHandler(async (req: Request, res: Response) 
       take: limit,
     }),
     prisma.engagementEvent.count({
-      where: { campaignId: parseInt(id as string) }
+      where: { messageSend: { campaignId: parseInt(id as string) } }
     })
   ]);
+
+  const logs = logsRaw.map(log => ({
+    ...log,
+    lead: log.messageSend?.lead,
+    campaignId: log.messageSend?.campaignId
+  }));
 
   res.status(200).json({
     data: logs,
@@ -328,13 +374,21 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
         html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
       });
     } catch (err: any) {
-      await prisma.engagementEvent.create({
+      const msg = await prisma.messageSend.create({
         data: {
           leadId: lead.id,
           campaignId: parseInt(id as string),
           channel,
+          subject,
+          status: 'FAILED',
+          providerMessageId: `manual-failed-${Date.now()}`
+        }
+      });
+      await prisma.engagementEvent.create({
+        data: {
+          messageSendId: msg.id,
           eventType: 'FAILED',
-          details: JSON.stringify({ isManual: true, error: err.message })
+          metadataJson: { isManual: true, error: err.message }
         }
       });
       throw new Error(`Failed to send email: ${err.message}`);
@@ -350,20 +404,28 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
     : content;
 
-  const event = await prisma.engagementEvent.create({
+  const msg = await prisma.messageSend.create({
     data: {
       leadId: parseInt(leadId as string),
       campaignId: parseInt(id as string),
       channel,
+      subject,
+      status: 'SENT',
+      providerMessageId: `manual-${Date.now()}`,
+      sentAt: new Date()
+    }
+  });
+
+  const event = await prisma.engagementEvent.create({
+    data: {
+      messageSendId: msg.id,
       eventType: 'SENT',
-      details: JSON.stringify({
+      metadataJson: {
         isManual: true,
         templateId: templateId || null,
         recipient,
-        subject,
         htmlContent: htmlSent,
-        sentAt: new Date().toISOString()
-      })
+      }
     }
   });
 
@@ -376,21 +438,32 @@ export const getCampaignLogDetail = asyncHandler(async (req: Request, res: Respo
   const log = await prisma.engagementEvent.findFirst({
     where: {
       id: parseInt(logId),
-      campaignId: parseInt(id)
+      messageSend: { campaignId: parseInt(id) }
     },
     include: {
-      lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
-      campaign: { select: { id: true, name: true } }
+      messageSend: {
+        include: {
+          lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
+          campaign: { select: { id: true, name: true } }
+        }
+      }
     }
   });
   if (!log) throw new Error('Log entry not found');
 
+  const mappedLog = {
+    ...log,
+    lead: log.messageSend?.lead,
+    campaign: log.messageSend?.campaign,
+    details: log.metadataJson ? JSON.stringify(log.metadataJson) : '{}'
+  };
+
   let parsedDetails: any = {};
   try {
-    parsedDetails = log.details ? JSON.parse(log.details as string) : {};
-  } catch {
-    parsedDetails = { raw: log.details };
+    parsedDetails = mappedLog.details ? JSON.parse(mappedLog.details as string) : {};
+  } catch (e) {
+    parsedDetails = { raw: mappedLog.details };
   }
 
-  res.status(200).json({ data: { ...log, parsedDetails } });
+  res.status(200).json({ data: { log: mappedLog, details: parsedDetails } });
 });

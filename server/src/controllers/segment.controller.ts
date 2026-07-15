@@ -39,6 +39,22 @@ export const previewSegment = asyncHandler(async (req: Request, res: Response) =
   if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
   if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
   
+  if (rules.websiteStatus === 'NoWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ website: null }, { website: '' }] });
+  } else if (rules.websiteStatus === 'HasWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ website: { not: null }, NOT: { website: '' } });
+  }
+
+  if (rules.algoStatus === 'HasAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } });
+  } else if (rules.algoStatus === 'NoAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
+  }
+
   const [count, leads] = await Promise.all([
     prisma.lead.count({ where: whereClause }),
     prisma.lead.findMany({ where: whereClause, take: 50, orderBy: { createdAt: 'desc' } })
@@ -75,6 +91,22 @@ export const getSegmentLeads = asyncHandler(async (req: Request, res: Response) 
   if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
   if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
   if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
+  
+  if (rules.websiteStatus === 'NoWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ website: null }, { website: '' }] });
+  } else if (rules.websiteStatus === 'HasWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ website: { not: null }, NOT: { website: '' } });
+  }
+
+  if (rules.algoStatus === 'HasAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } });
+  } else if (rules.algoStatus === 'NoAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
+  }
   
   const leads = await prisma.lead.findMany({
     where: whereClause,

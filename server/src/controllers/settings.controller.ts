@@ -141,7 +141,7 @@ export const getMessageLogs = async (req: Request, res: Response) => {
     const where: any = {};
 
     if (channel && channel !== 'ALL') {
-      where.channel = channel as string;
+      where.messageSend = { channel: channel as string };
     }
 
     if (status && status !== 'ALL') {
@@ -161,19 +161,31 @@ export const getMessageLogs = async (req: Request, res: Response) => {
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     const take = parseInt(limit as string);
 
-    const [logs, total] = await Promise.all([
+    const [logsRaw, total] = await Promise.all([
       prisma.engagementEvent.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take,
         include: {
-          lead: { select: { id: true, name: true, email: true, phone: true } },
-          campaign: { select: { id: true, name: true } }
+          messageSend: {
+            include: {
+              lead: { select: { id: true, name: true, email: true, phone: true } },
+              campaign: { select: { id: true, name: true } }
+            }
+          }
         }
       }),
       prisma.engagementEvent.count({ where })
     ]);
+
+    const logs = logsRaw.map(log => ({
+      ...log,
+      lead: log.messageSend?.lead,
+      campaign: log.messageSend?.campaign,
+      details: log.metadataJson,
+      channel: log.messageSend?.channel
+    }));
 
     res.json({
       data: logs,

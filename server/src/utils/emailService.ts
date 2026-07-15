@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import prisma from '../models/prismaClient';
 import { AppError } from '../middlewares/errorHandler';
 
