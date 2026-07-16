@@ -8,21 +8,27 @@ export const checkIMAPReplies = async () => {
   console.log('[IMAP] Starting IMAP reply check...');
   try {
     const imapSetting = await (prisma as any).integrationSetting.findUnique({
-      where: { type: 'IMAP' },
+      where: { type: 'EMAIL' }, // Use the existing EMAIL settings
     });
 
     if (!imapSetting || !imapSetting.isActive || !imapSetting.host || !imapSetting.apiKey || !imapSetting.apiSecret) {
-      console.log('[IMAP] IMAP is not configured or is inactive.');
+      console.log('[IMAP] IMAP (EMAIL) is not configured or is inactive.');
       return;
+    }
+
+    // Auto-convert smtp.gmail.com to imap.gmail.com
+    let imapHost = imapSetting.host;
+    if (imapHost.toLowerCase().startsWith('smtp.')) {
+      imapHost = imapHost.toLowerCase().replace('smtp.', 'imap.');
     }
 
     const config = {
       imap: {
         user: imapSetting.apiKey,
         password: imapSetting.apiSecret,
-        host: imapSetting.host,
-        port: imapSetting.port || 993,
-        tls: imapSetting.secure === true || imapSetting.secure === 'true',
+        host: imapHost,
+        port: 993, // Default IMAP secure port
+        tls: true, // IMAP almost always requires TLS on 993
         authTimeout: 10000,
         tlsOptions: { rejectUnauthorized: false }
       },
@@ -99,6 +105,18 @@ export const checkIMAPReplies = async () => {
               data: { 
                 status: 'REPLIED',
                 repliedAt: new Date()
+              }
+            });
+
+            // Create Engagement Event for the reply
+            await prisma.engagementEvent.create({
+              data: {
+                messageSendId: lastSend.id,
+                eventType: 'REPLIED',
+                metadataJson: {
+                  subject: mail.subject || 'No Subject',
+                  body: mail.text || 'No Body'
+                }
               }
             });
 

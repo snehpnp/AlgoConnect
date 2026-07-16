@@ -97,8 +97,8 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       where.AND.push({
         OR: [
           { isEnriched: true },
-          { servicesSummary: { notIn: [null, ''] } },
-          { enrichmentNotes: { notIn: [null, ''] } }
+          { AND: [{ servicesSummary: { not: null } }, { servicesSummary: { not: '' } }] },
+          { AND: [{ enrichmentNotes: { not: null } }, { enrichmentNotes: { not: '' } }] }
         ]
       });
     } else if (unifiedStatus === 'Imported') {

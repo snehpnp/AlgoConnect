@@ -60,10 +60,10 @@ import cron from 'node-cron';
 
 startCampaignRunner();
 
-// Poll for email replies every 5 minutes
-cron.schedule('*/5 * * * *', () => {
-  pollImapForReplies();
-});
+// Poll for email replies every 5 minutes (Disabled legacy listener, using new IMAP engine in campaignRunner)
+// cron.schedule('*/5 * * * *', () => {
+//   pollImapForReplies();
+// });
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

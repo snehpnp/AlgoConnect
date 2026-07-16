@@ -18,7 +18,7 @@ export const getEngineState = () => {
 
 export const startCampaignRunner = () => {
   // Run IMAP checker every 15 minutes
-  cron.schedule('*/15 * * * *', async () => {
+  cron.schedule('*/5 * * * *', async () => {
     if (!isEngineRunning) return;
     await checkIMAPReplies();
   });

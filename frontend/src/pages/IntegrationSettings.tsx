@@ -129,6 +129,7 @@ export const IntegrationSettings = () => {
       OPENED:    { color: 'bg-purple-50 text-purple-700 border-purple-200', icon: <CheckCircle2 className="h-3 w-3" /> },
       CLICKED:   { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: <CheckCircle2 className="h-3 w-3" /> },
       REPLIED:   { color: 'bg-teal-50 text-teal-700 border-teal-200',    icon: <CheckCircle2 className="h-3 w-3" /> },
+      REPLY:     { color: 'bg-teal-50 text-teal-700 border-teal-200',    icon: <CheckCircle2 className="h-3 w-3" /> },
       FAILED:    { color: 'bg-red-50 text-red-700 border-red-200',       icon: <XCircle className="h-3 w-3" /> },
       PENDING:   { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3 w-3" /> },
     };
