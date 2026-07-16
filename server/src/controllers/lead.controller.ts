@@ -72,15 +72,27 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (salesStage && salesStage !== 'All') where.salesStage = salesStage;
   
   if (unifiedStatus && unifiedStatus !== 'All') {
-    if (['Client Won', 'Client Lost', 'Negotiation', 'Qualified'].includes(unifiedStatus)) {
+    const higherSalesStages = ['Client Won', 'Client Lost', 'Negotiation', 'Qualified'];
+    const higherEngagement = ['Replied', 'Demo Requested', 'Clicked', 'Opened'];
+    const contactedEngagement = ['Sent', 'Delivered'];
+    
+    if (higherSalesStages.includes(unifiedStatus)) {
       where.salesStage = unifiedStatus;
-    } else if (['Replied', 'Demo Requested', 'Clicked', 'Opened'].includes(unifiedStatus)) {
+    } else if (higherEngagement.includes(unifiedStatus)) {
+      where.salesStage = { notIn: higherSalesStages };
       where.engagementStatus = unifiedStatus;
     } else if (unifiedStatus === 'Contacted') {
-      where.engagementStatus = { in: ['Sent', 'Delivered'] };
+      where.salesStage = { notIn: higherSalesStages };
+      where.engagementStatus = { in: contactedEngagement };
     } else if (['Active', 'Likely Inactive', 'Unverified'].includes(unifiedStatus)) {
+      where.salesStage = { notIn: higherSalesStages };
+      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
       where.verificationStatus = unifiedStatus;
     } else if (unifiedStatus === 'Enriched') {
+      where.salesStage = { notIn: higherSalesStages };
+      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
+      where.verificationStatus = { notIn: ['Active', 'Likely Inactive', 'Unverified'] };
+      
       if (!where.AND) where.AND = [];
       where.AND.push({
         OR: [
@@ -90,9 +102,18 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
         ]
       });
     } else if (unifiedStatus === 'Imported') {
-       where.salesStage = 'New';
-       where.engagementStatus = 'Not Engaged';
-       where.verificationStatus = 'Imported';
+      where.salesStage = { notIn: higherSalesStages };
+      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
+      where.verificationStatus = { notIn: ['Active', 'Likely Inactive', 'Unverified'] };
+      
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        AND: [
+          { isEnriched: { not: true } },
+          { OR: [{ servicesSummary: null }, { servicesSummary: '' }] },
+          { OR: [{ enrichmentNotes: null }, { enrichmentNotes: '' }] }
+        ]
+      });
     }
   }
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;

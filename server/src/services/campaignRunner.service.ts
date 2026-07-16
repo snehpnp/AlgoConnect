@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../models/prismaClient';
+import { checkIMAPReplies } from './imap.service';
 import { messagingGateway } from './messagingGateway.service';
 
 const BATCH_LIMIT = 50; // Max leads processed per minute per campaign
@@ -16,8 +17,14 @@ export const getEngineState = () => {
 };
 
 export const startCampaignRunner = () => {
-  // Run every 10 minute 
-  cron.schedule('*/10 10-17 * * *', async () => {
+  // Run IMAP checker every 15 minutes
+  cron.schedule('*/15 * * * *', async () => {
+    if (!isEngineRunning) return;
+    await checkIMAPReplies();
+  });
+
+  // Run campaign processor every 10 minutes
+  cron.schedule('*/10 9-17 * * *', async () => {
     if (!isEngineRunning) {
       return;
     }

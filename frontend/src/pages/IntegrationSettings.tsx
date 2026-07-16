@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { settingsService, type IntegrationSetting, type MessageLog } from '../services/settings.service';
 
@@ -25,6 +25,9 @@ export const IntegrationSettings = () => {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+
+  // Modal State
+  const [selectedLog, setSelectedLog] = useState<any>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -522,11 +525,20 @@ export const IntegrationSettings = () => {
                         <span className="text-xs text-indigo-600 font-medium">{log.campaign.name}</span>
                       ) : <span className="text-xs text-slate-400">Manual</span>}
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3">
                       {log.details ? (
-                        <span className="text-[10px] text-slate-500 truncate block" title={log.details}>
-                          {(() => { try { const d = JSON.parse(log.details); return d.isManual ? '🖊 Manual Send' : JSON.stringify(d); } catch { return log.details; } })()}
-                        </span>
+                        <button 
+                          onClick={() => {
+                            let d = log.details;
+                            if (typeof d === 'string') {
+                              try { d = JSON.parse(d); } catch {}
+                            }
+                            setSelectedLog({ ...log, parsedDetails: d });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </button>
                       ) : <span className="text-slate-400 text-xs">—</span>}
                     </td>
                   </tr>
@@ -561,6 +573,69 @@ export const IntegrationSettings = () => {
           </div>
         )}
       </div>
+
+      {/* Message Log Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Message Details</h2>
+                  <p className="text-xs text-slate-500">
+                    {new Date(selectedLog.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedLog(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</span>
+                  <p className="text-sm font-medium text-slate-800 break-all">{selectedLog.parsedDetails?.recipient || selectedLog.lead?.email || '—'}</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</span>
+                  <div>{getStatusBadge(selectedLog.eventType)}</div>
+                </div>
+              </div>
+              
+              <div>
+                <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Subject</span>
+                <div className="text-sm font-medium text-slate-800 px-4 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  {selectedLog.parsedDetails?.subject || selectedLog.parsedDetails?.subject || 'No Subject'}
+                </div>
+              </div>
+
+              <div>
+                <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Message Body</span>
+                <div className="text-sm text-slate-700 bg-white rounded-lg border border-slate-200 p-4 min-h-[150px] shadow-sm overflow-x-auto">
+                  {selectedLog.parsedDetails?.htmlContent ? (
+                    <div dangerouslySetInnerHTML={{ __html: selectedLog.parsedDetails.htmlContent }} />
+                  ) : selectedLog.parsedDetails?.body ? (
+                    <div className="whitespace-pre-wrap font-mono text-xs">{selectedLog.parsedDetails.body}</div>
+                  ) : (
+                    <div className="whitespace-pre-wrap font-mono text-xs break-all">{typeof selectedLog.parsedDetails === 'object' ? JSON.stringify(selectedLog.parsedDetails, null, 2) : selectedLog.parsedDetails}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button onClick={() => setSelectedLog(null)} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
