@@ -236,7 +236,7 @@ export const Campaigns: React.FC = () => {
         ))}
       </div>
 
-      <div className="card !p-0 overflow-hidden">
+      <div className="card !p-0 overflow-visible">
         <div className="border-b border-[#E2E8F0] p-4.5 bg-[#F8FAFC] flex items-center justify-between">
           <h3 className="text-sm font-bold text-[#0F172A]">All Campaigns</h3>
           <div className="relative w-64">
@@ -251,8 +251,8 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[300px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full text-left" style={{ minWidth: '700px', zIndex: -1 }}>
+        <div className="overflow-x-auto min-h-[300px] w-full pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-left" style={{ minWidth: '700px' }}>
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Campaign Name</th>
@@ -320,7 +320,7 @@ export const Campaigns: React.FC = () => {
                       </button>
 
                       {openMenuId === camp.id && (
-                        <div className="absolute right-8 top-10 z-10 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                        <div className="absolute right-8 top-10 z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
                           {isAdmin && (
                             <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
                               <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
@@ -517,27 +517,27 @@ export const Campaigns: React.FC = () => {
               ) : connectedLeads.length === 0 ? (
                 <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-2 mb-2">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Name</th>
-                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Contact</th>
-                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase">Last Updated</th>
-                        <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {connectedLeads.map((lead) => (
-                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-slate-800">{lead.name}</td>
-                          <td className="py-3 px-4 text-sm text-slate-600">
-                            <div>{lead.email || 'No email'}</div>
-                            <div className="text-xs text-slate-400">{lead.phone || 'No phone'}</div>
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="py-4 px-6 font-semibold text-slate-800">{lead.name}</td>
+                          <td className="py-4 px-6 text-sm text-slate-600">
+                            <div className="font-medium">{lead.email || 'No email'}</div>
+                            <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
                           </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                          <td className="py-4 px-6">
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
                                 lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
                                   lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
                                     lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
@@ -547,19 +547,19 @@ export const Campaigns: React.FC = () => {
                               {lead.status}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-slate-500">
-                            {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString() : 'N/A'}
+                          <td className="py-4 px-6 text-sm font-medium text-slate-500">
+                            {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-4 px-6 text-right">
                             {lead.status === 'REPLIED' && lead.latestReply && (
                               <button
                                 onClick={() => {
                                   setCurrentReply(lead.latestReply);
                                   setReplyModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
                               >
-                                <Mail className="w-3.5 h-3.5" />
+                                <Mail className="w-4 h-4" />
                                 View Reply
                               </button>
                             )}
