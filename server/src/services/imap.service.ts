@@ -65,7 +65,78 @@ export const checkIMAPReplies = async () => {
 
         console.log(`[IMAP] Processing email from: ${senderEmail}`);
 
-        // Try to find a lead with this email
+        // --- CHECK FOR BOUNCE ---
+        const senderLower = senderEmail.toLowerCase();
+        const subjectLower = (mail.subject || '').toLowerCase();
+        
+        const isBounce = senderLower.includes('mailer-daemon') || 
+                         senderLower.includes('postmaster') ||
+                         subjectLower.includes('delivery status notification') ||
+                         subjectLower.includes('undelivered mail');
+
+        if (isBounce) {
+          console.log(`[IMAP] Detected bounce email.`);
+          const textContent = mail.text || '';
+          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+          const matchedEmails = textContent.match(emailRegex) || [];
+          
+          const failedEmails = matchedEmails.map(e => e.toLowerCase()).filter(e => 
+            !e.includes('mailer-daemon') && !e.includes('postmaster')
+          );
+
+          if (failedEmails.length > 0) {
+            // Usually the first non-system email is the bounced recipient
+            const bouncedEmail = failedEmails[0];
+            console.log(`[IMAP] Found bounced recipient: ${bouncedEmail}`);
+            
+            const lead = await prisma.lead.findFirst({
+              where: {
+                OR: [
+                  { email: { equals: bouncedEmail, mode: 'insensitive' } },
+                  { email2: { equals: bouncedEmail, mode: 'insensitive' } }
+                ]
+              }
+            });
+
+            if (lead) {
+              const lastSend = await prisma.messageSend.findFirst({
+                where: { leadId: lead.id, channel: 'EMAIL' },
+                orderBy: { createdAt: 'desc' }
+              });
+
+              if (lastSend) {
+                await prisma.messageSend.update({
+                  where: { id: lastSend.id },
+                  data: {
+                    status: 'BOUNCED',
+                    bouncedAt: new Date()
+                  }
+                });
+
+                await prisma.engagementEvent.create({
+                  data: {
+                    messageSendId: lastSend.id,
+                    eventType: 'BOUNCED',
+                    metadataJson: {
+                      subject: mail.subject,
+                      error: 'Address not found / Delivery Failed'
+                    }
+                  }
+                });
+
+                await prisma.lead.update({
+                  where: { id: lead.id },
+                  data: { engagementStatus: 'Bounced' }
+                });
+                console.log(`[IMAP] Successfully logged BOUNCE for Lead ID: ${lead.id}`);
+              }
+            }
+          }
+          continue; // Skip the regular reply logic for bounce emails
+        }
+        // --- END BOUNCE CHECK ---
+
+        // Try to find a lead with this email for a regular reply
         const lead = await prisma.lead.findFirst({
           where: {
             OR: [
