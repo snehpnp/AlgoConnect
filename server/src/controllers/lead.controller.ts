@@ -56,6 +56,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const search = (req.query.search as string) || '';
   
   // Status filters
+  const unifiedStatus = (req.query.unifiedStatus as string) || 'All';
   const salesStage = (req.query.salesStage as string) || 'All';
   const verificationStatus = (req.query.verificationStatus as string) || 'All';
   const engagementStatus = (req.query.engagementStatus as string) || 'All';
@@ -69,6 +70,31 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const where: any = {};
   
   if (salesStage && salesStage !== 'All') where.salesStage = salesStage;
+  
+  if (unifiedStatus && unifiedStatus !== 'All') {
+    if (['Client Won', 'Client Lost', 'Negotiation', 'Qualified'].includes(unifiedStatus)) {
+      where.salesStage = unifiedStatus;
+    } else if (['Replied', 'Demo Requested', 'Clicked', 'Opened'].includes(unifiedStatus)) {
+      where.engagementStatus = unifiedStatus;
+    } else if (unifiedStatus === 'Contacted') {
+      where.engagementStatus = { in: ['Sent', 'Delivered'] };
+    } else if (['Active', 'Likely Inactive', 'Unverified'].includes(unifiedStatus)) {
+      where.verificationStatus = unifiedStatus;
+    } else if (unifiedStatus === 'Enriched') {
+      if (!where.AND) where.AND = [];
+      where.AND.push({
+        OR: [
+          { isEnriched: true },
+          { servicesSummary: { notIn: [null, ''] } },
+          { enrichmentNotes: { notIn: [null, ''] } }
+        ]
+      });
+    } else if (unifiedStatus === 'Imported') {
+       where.salesStage = 'New';
+       where.engagementStatus = 'Not Engaged';
+       where.verificationStatus = 'Imported';
+    }
+  }
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
   if (engagementStatus && engagementStatus !== 'All') where.engagementStatus = engagementStatus;
   if (consentStatus && consentStatus !== 'All') where.consentStatus = consentStatus;

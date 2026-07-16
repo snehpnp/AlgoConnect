@@ -19,17 +19,18 @@ import {
   Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { leadsService } from '../services/leads.service';
+import { leadsService, getUnifiedStatus } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
 import { Lead360Drawer } from '../components/Lead360Drawer';
 
 
-// Helper to check if a field contains actual data and is not just a placeholder or "null" string
 const hasValue = (val: any): boolean => {
   if (val === undefined || val === null) return false;
   const str = String(val).trim();
   return str !== '' && str.toLowerCase() !== 'null';
 };
+
+
 
 // Compute a deterministic lead score based on status components and data completeness
 const getLeadScore = (lead: Lead): number => {
@@ -166,7 +167,7 @@ export const Leads: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [salesStageFilter, setSalesStageFilter] = useState('All');
+  const [unifiedStatusFilter, setUnifiedStatusFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('All');
@@ -298,7 +299,7 @@ export const Leads: React.FC = () => {
         page,
         limit: PAGE_SIZE,
         search: searchQuery || undefined,
-        salesStage: salesStageFilter === 'All' ? undefined : salesStageFilter,
+        unifiedStatus: unifiedStatusFilter === 'All' ? undefined : unifiedStatusFilter,
         type: typeFilter === 'All' ? undefined : typeFilter,
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
@@ -321,12 +322,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, salesStageFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -465,15 +466,23 @@ export const Leads: React.FC = () => {
             </select>
 
             <select
-              value={salesStageFilter}
-              onChange={(e) => setSalesStageFilter(e.target.value)}
+              value={unifiedStatusFilter}
+              onChange={(e) => setUnifiedStatusFilter(e.target.value)}
               className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
             >
-              <option value="All">All Stages</option>
-              <option value="New">New</option>
+              <option value="All">All Statuses</option>
+              <option value="Imported">Imported</option>
+              <option value="Enriched">Enriched</option>
+              <option value="Active">Active</option>
+              <option value="Unverified">Unverified</option>
+              <option value="Likely Inactive">Likely Inactive</option>
               <option value="Contacted">Contacted</option>
+              <option value="Opened">Opened</option>
+              <option value="Clicked">Clicked</option>
+              <option value="Replied">Replied</option>
               <option value="Qualified">Qualified</option>
-              <option value="Client Won">Client Won</option>
+              <option value="Negotiation">Handed to Sales</option>
+              <option value="Client Won">Converted / Closed</option>
               <option value="Client Lost">Client Lost</option>
             </select>
 
@@ -533,9 +542,7 @@ export const Leads: React.FC = () => {
                       <th className="py-4 px-6 w-[22%] min-w-[220px]">Email / Phone</th>
                       <th className="py-4 px-6 w-[6%] min-w-[70px]">Type</th>
                       <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
-                      <th className="py-4 px-6 w-[8%] min-w-[90px] text-center">Sales Stage</th>
-                      <th className="py-4 px-6 w-[8%] min-w-[95px] text-center">Verification</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[110px] text-center">Engagement</th>
+                      <th className="py-4 px-6 w-[15%] min-w-[130px] text-center">Status</th>
                       <th 
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
@@ -555,7 +562,7 @@ export const Leads: React.FC = () => {
                   <tbody className="divide-y divide-[#E2E8F0]">
                     {sortedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
+                        <td colSpan={8} className="py-16 text-center text-sm text-slate-400">
                           No leads found matching your filters.
                         </td>
                       </tr>
@@ -643,36 +650,26 @@ export const Leads: React.FC = () => {
 
                             </td>
 
+                            {/* Unified Status */}
                             <td className="py-4 px-6 text-center">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${lead.salesStage === 'New'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : lead.salesStage === 'Client Won'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-amber-100 text-amber-700'
-                                }`}>
-                                {lead.salesStage}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-center">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
-                                {lead.verificationStatus}
-                              </span>
-                            </td>
+                              {(() => {
+                                const status = getUnifiedStatus(lead);
+                                let colorClass = 'bg-slate-100 text-slate-700';
+                                
+                                if (['Client Won', 'Qualified', 'Converted / Closed'].includes(status)) colorClass = 'bg-emerald-100 text-emerald-700';
+                                else if (['Replied', 'Demo Requested', 'Negotiation'].includes(status)) colorClass = 'bg-purple-100 text-purple-700';
+                                else if (['Opened', 'Clicked', 'Contacted'].includes(status)) colorClass = 'bg-blue-100 text-blue-700';
+                                else if (['Active'].includes(status)) colorClass = 'bg-teal-100 text-teal-700';
+                                else if (['Enriched', 'Imported'].includes(status)) colorClass = 'bg-slate-100 text-slate-700';
+                                else if (['Client Lost', 'Likely Inactive'].includes(status)) colorClass = 'bg-red-100 text-red-700';
+                                else if (status === 'Unverified') colorClass = 'bg-amber-100 text-amber-700';
 
-                            <td className="py-4 px-6 text-center">
-                              {lead.engagementStatus && lead.engagementStatus !== 'Not Engaged' ? (
-                                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                                  lead.engagementStatus === 'Replied' ? 'bg-purple-100 text-purple-700' :
-                                  lead.engagementStatus === 'Opened' ? 'bg-blue-100 text-blue-700' :
-                                  lead.engagementStatus === 'Clicked' ? 'bg-emerald-100 text-emerald-700' :
-                                  lead.engagementStatus === 'Sent' ? 'bg-slate-100 text-slate-700' :
-                                  'bg-slate-100 text-slate-700'
-                                }`}>
-                                  {lead.engagementStatus}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
+                                return (
+                                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${colorClass}`}>
+                                    {status}
+                                  </span>
+                                );
+                              })()}
                             </td>
 
                             {/* Lead Score */}

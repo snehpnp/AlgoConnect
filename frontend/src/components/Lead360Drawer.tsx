@@ -5,7 +5,7 @@ import {
   Link as LinkIcon, Briefcase, AlertCircle, Edit2
 } from 'lucide-react';
 import type { Lead } from '../services/leads.service';
-import { leadsService } from '../services/leads.service';
+import { leadsService, getUnifiedStatus } from '../services/leads.service';
 import { apiClient } from '../services/apiClient';
 
 interface Lead360DrawerProps {
@@ -105,12 +105,24 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                   <h3 className="text-xl font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors cursor-pointer">{lead.name}</h3>
                 </a>
                 <div className="flex gap-2 shrink-0">
-                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${lead.salesStage === 'New' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10' : lead.salesStage === 'Client Won' ? 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10' : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/10'}`}>
-                    {lead.salesStage}
-                  </span>
-                  <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/10">
-                    {lead.verificationStatus}
-                  </span>
+                  {(() => {
+                    const status = getUnifiedStatus(lead);
+                    let colorClass = 'bg-slate-100 text-slate-700 ring-slate-500/10';
+                    
+                    if (['Client Won', 'Qualified', 'Converted / Closed'].includes(status)) colorClass = 'bg-emerald-50 text-emerald-700 ring-emerald-600/10';
+                    else if (['Replied', 'Demo Requested', 'Negotiation'].includes(status)) colorClass = 'bg-purple-50 text-purple-700 ring-purple-600/10';
+                    else if (['Opened', 'Clicked', 'Contacted'].includes(status)) colorClass = 'bg-blue-50 text-blue-700 ring-blue-600/10';
+                    else if (['Active'].includes(status)) colorClass = 'bg-teal-50 text-teal-700 ring-teal-600/10';
+                    else if (['Enriched', 'Imported'].includes(status)) colorClass = 'bg-slate-50 text-slate-700 ring-slate-600/10';
+                    else if (['Client Lost', 'Likely Inactive'].includes(status)) colorClass = 'bg-red-50 text-red-700 ring-red-600/10';
+                    else if (status === 'Unverified') colorClass = 'bg-amber-50 text-amber-700 ring-amber-600/10';
+
+                    return (
+                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${colorClass}`}>
+                        {status}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
               <p className="text-sm text-slate-500 mt-1">Lead ID: <span className="font-medium text-slate-700">{lead.id}</span></p>

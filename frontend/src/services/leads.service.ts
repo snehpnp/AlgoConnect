@@ -44,6 +44,27 @@ export interface Lead {
   otherListings?: string | null;
 }
 
+export const getUnifiedStatus = (lead: Lead): string => {
+  if (lead.salesStage === 'Client Won') return 'Client Won';
+  if (lead.salesStage === 'Client Lost') return 'Client Lost';
+  if (lead.salesStage === 'Negotiation') return 'Negotiation';
+  if (lead.salesStage === 'Qualified') return 'Qualified';
+  
+  if (lead.engagementStatus === 'Replied') return 'Replied';
+  if (lead.engagementStatus === 'Demo Requested') return 'Demo Requested';
+  if (lead.engagementStatus === 'Clicked') return 'Clicked';
+  if (lead.engagementStatus === 'Opened') return 'Opened';
+  if (lead.engagementStatus === 'Sent' || lead.engagementStatus === 'Delivered') return 'Contacted';
+  
+  if (lead.verificationStatus === 'Active') return 'Active';
+  if (lead.verificationStatus === 'Likely Inactive') return 'Likely Inactive';
+  if (lead.verificationStatus === 'Unverified') return 'Unverified';
+  
+  if (lead.enrichmentNotes || lead.servicesSummary) return 'Enriched';
+  
+  return 'Imported';
+};
+
 export interface GetLeadsResponse {
   message: string;
   data: Lead[];
@@ -81,7 +102,7 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
