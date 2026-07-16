@@ -59,12 +59,10 @@ const AdminUsers = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchUsers();
-      fetchRoles();
-      setLoading(false);
-    }
-  }, [token]);
+    fetchUsers();
+    fetchRoles();
+    setLoading(false);
+  }, []);
 
   const openAddModal = () => {
     setModalMode('ADD');
