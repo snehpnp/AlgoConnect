@@ -1,43 +1,82 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getTemplateById,
   createTemplate,
   updateTemplate
 } from '../services/template.service';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles, Code2, Eye, Mail, MessageSquare, Loader2, ChevronDown } from 'lucide-react';
 import EmailEditor from 'react-email-editor';
 import type { EditorRef } from 'react-email-editor';
+import { apiClient } from '../services/apiClient';
+import toast from 'react-hot-toast';
+
+// ---------------------------------------------------------------------------
+// Design tokens — kept as constants so every field in the sidebar renders
+// with identical spacing, radius, and focus treatment. Change once, applies
+// everywhere. This is what actually fixes "alignment" bugs long-term.
+// ---------------------------------------------------------------------------
+const FIELD =
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 ' +
+  'placeholder:text-slate-400 shadow-sm outline-none transition-colors ' +
+  'focus:border-violet-500 focus:ring-2 focus:ring-violet-100';
+const LABEL = 'mb-1.5 block text-[13px] font-medium text-slate-600';
+const CARD = 'rounded-xl border border-slate-200 bg-white shadow-sm';
+
+type ChannelType = 'EMAIL' | 'SMS' | 'WHATSAPP';
+
+const CHANNELS: { value: ChannelType; label: string; icon: React.ReactNode }[] = [
+  { value: 'EMAIL', label: 'Email', icon: <Mail className="h-3.5 w-3.5" /> },
+  { value: 'SMS', label: 'SMS', icon: <MessageSquare className="h-3.5 w-3.5" /> },
+  { value: 'WHATSAPP', label: 'WhatsApp', icon: <MessageSquare className="h-3.5 w-3.5" /> },
+];
+
+const TOPIC_MAX = 240;
+
+interface TemplateFormData {
+  name: string;
+  subject: string;
+  type: ChannelType;
+  status: 'PENDING' | 'APPROVED';
+  content: string;
+  designJson: any;
+  isShared: boolean;
+}
+
+const EMPTY_FORM: TemplateFormData = {
+  name: '',
+  subject: '',
+  type: 'EMAIL',
+  status: 'PENDING',
+  content: '',
+  designJson: null,
+  isShared: false,
+};
 
 export const TemplateEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showHtml, setShowHtml] = useState(false);
   const [isPreviewingHtml, setIsPreviewingHtml] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    subject: '',
-    type: 'EMAIL',
-    status: 'PENDING',
-    content: '',
-    designJson: null as any,
-    isShared: false
-  });
+  const [formData, setFormData] = useState<TemplateFormData>(EMPTY_FORM);
 
   const emailEditorRef = useRef<EditorRef>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchTemplate(parseInt(id));
-    }
+    if (id) fetchTemplate(parseInt(id, 10));
   }, [id]);
 
   const fetchTemplate = async (templateId: number) => {
     try {
       setLoading(true);
-      const res = await getTemplateById(templateId); 
+      const res = await getTemplateById(templateId);
       if (res.data) {
         setFormData({
           name: res.data.name,
@@ -46,12 +85,12 @@ export const TemplateEditor = () => {
           status: res.data.status,
           content: res.data.content,
           designJson: res.data.designJson || null,
-          isShared: res.data.isShared || false
+          isShared: res.data.isShared || false,
         });
       }
     } catch (error) {
       console.error('Failed to fetch template', error);
-      alert('Failed to load template');
+      toast.error('Failed to load template');
     } finally {
       setLoading(false);
     }
@@ -63,242 +102,386 @@ export const TemplateEditor = () => {
     }
   };
 
+  const persist = useCallback(
+    async (payload: TemplateFormData) => {
+      setSaving(true);
+      try {
+        if (id) {
+          await updateTemplate(parseInt(id, 10), payload);
+        } else {
+          await createTemplate(payload);
+        }
+        toast.success(id ? 'Template updated' : 'Template created');
+        navigate('/templates');
+      } catch (error) {
+        console.error('Failed to save template', error);
+        toast.error('Failed to save template');
+      } finally {
+        setSaving(false);
+      }
+    },
+    [id, navigate]
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // If it's an email and we are NOT showing the raw HTML editor, get data from Unlayer
+
+    // Email + visual builder: pull the latest HTML/design out of Unlayer first.
     if (formData.type === 'EMAIL' && !showHtml) {
       if (!emailEditorRef.current?.editor) {
-        alert('Editor is still loading, please wait.');
+        toast.error('Editor is still loading, please wait.');
         return;
       }
+      setSaving(true);
       emailEditorRef.current.editor.exportHtml(async (data) => {
         const { design, html } = data;
-        try {
-          const finalData = { ...formData, content: html, designJson: design };
-          if (id) {
-            await updateTemplate(parseInt(id), finalData);
-          } else {
-            await createTemplate(finalData);
-          }
-          navigate('/templates');
-        } catch (error) {
-          console.error('Failed to save template', error);
-          alert('Failed to save template');
-        }
+        await persist({ ...formData, content: html, designJson: design });
       });
-      return; // Return early because the export is async
+      return; // async export continues in the callback above
     }
 
+    await persist(formData);
+  };
+
+  const handleGenerateAI = async () => {
+    const topic = aiTopic.trim();
+    if (!topic) {
+      toast.error('Describe what this message should say first');
+      return;
+    }
     try {
-      if (id) {
-        await updateTemplate(parseInt(id), formData);
-      } else {
-        await createTemplate(formData);
+      setIsGenerating(true);
+      const res = await apiClient.post('/ai/generate-template', {
+        topic,
+        channelType: formData.type,
+      });
+      if (res.data?.success && res.data?.data) {
+        setFormData((prev) => ({
+          ...prev,
+          subject: res.data.data.subject || prev.subject,
+          content: res.data.data.content || prev.content,
+        }));
+        if (formData.type === 'EMAIL') setShowHtml(true);
+        setAiOpen(false);
+        toast.success('Draft generated — review and tweak below');
       }
-      navigate('/templates');
-    } catch (error) {
-      console.error('Failed to save template', error);
-      alert('Failed to save template');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate template');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
   if (loading) {
-    return <div className="p-6">Loading template...</div>;
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading template…
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/templates')}
-            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {id ? 'Edit Template' : 'Create Template'}
-            </h1>
-            <p className="text-sm text-gray-500">
-              {id ? `Editing template #${id}` : 'Design a new message template'}
-            </p>
-          </div>
-        </div>
+    <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50">
+      {/* ---------------------------------------------------------------- */}
+      {/* Header                                                          */}
+      {/* ---------------------------------------------------------------- */}
+      <header className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3.5">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate('/templates')}
-            className="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+            aria-label="Back to templates"
+            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-[17px] font-semibold leading-tight text-slate-900">
+              {id ? 'Edit template' : 'Create template'}
+            </h1>
+            <p className="text-[13px] leading-tight text-slate-500">
+              {id ? `Editing template #${id}` : 'Design a new message template'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/templates')}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm flex items-center gap-2"
+            type="submit"
+            form="template-form"
+            disabled={saving}
+            className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Save className="w-4 h-4" />
-            {id ? 'Update Template' : 'Save Template'}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {id ? 'Update template' : 'Save template'}
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-hidden">
-        <form id="template-form" onSubmit={handleSubmit} className="h-full flex flex-col lg:flex-row">
-          {/* Settings Sidebar */}
-          <div className="w-full lg:w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto flex-shrink-0">
-            <div className="space-y-5">
+      {/* ---------------------------------------------------------------- */}
+      {/* Body                                                             */}
+      {/* ---------------------------------------------------------------- */}
+      <form id="template-form" onSubmit={handleSubmit} className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-full flex-shrink-0 space-y-5 overflow-y-auto border-r border-slate-200 bg-white p-5 lg:w-[340px]">
+          {/* AI Magic Generator — collapsed to a single row by default so it
+              doesn't push the fields people need on every save below the
+              fold. Expands inline only when someone actually wants it. */}
+          <section className={`overflow-hidden rounded-lg border ${aiOpen ? 'border-violet-200' : 'border-slate-200'}`}>
+            <button
+              type="button"
+              onClick={() => setAiOpen((v) => !v)}
+              aria-expanded={aiOpen}
+              className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors ${aiOpen ? 'bg-violet-50' : 'bg-white hover:bg-slate-50'
+                }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-violet-600 text-white">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-[13px] font-semibold text-slate-700">Generate with AI</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${aiOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {aiOpen && (
+              <div className="border-t border-violet-100 bg-violet-50/50 p-3">
+                <p className="mb-2 text-[12px] leading-snug text-slate-500">
+                  Describe the message and get a starting draft for this {formData.type.toLowerCase()}.
+                </p>
+
+                <textarea
+                  rows={2}
+                  maxLength={TOPIC_MAX}
+                  autoFocus
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="e.g. Welcome message for new signups, friendly tone, mention our 14-day trial"
+                  className={`${FIELD} resize-none bg-white`}
+                />
+                <div className="mb-2 mt-1 text-right text-[11px] text-slate-400">
+                  {aiTopic.length}/{TOPIC_MAX}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateAI}
+                  disabled={isGenerating || !aiTopic.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-200 transition-all hover:bg-violet-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Generate draft
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Template details */}
+
+          <section>
+            <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+              Template details
+            </h2>
+
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
+                <label htmlFor="tpl-name" className={LABEL}>Template name</label>
                 <input
+                  id="tpl-name"
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="e.g., Welcome Email"
+                  placeholder="e.g. Welcome email"
+                  className={FIELD}
                 />
               </div>
 
               {formData.type === 'EMAIL' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Subject</label>
+                  <label htmlFor="tpl-subject" className={LABEL}>Email subject</label>
                   <input
+                    id="tpl-subject"
                     type="text"
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g., Welcome to AlgoConnect!"
+                    placeholder="e.g. Welcome to AlgoConnect!"
+                    className={FIELD}
                   />
                 </div>
               )}
 
+              {/* Channel — segmented control instead of a bare <select>, so the
+                  most-changed field in this form is also the fastest to use. */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Channel Type</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="EMAIL">Email</option>
-                  <option value="SMS">SMS</option>
-                  <option value="WHATSAPP">WhatsApp</option>
-                </select>
+                <span className={LABEL}>Channel</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {CHANNELS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, type: c.value })}
+                      className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-[12px] font-medium transition-colors ${formData.type === c.value
+                          ? 'border-violet-500 bg-violet-50 text-violet-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                      {c.icon}
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label htmlFor="tpl-status" className={LABEL}>Status</label>
                 <select
+                  id="tpl-status"
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as TemplateFormData['status'] })}
+                  className={FIELD}
                 >
-                  <option value="PENDING">Pending Approval</option>
+                  <option value="PENDING">Pending</option>
                   <option value="APPROVED">Approved</option>
                 </select>
               </div>
 
-              <div className="flex items-center pt-2">
+              <label
+                htmlFor="isShared"
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"
+              >
                 <input
-                  type="checkbox"
                   id="isShared"
+                  type="checkbox"
                   checked={formData.isShared}
                   onChange={(e) => setFormData({ ...formData, isShared: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                 />
-                <label htmlFor="isShared" className="ml-2 block text-sm font-medium text-gray-700">
-                  Share this template globally
-                </label>
-              </div>
-
-              {formData.type === 'EMAIL' && (
-                <div className="pt-4 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowHtml(!showHtml)}
-                    className="w-full py-2 px-4 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                  >
-                    {showHtml ? 'Switch to Visual Builder' : 'Switch to Raw HTML'}
-                  </button>
-                </div>
-              )}
+                <span className="text-sm font-medium text-slate-700">Share this template globally</span>
+              </label>
             </div>
-          </div>
+          </section>
 
-          {/* Editor Area */}
-          <div className="flex-1 bg-gray-50 p-6 overflow-hidden flex flex-col">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col relative">
-              {formData.type === 'EMAIL' ? (
-                showHtml ? (
-                  <div className="flex-1 flex flex-col h-full">
-                    <div className="bg-slate-50 border-b border-gray-200 p-2 flex justify-end gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setIsPreviewingHtml(false)}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${!isPreviewingHtml ? 'bg-white shadow-sm text-gray-800 border border-gray-200' : 'text-gray-500 hover:bg-gray-200'}`}
-                      >
-                        Code
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsPreviewingHtml(true)}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${isPreviewingHtml ? 'bg-white shadow-sm text-gray-800 border border-gray-200' : 'text-gray-500 hover:bg-gray-200'}`}
-                      >
-                        Preview
-                      </button>
-                    </div>
-                    {isPreviewingHtml ? (
-                      <div className="flex-1 w-full bg-white relative">
-                        <iframe
-                          title="HTML Preview"
-                          srcDoc={formData.content}
-                          className="absolute inset-0 w-full h-full border-0"
-                          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
-                        />
-                      </div>
-                    ) : (
-                      <textarea
-                        required
-                        value={formData.content}
-                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                        className="w-full flex-1 p-4 focus:outline-none resize-none font-mono text-sm bg-gray-900 text-gray-100 custom-scrollbar"
-                        placeholder="<h1>Hello {{name}}</h1>"
-                        spellCheck={false}
-                      />
-                    )}
-                  </div>
+          {formData.type === 'EMAIL' && (
+            <section className="border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowHtml(!showHtml)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                {showHtml ? (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    Switch to visual builder
+                  </>
                 ) : (
-                  <div className="flex-1 w-full h-full">
-                    <EmailEditor
-                      ref={emailEditorRef}
-                      onLoad={onEditorLoad}
-                      minHeight="100%"
-                      options={{
-                        displayMode: 'email',
-                      }}
-                    />
+                  <>
+                    <Code2 className="h-4 w-4" />
+                    Switch to raw HTML
+                  </>
+                )}
+              </button>
+            </section>
+          )}
+        </aside>
+
+        {/* Editor canvas */}
+        <div className="flex flex-1 flex-col overflow-hidden p-5">
+          <div className={`${CARD} flex flex-1 flex-col overflow-hidden`}>
+            {formData.type === 'EMAIL' ? (
+              showHtml ? (
+                <div className="flex h-full flex-1 flex-col">
+                  <div className="flex flex-shrink-0 justify-end gap-1.5 border-b border-slate-200 bg-slate-50 p-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsPreviewingHtml(false)}
+                      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${!isPreviewingHtml
+                          ? 'border border-slate-200 bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-200'
+                        }`}
+                    >
+                      <Code2 className="h-3.5 w-3.5" />
+                      Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPreviewingHtml(true)}
+                      className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${isPreviewingHtml
+                          ? 'border border-slate-200 bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-200'
+                        }`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Preview
+                    </button>
                   </div>
-                )
-              ) : (
-                <div className="p-4 flex-1 flex flex-col">
-                  <textarea
-                    required
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    className="w-full flex-1 border border-gray-200 rounded-lg p-4 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                    placeholder="Hello {{name}}, welcome to our platform!"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Use variables like {'{{name}}'} to personalize the message.
-                  </p>
+
+                  {isPreviewingHtml ? (
+                    <div className="relative w-full flex-1 bg-white">
+                      <iframe
+                        title="HTML preview"
+                        srcDoc={formData.content}
+                        className="absolute inset-0 h-full w-full border-0"
+                        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+                      />
+                    </div>
+                  ) : (
+                    <textarea
+                      required
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      className="custom-scrollbar w-full flex-1 resize-none bg-slate-900 p-4 font-mono text-sm text-slate-100 outline-none"
+                      placeholder="<h1>Hello {{name}}</h1>"
+                      spellCheck={false}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
+              ) : (
+                <div className="h-full w-full flex-1">
+                  <EmailEditor
+                    ref={emailEditorRef}
+                    onLoad={onEditorLoad}
+                    minHeight="100%"
+                    options={{ displayMode: 'email' }}
+                  />
+                </div>
+              )
+            ) : (
+              <div className="flex flex-1 flex-col p-4">
+                <textarea
+                  required
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  className="w-full flex-1 resize-none rounded-lg border border-slate-200 p-4 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                  placeholder="Hello {{name}}, welcome to our platform!"
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  Use variables like {'{{name}}'} to personalize the message.
+                </p>
+              </div>
+            )}
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 };
