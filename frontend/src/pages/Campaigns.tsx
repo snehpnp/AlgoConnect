@@ -22,16 +22,16 @@ export const Campaigns: React.FC = () => {
   // Modals state
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
-  
+
   // Connected Leads Modal
   const [isConnectedLeadsModalOpen, setIsConnectedLeadsModalOpen] = useState(false);
   const [connectedLeads, setConnectedLeads] = useState<any[]>([]);
   const [connectedLeadsLoading, setConnectedLeadsLoading] = useState(false);
-  
+
   // Reply Modal
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState<any>(null);
-  
+
   // Drawer state
   const [selectedCampaignForDrawer, setSelectedCampaignForDrawer] = useState<Campaign | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -112,7 +112,7 @@ export const Campaigns: React.FC = () => {
     setIsLeadsModalOpen(true);
     setModalSearch('');
     setModalSalesStage('');
-    
+
     // Fetch full campaign details to get already connected leads
     try {
       setLeadsLoading(true);
@@ -124,7 +124,7 @@ export const Campaigns: React.FC = () => {
       toast.error('Failed to load campaign details');
       setSelectedLeadIds(new Set());
     }
-    
+
     await fetchModalLeads();
   };
 
@@ -252,7 +252,7 @@ export const Campaigns: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto min-h-[300px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full text-left" style={{ minWidth: '700px' }}>
+          <table className="w-full text-left" style={{ minWidth: '700px', zIndex: -1 }}>
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">
                 <th className="py-4 px-6 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Campaign Name</th>
@@ -272,7 +272,7 @@ export const Campaigns: React.FC = () => {
                 filteredCampaigns.map((camp) => (
                   <tr key={camp.id} className="group hover:bg-[#F8FAFC] transition-colors relative">
                     <td className="py-4 px-6">
-                      <div 
+                      <div
                         className="flex items-center gap-3 cursor-pointer group-hover:text-primary transition-colors"
                         onClick={() => {
                           setSelectedCampaignForDrawer(camp);
@@ -508,7 +508,7 @@ export const Campaigns: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto">
               {connectedLeadsLoading ? (
                 <div className="py-12 flex justify-center text-slate-500">
@@ -537,14 +537,13 @@ export const Campaigns: React.FC = () => {
                             <div className="text-xs text-slate-400">{lead.phone || 'No phone'}</div>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                              lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
-                              lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
-                              lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
-                              lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                              'bg-slate-100 text-slate-700'
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                                lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                                  lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                                    lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                      lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                                        'bg-slate-100 text-slate-700'
+                              }`}>
                               {lead.status}
                             </span>
                           </td>
@@ -553,7 +552,7 @@ export const Campaigns: React.FC = () => {
                           </td>
                           <td className="py-3 px-4 text-right">
                             {lead.status === 'REPLIED' && lead.latestReply && (
-                              <button 
+                              <button
                                 onClick={() => {
                                   setCurrentReply(lead.latestReply);
                                   setReplyModalOpen(true);
@@ -572,7 +571,7 @@ export const Campaigns: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="p-6 border-t border-slate-100 flex justify-end">
               <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="btn-secondary">Close</button>
             </div>
@@ -593,13 +592,13 @@ export const Campaigns: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-5 overflow-y-auto bg-slate-50">
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
                 <div className="text-sm text-slate-500 mb-1">From: <span className="font-medium text-slate-800">{currentReply.fromEmail}</span></div>
                 <div className="text-sm text-slate-500 mb-3">Subject: <span className="font-medium text-slate-800">{currentReply.subject || 'No Subject'}</span></div>
                 <div className="text-sm text-slate-500 border-b border-slate-100 pb-2 mb-3">Date: {new Date(currentReply.receivedAt).toLocaleString()}</div>
-                
+
                 <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed font-sans">
                   {currentReply.body}
                 </div>
