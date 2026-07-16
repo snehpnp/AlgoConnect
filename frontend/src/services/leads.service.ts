@@ -150,5 +150,10 @@ export const leadsService = {
   getLeadLogs: async (id: number): Promise<any[]> => {
     const response = await apiClient.get<{ message: string; data: any[] }>(`/leads/${id}/logs`);
     return response.data.data;
-  }
+  },
+
+  sendDirectEmail: async (id: number, data: { subject?: string; body: string; templateId?: number }) => {
+    const response = await apiClient.post(`/leads/${id}/send-email`, data);
+    return response.data;
+  },
 };

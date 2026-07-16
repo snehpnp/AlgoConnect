@@ -3,8 +3,8 @@ import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
 
 export interface SendMessageOptions {
   leadId: number;
-  campaignId: number;
-  templateId: number;
+  campaignId?: number;
+  templateId?: number;
   channel: 'EMAIL' | 'WHATSAPP' | 'SMS';
   recipient: string;
   content: string;      // plain/HTML body
@@ -21,10 +21,11 @@ export const messagingGateway = {
       // 1. Create the MessageSend record first so we have the ID for tracking
       const msg = await prisma.messageSend.create({
         data: {
-          campaignId: options.campaignId,
+          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
           leadId: options.leadId,
           channel: options.channel,
           subject: options.subject || 'N/A',
+          templateId: options.templateId,
           status: 'SENT',
           sentAt: new Date(),
           providerMessageId
@@ -109,10 +110,11 @@ export const messagingGateway = {
 
       const msg = await prisma.messageSend.create({
         data: {
-          campaignId: options.campaignId,
+          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
           leadId: options.leadId,
           channel: options.channel,
           subject: options.subject || 'N/A',
+          templateId: options.templateId,
           status: 'FAILED',
           providerMessageId: `fail-${Date.now()}`
         }

@@ -193,8 +193,8 @@ model CampaignAutomation {
 
 model MessageSend {
   id                  Int      @id @default(autoincrement())
-  campaignId          Int
-  campaign            Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId          Int?
+  campaign            Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   leadId              Int
   lead                Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   channel             String   @default("EMAIL")

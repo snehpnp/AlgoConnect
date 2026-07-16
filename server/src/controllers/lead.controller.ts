@@ -1,6 +1,59 @@
 import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
+import { messagingGateway } from '../services/messagingGateway.service';
+
+export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { subject, body, templateId } = req.body;
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: parseInt(id as string) }
+  });
+
+  if (!lead) {
+    res.status(404).json({ message: 'Lead not found' });
+    return;
+  }
+
+  if (!lead.email) {
+    res.status(400).json({ message: 'Lead does not have an email address' });
+    return;
+  }
+
+  let finalHtml = body;
+  
+  if (templateId) {
+    const template = await prisma.messageTemplate.findUnique({
+      where: { id: parseInt(templateId) }
+    });
+    
+    if (template && template.content) {
+      // Very basic compilation (replace {{name}})
+      finalHtml = template.content.replace(/{{name}}/gi, lead.name || 'there');
+      if (!subject && template.subject) {
+        req.body.subject = template.subject;
+      }
+    }
+  }
+
+  const result = await messagingGateway.sendMessage({
+    leadId: lead.id,
+    channel: 'EMAIL',
+    recipient: lead.email,
+    content: finalHtml,
+    htmlContent: finalHtml,
+    subject: req.body.subject || subject || 'Message from AlgoConnect',
+    templateId: templateId ? parseInt(templateId) : undefined
+  });
+
+  if (!result.success) {
+    res.status(500).json({ message: 'Failed to send email', error: result.error });
+    return;
+  }
+
+  res.status(200).json({ message: 'Email sent successfully', messageId: result.messageId });
+});
 
 export const importLeads = asyncHandler(async (req: Request, res: Response) => {
   const { leads } = req.body;

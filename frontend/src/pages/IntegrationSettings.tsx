@@ -619,7 +619,7 @@ export const IntegrationSettings = () => {
                 <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Message Body</span>
                 <div className="text-sm text-slate-700 bg-white rounded-lg border border-slate-200 p-4 min-h-[150px] shadow-sm overflow-x-auto">
                   {selectedLog.parsedDetails?.htmlContent ? (
-                    <div dangerouslySetInnerHTML={{ __html: selectedLog.parsedDetails.htmlContent }} />
+                    <div dangerouslySetInnerHTML={{ __html: selectedLog.parsedDetails.htmlContent.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '') }} />
                   ) : selectedLog.parsedDetails?.body ? (
                     <div className="whitespace-pre-wrap font-mono text-xs">{selectedLog.parsedDetails.body}</div>
                   ) : (
