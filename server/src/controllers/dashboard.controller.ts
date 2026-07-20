@@ -6,22 +6,27 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
   // 1. Total Leads
   const totalLeads = await prisma.lead.count();
 
-  // 2. Leads by Sales Stage
-  const newLeads = await prisma.lead.count({ where: { salesStage: 'New' } });
-  const contactedLeads = await prisma.lead.count({ where: { salesStage: 'Contacted' } });
-  const qualifiedLeads = await prisma.lead.count({ where: { salesStage: 'Qualified' } });
-  const convertedLeads = await prisma.lead.count({ where: { salesStage: 'Client Won' } });
-
-  // 3. Leads by Verification
-  const unverifiedLeads = await prisma.lead.count({ where: { verificationStatus: 'Unverified' } });
-  const activeLeads = await prisma.lead.count({ where: { verificationStatus: 'Active' } });
-
-  // 4. Leads by Engagement
-  const engagedLeads = await prisma.lead.count({ 
-    where: { 
-      engagementStatus: { in: ['Opened', 'Clicked', 'Replied', 'Demo Requested'] } 
-    } 
+  const leadsByStatusRaw = await prisma.lead.groupBy({
+    by: ['status'],
+    _count: {
+      status: true
+    }
   });
+
+  const leadsByStatus = leadsByStatusRaw.map(item => ({
+    status: item.status,
+    count: item._count.status
+  }));
+
+  // Progressive Status Counts (matching lead.controller.ts exactly)
+  const newLeads = await prisma.lead.count({ where: { status: 'NEW' } });
+  const contactedLeads = await prisma.lead.count({ where: { status: 'CONTACTED' } });
+  const qualifiedLeads = await prisma.lead.count({ where: { status: 'QUALIFIED' } });
+  const convertedLeads = await prisma.lead.count({ where: { status: 'WON' } });
+  
+  const unverifiedLeads = await prisma.lead.count({ where: { status: 'UNVERIFIED' } });
+  const activeLeads = await prisma.lead.count({ where: { status: 'NEW' } }); // Active is now NEW basically, but let's leave it out or map it to NEW
+  const engagedLeads = await prisma.lead.count({ where: { status: 'ENGAGED' } });
 
   // 5. Active Campaigns
   const activeCampaigns = await prisma.campaign.count({ where: { status: 'ACTIVE' } });
@@ -89,6 +94,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
         activeCampaigns
       },
       leadTypes,
+      leadsByStatus,
       analytics: monthlyAnalytics,
       activities: recentActivities,
       recentCommunications

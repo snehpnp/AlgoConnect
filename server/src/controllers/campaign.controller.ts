@@ -389,10 +389,35 @@ export const getEngineStatus = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: { isRunning: getEngineState() } });
 });
 
-export const toggleEngineStatus = asyncHandler(async (req: Request, res: Response) => {
+export const toggleEngineStatus = asyncHandler(async (req: any, res: Response) => {
   const { isRunning } = req.body;
   const newState = toggleEngine(isRunning);
+  
+  await prisma.activityLog.create({
+    data: {
+      userId: req.user?.id,
+      action: newState ? 'ENGINE_STARTED' : 'ENGINE_STOPPED',
+      details: `Campaign Automation Engine was ${newState ? 'started' : 'stopped'} by ${req.user?.name || 'User'}`,
+    }
+  });
+
   res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});
+
+export const getEngineLogs = asyncHandler(async (req: Request, res: Response) => {
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      action: {
+        in: ['ENGINE_STARTED', 'ENGINE_STOPPED']
+      }
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100
+  });
+  res.status(200).json({ data: logs, message: 'Engine logs retrieved successfully' });
 });
 
 export const sendManualMessage = asyncHandler(async (req: Request, res: Response) => {

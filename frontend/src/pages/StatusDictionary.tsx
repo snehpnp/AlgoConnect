@@ -9,20 +9,16 @@ interface StatusDefinition {
 }
 
 const statusDefinitions: StatusDefinition[] = [
-  // Pipeline Stages
-  { name: 'Imported', category: 'Pipeline Status', englishMeaning: 'New leads uploaded to the system, pending enrichment or contact.', hindiMeaning: 'सिस्टम में नए लीड अपलोड किए गए हैं, अभी उन पर कोई काम शुरू नहीं हुआ है।' },
-  { name: 'Enriched', category: 'Pipeline Status', englishMeaning: 'Additional data (like website or services) successfully gathered.', hindiMeaning: 'लीड के बारे में अतिरिक्त जानकारी (जैसे वेबसाइट) सफलतापूर्वक प्राप्त कर ली गई है।' },
-  { name: 'Active', category: 'Pipeline Status', englishMeaning: 'Confirmed as a valid and reachable contact.', hindiMeaning: 'यह एक सही और संपर्क करने योग्य लीड कन्फर्म हुई है।' },
-  { name: 'Unverified', category: 'Pipeline Status', englishMeaning: 'Not yet checked for validity or enrichment failed.', hindiMeaning: 'अभी तक इसकी सत्यता जांची नहीं गई है।' },
-  { name: 'Likely Inactive', category: 'Pipeline Status', englishMeaning: 'Contact info might be outdated or unreachable.', hindiMeaning: 'संपर्क जानकारी पुरानी हो सकती है या संपर्क नहीं हो पा रहा है।' },
-  { name: 'Contacted', category: 'Pipeline Status', englishMeaning: 'Initial outreach (email or message) has been sent.', hindiMeaning: 'लीड को पहला संदेश या ईमेल भेजा जा चुका है।' },
-  { name: 'Opened', category: 'Pipeline Status', englishMeaning: 'Lead has opened our sent email/message.', hindiMeaning: 'लीड ने भेजा गया ईमेल/मैसेज खोल कर देखा है।' },
-  { name: 'Clicked', category: 'Pipeline Status', englishMeaning: 'Lead clicked on a link inside our email/message.', hindiMeaning: 'लीड ने ईमेल/मैसेज में दिए गए लिंक पर क्लिक किया है।' },
-  { name: 'Replied', category: 'Pipeline Status', englishMeaning: 'Lead responded to our email/message.', hindiMeaning: 'लीड ने हमारे संदेश का जवाब दिया है।' },
-  { name: 'Qualified', category: 'Pipeline Status', englishMeaning: 'Lead shows genuine interest and matches our target profile.', hindiMeaning: 'लीड हमारी सर्विस में रुचि दिखा रही है और हमारे क्राइटेरिया पर खरी उतरती है।' },
-  { name: 'Handed to Sales', category: 'Pipeline Status', englishMeaning: 'Passed to the sales team for active negotiation.', hindiMeaning: 'सेल्स टीम को सौंप दिया गया है, और अब डील/कीमत पर बातचीत चल रही है।' },
-  { name: 'Converted / Closed', category: 'Pipeline Status', englishMeaning: 'Successfully converted into a paying client.', hindiMeaning: 'सफलतापूर्वक क्लाइंट में बदल गया है (डील पक्की हो गई है)।' },
-  { name: 'Client Lost', category: 'Pipeline Status', englishMeaning: 'Lead decided not to proceed.', hindiMeaning: 'लीड ने हमारे साथ आगे न बढ़ने का फैसला किया है।' },
+  { name: 'IMPORTED', category: 'Status', englishMeaning: 'Raw leads uploaded to the system via CSV, pending data checks.', hindiMeaning: 'सिस्टम में नए लीड अपलोड किए गए हैं, अभी उन पर कोई काम शुरू नहीं हुआ है।' },
+  { name: 'UNVERIFIED', category: 'Status', englishMeaning: 'Leads that have not yet been checked for validity.', hindiMeaning: 'अभी तक इसकी सत्यता जांची नहीं गई है।' },
+  { name: 'NEW', category: 'Status', englishMeaning: 'Confirmed as a valid and reachable contact ready for outreach.', hindiMeaning: 'यह एक सही और संपर्क करने योग्य लीड कन्फर्म हुई है।' },
+  { name: 'CONTACTED', category: 'Status', englishMeaning: 'Initial outreach (email or message) has been sent.', hindiMeaning: 'लीड को पहला संदेश या ईमेल भेजा जा चुका है।' },
+  { name: 'ENGAGED', category: 'Status', englishMeaning: 'Lead has interacted with our message (opened, clicked, or replied).', hindiMeaning: 'लीड ने हमारे संदेश को देखा, क्लिक किया या जवाब दिया है।' },
+  { name: 'QUALIFIED', category: 'Status', englishMeaning: 'Lead shows genuine interest and matches our target profile.', hindiMeaning: 'लीड हमारी सर्विस में रुचि दिखा रही है और हमारे क्राइटेरिया पर खरी उतरती है।' },
+  { name: 'NEGOTIATION', category: 'Status', englishMeaning: 'Passed to the sales team for active negotiation.', hindiMeaning: 'सेल्स टीम को सौंप दिया गया है, और अब डील/कीमत पर बातचीत चल रही है।' },
+  { name: 'WON', category: 'Status', englishMeaning: 'Successfully converted into a paying client.', hindiMeaning: 'सफलतापूर्वक क्लाइंट में बदल गया है (डील पक्की हो गई है)।' },
+  { name: 'LOST', category: 'Status', englishMeaning: 'Lead decided not to proceed.', hindiMeaning: 'लीड ने हमारे साथ आगे न बढ़ने का फैसला किया है।' },
+  { name: 'INVALID', category: 'Status', englishMeaning: 'Contact info is outdated, bounced, or unreachable.', hindiMeaning: 'संपर्क जानकारी पुरानी हो सकती है या संपर्क नहीं हो पा रहा है।' },
 ];
 
 export default function StatusDictionary() {

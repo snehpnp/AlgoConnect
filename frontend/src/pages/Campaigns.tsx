@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings, Mail } from 'lucide-react';
+import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings, Mail, List } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +21,11 @@ export const Campaigns: React.FC = () => {
 
   // Modals state
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
+  
+  // Engine Logs state
+  const [isEngineLogsModalOpen, setIsEngineLogsModalOpen] = useState(false);
+  const [engineLogs, setEngineLogs] = useState<any[]>([]);
+  const [engineLogsLoading, setEngineLogsLoading] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
 
   // Connected Leads Modal
@@ -171,6 +176,19 @@ export const Campaigns: React.FC = () => {
     }
   };
 
+  const openEngineLogsModal = async () => {
+    setIsEngineLogsModalOpen(true);
+    setEngineLogsLoading(true);
+    try {
+      const res = await campaignService.getEngineLogs();
+      setEngineLogs(res.data || []);
+    } catch (err) {
+      toast.error('Failed to load engine logs');
+    } finally {
+      setEngineLogsLoading(false);
+    }
+  };
+
   const openConnectedLeadsModal = async (campaign: Campaign) => {
     setCurrentCampaign(campaign);
     setIsConnectedLeadsModalOpen(true);
@@ -209,6 +227,13 @@ export const Campaigns: React.FC = () => {
                 title="How does the engine work?"
               >
                 <Info className="h-4 w-4" />
+              </button>
+              <button
+                onClick={openEngineLogsModal}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                title="View Engine Logs"
+              >
+                <List className="h-4 w-4" />
               </button>
             </div>
           </h1>
@@ -617,6 +642,60 @@ export const Campaigns: React.FC = () => {
             setSelectedCampaignForDrawer(null);
           }}
         />
+      )}
+
+      {/* Engine Logs Modal */}
+      {isEngineLogsModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <List className="w-5 h-5 text-primary" />
+                Campaign Engine Logs
+              </h2>
+              <button onClick={() => setIsEngineLogsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto bg-slate-50 flex-1">
+              {engineLogsLoading ? (
+                <div className="py-12 flex justify-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : engineLogs.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-medium">No engine logs available.</div>
+              ) : (
+                <div className="space-y-4">
+                  {engineLogs.map((log) => (
+                    <div key={log.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-start gap-4">
+                      <div className={`p-2 rounded-full ${log.action === 'ENGINE_STARTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                         <List className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-bold text-slate-800 text-sm">{log.action === 'ENGINE_STARTED' ? 'Engine Started' : 'Engine Stopped'}</h4>
+                          <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm text-slate-600">{log.details}</p>
+                        {log.user && (
+                          <div className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
+                            <span className="font-medium text-slate-700">{log.user.name}</span>
+                            <span className="text-slate-400">({log.user.email})</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-5 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsEngineLogsModalOpen(false)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

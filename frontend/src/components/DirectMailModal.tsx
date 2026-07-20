@@ -19,6 +19,7 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedEmail, setSelectedEmail] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && lead) {
@@ -26,6 +27,15 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
       setSubject('');
       setBody('');
       setSelectedTemplateId('');
+      if (lead.email) {
+        setSelectedEmail(lead.email);
+      } else if (lead.email2) {
+        setSelectedEmail(lead.email2);
+      } else if ((lead as any).scrapedEmail) {
+        setSelectedEmail((lead as any).scrapedEmail);
+      } else {
+        setSelectedEmail('');
+      }
     }
   }, [isOpen, lead]);
 
@@ -72,7 +82,8 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
       await leadsService.sendDirectEmail(lead.id, {
         subject,
         body,
-        templateId: selectedTemplateId ? Number(selectedTemplateId) : undefined
+        templateId: selectedTemplateId ? Number(selectedTemplateId) : undefined,
+        recipientEmail: selectedEmail
       });
       toast.success('Direct email sent successfully!');
       onClose();
@@ -85,6 +96,11 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
   };
 
   if (!isOpen || !lead) return null;
+
+  const availableEmails: {label: string, value: string}[] = [];
+  if (lead?.email) availableEmails.push({label: `Primary (${lead.email})`, value: lead.email});
+  if (lead?.email2) availableEmails.push({label: `Secondary (${lead.email2})`, value: lead.email2});
+  if ((lead as any)?.scrapedEmail) availableEmails.push({label: `Scraped (${(lead as any).scrapedEmail})`, value: (lead as any).scrapedEmail});
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -105,7 +121,21 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">To Recipient</p>
             <p className="text-sm font-bold text-slate-800">{lead.name}</p>
-            <p className="text-sm text-slate-600">{lead.email || <span className="text-red-500 text-xs font-semibold">No Email Address Available</span>}</p>
+            {availableEmails.length > 1 ? (
+              <select
+                value={selectedEmail}
+                onChange={(e) => setSelectedEmail(e.target.value)}
+                className="mt-1 w-full rounded border border-[#E2E8F0] bg-white px-2 py-1 text-sm outline-none focus:border-primary"
+              >
+                {availableEmails.map(em => (
+                  <option key={em.value} value={em.value}>{em.label}</option>
+                ))}
+              </select>
+            ) : availableEmails.length === 1 ? (
+              <p className="text-sm text-slate-600">{availableEmails[0].value}</p>
+            ) : (
+              <span className="text-red-500 text-xs font-semibold">No Email Address Available</span>
+            )}
           </div>
 
           <div>

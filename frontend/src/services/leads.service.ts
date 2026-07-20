@@ -45,24 +45,7 @@ export interface Lead {
 }
 
 export const getUnifiedStatus = (lead: Lead): string => {
-  if (lead.salesStage === 'Client Won') return 'Client Won';
-  if (lead.salesStage === 'Client Lost') return 'Client Lost';
-  if (lead.salesStage === 'Negotiation') return 'Negotiation';
-  if (lead.salesStage === 'Qualified') return 'Qualified';
-  
-  if (lead.engagementStatus === 'Replied') return 'Replied';
-  if (lead.engagementStatus === 'Demo Requested') return 'Demo Requested';
-  if (lead.engagementStatus === 'Clicked') return 'Clicked';
-  if (lead.engagementStatus === 'Opened') return 'Opened';
-  if (lead.engagementStatus === 'Sent' || lead.engagementStatus === 'Delivered') return 'Contacted';
-  
-  if (lead.verificationStatus === 'Active') return 'Active';
-  if (lead.verificationStatus === 'Likely Inactive') return 'Likely Inactive';
-  if (lead.verificationStatus === 'Unverified') return 'Unverified';
-  
-  if (lead.enrichmentNotes || lead.servicesSummary) return 'Enriched';
-  
-  return 'Imported';
+  return lead.status || 'UNVERIFIED';
 };
 
 export interface GetLeadsResponse {
@@ -152,7 +135,7 @@ export const leadsService = {
     return response.data.data;
   },
 
-  sendDirectEmail: async (id: number, data: { subject?: string; body: string; templateId?: number }) => {
+  sendDirectEmail: async (id: number, data: { subject?: string; body: string; templateId?: number; recipientEmail?: string }) => {
     const response = await apiClient.post(`/leads/${id}/send-email`, data);
     return response.data;
   },

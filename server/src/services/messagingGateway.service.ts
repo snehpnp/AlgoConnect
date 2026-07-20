@@ -74,7 +74,7 @@ export const messagingGateway = {
 
         const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
 
-        finalHtmlContent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${finalHtmlContent}</div>${trackingPixel}`;
+        finalHtmlContent = `<div style="font-family: sans-serif;">${finalHtmlContent}</div>${trackingPixel}`;
 
         const transporter = await getEmailTransporter();
         const sender = await getEmailSenderId();

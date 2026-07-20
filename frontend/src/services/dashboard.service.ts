@@ -48,6 +48,7 @@ export interface DashboardResponse {
   data: {
     stats: DashboardStats;
     leadTypes: { type: string, count: number }[];
+    leadsByStatus: { status: string, count: number }[];
     analytics: MonthlyAnalytics[];
     activities: Activity[];
     recentCommunications?: CommunicationEvent[];

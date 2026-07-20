@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
   Upload,
@@ -16,7 +16,13 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  Eye
+  Eye,
+  User,
+  MapPin,
+  Building2,
+  Link,
+  Briefcase,
+  Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { leadsService, getUnifiedStatus } from '../services/leads.service';
@@ -165,10 +171,15 @@ const getLeadScore = (lead: Lead): number => {
 
 export const Leads: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [unifiedStatusFilter, setUnifiedStatusFilter] = useState('All');
+  
+  // Read initial filter from location state, default to 'All'
+  const initialFilter = location.state?.unifiedStatus || 'All';
+  const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
+  
   const [typeFilter, setTypeFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('All');
@@ -475,19 +486,16 @@ export const Leads: React.FC = () => {
               className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
             >
               <option value="All">All Statuses</option>
-              <option value="Imported">Imported</option>
-              <option value="Enriched">Enriched</option>
-              <option value="Active">Active</option>
-              <option value="Unverified">Unverified</option>
-              <option value="Likely Inactive">Likely Inactive</option>
-              <option value="Contacted">Contacted</option>
-              <option value="Opened">Opened</option>
-              <option value="Clicked">Clicked</option>
-              <option value="Replied">Replied</option>
-              <option value="Qualified">Qualified</option>
-              <option value="Negotiation">Handed to Sales</option>
-              <option value="Client Won">Converted / Closed</option>
-              <option value="Client Lost">Client Lost</option>
+              <option value="IMPORTED">Imported</option>
+              <option value="UNVERIFIED">Unverified</option>
+              <option value="NEW">New (Verified)</option>
+              <option value="CONTACTED">Contacted</option>
+              <option value="ENGAGED">Engaged</option>
+              <option value="QUALIFIED">Qualified</option>
+              <option value="NEGOTIATION">Negotiation</option>
+              <option value="WON">Client Won</option>
+              <option value="LOST">Client Lost</option>
+              <option value="INVALID">Invalid/Inactive</option>
             </select>
 
             <select
@@ -852,10 +860,12 @@ export const Leads: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveLead} className="space-y-4">
+            <form onSubmit={handleSaveLead} className="space-y-6">
               {/* Basic Details */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Basic Details</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" /> Basic Details
+                </h3>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Name *</label>
                   <input
@@ -863,7 +873,7 @@ export const Leads: React.FC = () => {
                     required
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     placeholder="Enter full name"
                   />
                 </div>
@@ -873,18 +883,24 @@ export const Leads: React.FC = () => {
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email</label>
                     <input
                       type="email"
+                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                      title="Enter a valid email address"
                       value={formData.email || ''}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. john@example.com"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email 2</label>
                     <input
                       type="email"
+                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                      title="Enter a valid email address"
                       value={formData.email2 || ''}
                       onChange={(e) => setFormData({ ...formData, email2: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Secondary email"
                     />
                   </div>
                 </div>
@@ -893,19 +909,25 @@ export const Leads: React.FC = () => {
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone</label>
                     <input
-                      type="text"
+                      type="tel"
+                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                      title="Enter a valid phone number (min 7 digits)"
                       value={formData.phone || ''}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. +91 9876543210"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone 2</label>
                     <input
-                      type="text"
+                      type="tel"
+                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                      title="Enter a valid phone number (min 7 digits)"
                       value={formData.phone2 || ''}
                       onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Secondary phone"
                     />
                   </div>
                 </div>
@@ -917,31 +939,37 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.contactPerson || ''}
                       onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Name of contact person"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Website</label>
                     <input
-                      type="text"
+                      type="url"
+                      pattern="https?://.+"
+                      title="Include http:// or https://"
                       value={formData.website || ''}
                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="https://example.com"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Status & Segmentation */}
-              <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Status & Segment</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" /> Status & Segment
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
                     <select
                       value={formData.salesStage || 'New'}
                       onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
                       <option value="New">New</option>
                       <option value="Contacted">Contacted</option>
@@ -958,7 +986,7 @@ export const Leads: React.FC = () => {
                     <select
                       value={formData.verificationStatus || 'Unverified'}
                       onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
                       <option value="Imported">Imported</option>
                       <option value="Enrichment Pending">Enrichment Pending</option>
@@ -976,7 +1004,7 @@ export const Leads: React.FC = () => {
                     <select
                       value={formData.engagementStatus || 'Not Engaged'}
                       onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
                       <option value="Not Engaged">Not Engaged</option>
                       <option value="Sent">Sent</option>
@@ -992,7 +1020,7 @@ export const Leads: React.FC = () => {
                     <select
                       value={formData.consentStatus || 'Unknown'}
                       onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
                       <option value="Unknown">Unknown</option>
                       <option value="Opted In">Opted In</option>
@@ -1008,7 +1036,7 @@ export const Leads: React.FC = () => {
                     <select
                       value={formData.type || 'Manual'}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
                       <option value="Manual">Manual</option>
                       <option value="IA">IA</option>
@@ -1022,23 +1050,29 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.source || ''}
                       onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. Website Signup"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Company & Registration */}
-              <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Company & Registration</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" /> Company & Registration
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Registration No</label>
                     <input
                       type="text"
+                      pattern="^[A-Za-z0-9\s\-]{3,25}$"
+                      title="Enter a valid registration number"
                       value={formData.registrationNo || ''}
                       onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. REG12345"
                     />
                   </div>
                   <div>
@@ -1047,7 +1081,8 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.validity || ''}
                       onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. 2025-12-31"
                     />
                   </div>
                 </div>
@@ -1058,7 +1093,8 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.tradeName || ''}
                       onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. AlgoTech Solutions"
                     />
                   </div>
                   <div>
@@ -1067,22 +1103,26 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.exchangeName || ''}
                       onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. NSE, BSE"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Location */}
-              <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Location</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" /> Location
+                </h3>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Address</label>
                   <input
                     type="text"
                     value={formData.address || ''}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                    placeholder="Full street address"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -1092,7 +1132,8 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.city || ''}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="City"
                     />
                   </div>
                   <div>
@@ -1101,16 +1142,20 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.state || ''}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="State"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Pincode</label>
                     <input
                       type="text"
+                      pattern="^[0-9A-Za-z\s\-]{3,10}$"
+                      title="Enter a valid pincode/zipcode"
                       value={formData.pincode || ''}
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Pincode"
                     />
                   </div>
                 </div>
@@ -1118,52 +1163,77 @@ export const Leads: React.FC = () => {
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Fax</label>
                     <input
-                      type="text"
+                      type="tel"
+                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                      title="Enter a valid fax number"
                       value={formData.fax || ''}
                       onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Fax number"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Socials */}
-              <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Social Links</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <Link className="h-4 w-4 text-primary" /> Social Links
+                </h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">LinkedIn</label>
                     <input
-                      type="text"
+                      type="url"
+                      pattern="https?://.+"
+                      title="Include http:// or https://"
                       value={formData.linkedin || ''}
                       onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="https://linkedin.com/in/..."
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Twitter</label>
                     <input
-                      type="text"
+                      type="url"
+                      pattern="https?://.+"
+                      title="Include http:// or https://"
                       value={formData.twitter || ''}
                       onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="https://twitter.com/..."
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Facebook</label>
                     <input
-                      type="text"
+                      type="url"
+                      pattern="https?://.+"
+                      title="Include http:// or https://"
                       value={formData.facebook || ''}
                       onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="https://facebook.com/..."
                     />
                   </div>
+              </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Other Listings / URLs</label>
+                  <textarea
+                    value={formData.otherListings || ''}
+                    onChange={(e) => setFormData({ ...formData, otherListings: e.target.value })}
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    placeholder="Enter multiple URLs (e.g. separated by commas or lines) of platforms you work with..."
+                  />
                 </div>
               </div>
 
               {/* Enrichment Data */}
-              <div className="space-y-4 pt-2">
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1">Enrichment Data</h3>
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-primary" /> Enrichment Data
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sells Algo Trading?</label>
@@ -1171,7 +1241,8 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.sellsAlgoTrading || ''}
                       onChange={(e) => setFormData({ ...formData, sellsAlgoTrading: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="Yes / No"
                     />
                   </div>
                   <div>
@@ -1180,7 +1251,8 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.brokerPartner || ''}
                       onChange={(e) => setFormData({ ...formData, brokerPartner: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. Zerodha, AngelOne"
                     />
                   </div>
                 </div>
@@ -1191,16 +1263,20 @@ export const Leads: React.FC = () => {
                       type="text"
                       value={formData.companySizeEstimate || ''}
                       onChange={(e) => setFormData({ ...formData, companySizeEstimate: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="e.g. 10-50 employees"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Logo URL</label>
                     <input
-                      type="text"
+                      type="url"
+                      pattern="https?://.+"
+                      title="Include http:// or https://"
                       value={formData.logoUrl || ''}
                       onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white"
+                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      placeholder="https://example.com/logo.png"
                     />
                   </div>
                 </div>
@@ -1209,7 +1285,8 @@ export const Leads: React.FC = () => {
                   <textarea
                     value={formData.productsOffered || ''}
                     onChange={(e) => setFormData({ ...formData, productsOffered: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    placeholder="List of products..."
                   />
                 </div>
                 <div>
@@ -1217,7 +1294,8 @@ export const Leads: React.FC = () => {
                   <textarea
                     value={formData.servicesSummary || ''}
                     onChange={(e) => setFormData({ ...formData, servicesSummary: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    placeholder="Brief description of services..."
                   />
                 </div>
                 <div>
@@ -1225,23 +1303,24 @@ export const Leads: React.FC = () => {
                   <textarea
                     value={formData.enrichmentNotes || ''}
                     onChange={(e) => setFormData({ ...formData, enrichmentNotes: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary focus:bg-white min-h-[60px]"
+                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    placeholder="Additional notes from enrichment..."
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[#E2E8F0] flex justify-end gap-3">
+              <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-[#E2E8F0] mt-6">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="rounded-lg border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-lg border border-[#E2E8F0] bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-600 disabled:opacity-50"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Lead'}
                 </button>

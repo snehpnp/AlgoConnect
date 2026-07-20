@@ -61,6 +61,48 @@ export const TemplateEditor = () => {
   const [saving, setSaving] = useState(false);
   const [showHtml, setShowHtml] = useState(false);
   const [isPreviewingHtml, setIsPreviewingHtml] = useState(false);
+
+  const generateGmailPreview = (content: string, subject: string) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, sans-serif; }
+          .gmail-wrapper { max-width: 100%; padding: 20px 24px; }
+          .gmail-subject { margin: 0 0 16px 0; font-size: 22px; font-weight: normal; color: #222; }
+          .gmail-sender-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+          .gmail-sender-info-left { display: flex; align-items: center; }
+          .gmail-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #f2a60c; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; }
+          .gmail-sender-name { font-size: 14px; font-weight: bold; color: #222; }
+          .gmail-sender-email { font-weight: normal; color: #555; font-size: 12px; margin-left: 4px; }
+          .gmail-to { font-size: 12px; color: #555; margin-top: 2px; }
+          .gmail-timestamp { color: #555; font-size: 12px; }
+          .gmail-content { font-size: 14px; line-height: 1.5; color: #222; }
+        </style>
+      </head>
+      <body>
+        <div class="gmail-wrapper">
+          <h2 class="gmail-subject">${subject || '(No Subject)'}</h2>
+          <div class="gmail-sender-row">
+            <div class="gmail-sender-info-left">
+              <div class="gmail-avatar">A</div>
+              <div>
+                <div class="gmail-sender-name">AlgoConnect <span class="gmail-sender-email">&lt;noreply@algoconnect.com&gt;</span></div>
+                <div class="gmail-to">to me <span style="font-size: 10px; margin-left: 4px; color: #555;">▼</span></div>
+              </div>
+            </div>
+            <div class="gmail-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (0 minutes ago)</div>
+          </div>
+          <div class="gmail-content">
+            ${content}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
   const [aiTopic, setAiTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -436,10 +478,10 @@ export const TemplateEditor = () => {
                   </div>
 
                   {isPreviewingHtml ? (
-                    <div className="relative w-full flex-1 bg-white">
+                    <div className="relative w-full flex-1 bg-[#f6f8fc]">
                       <iframe
                         title="HTML preview"
-                        srcDoc={formData.content}
+                        srcDoc={generateGmailPreview(formData.content, formData.subject)}
                         className="absolute inset-0 h-full w-full border-0"
                         sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
                       />

@@ -13,6 +13,48 @@ export const MessageTemplates = () => {
   const [loading, setLoading] = useState(true);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
+  const generateGmailPreview = (content: string, subject: string) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, sans-serif; }
+          .gmail-wrapper { max-width: 100%; padding: 20px 24px; }
+          .gmail-subject { margin: 0 0 16px 0; font-size: 22px; font-weight: normal; color: #222; }
+          .gmail-sender-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+          .gmail-sender-info-left { display: flex; align-items: center; }
+          .gmail-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #f2a60c; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; }
+          .gmail-sender-name { font-size: 14px; font-weight: bold; color: #222; }
+          .gmail-sender-email { font-weight: normal; color: #555; font-size: 12px; margin-left: 4px; }
+          .gmail-to { font-size: 12px; color: #555; margin-top: 2px; }
+          .gmail-timestamp { color: #555; font-size: 12px; }
+          .gmail-content { font-size: 14px; line-height: 1.5; color: #222; }
+        </style>
+      </head>
+      <body>
+        <div class="gmail-wrapper">
+          <h2 class="gmail-subject">${subject || '(No Subject)'}</h2>
+          <div class="gmail-sender-row">
+            <div class="gmail-sender-info-left">
+              <div class="gmail-avatar">A</div>
+              <div>
+                <div class="gmail-sender-name">AlgoConnect <span class="gmail-sender-email">&lt;noreply@algoconnect.com&gt;</span></div>
+                <div class="gmail-to">to me <span style="font-size: 10px; margin-left: 4px; color: #555;">▼</span></div>
+              </div>
+            </div>
+            <div class="gmail-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (0 minutes ago)</div>
+          </div>
+          <div class="gmail-content">
+            ${content}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   const fetchTemplates = async () => {
     try {
       setLoading(true);
@@ -163,40 +205,13 @@ export const MessageTemplates = () => {
             {/* Modal Body */}
             <div className="p-0 sm:p-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
               {previewTemplate.type === 'EMAIL' ? (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                  {/* Email Header */}
-                  <div className="px-6 py-4 border-b border-slate-100">
-                    <h3 className="text-xl font-medium text-slate-900 mb-4">
-                      {previewTemplate.subject || '(No Subject)'}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
-                          A
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-sm text-slate-900">AlgoConnect Sales</span>
-                            <span className="text-xs text-slate-500">&lt;sales@algoconnect.com&gt;</span>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            to <span className="text-slate-700">Client Name</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-slate-500 flex items-center gap-2">
-                        <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Email Body */}
-                  <div className="p-6">
-                    <div
-                      className="prose prose-sm sm:prose-base max-w-none prose-slate"
-                      dangerouslySetInnerHTML={{ __html: previewTemplate.content }}
-                    />
-                  </div>
+                <div className="bg-[#f6f8fc] border border-slate-200 rounded-xl shadow-sm overflow-hidden min-h-[400px] flex">
+                  <iframe
+                    title="HTML preview"
+                    srcDoc={generateGmailPreview(previewTemplate.content, previewTemplate.subject || '')}
+                    className="flex-1 w-full border-0"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+                  />
                 </div>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 max-w-md mx-auto relative mt-4">

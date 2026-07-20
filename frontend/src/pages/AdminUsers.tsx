@@ -18,7 +18,7 @@ interface User {
 }
 
 const AdminUsers = () => {
-  const token = localStorage.getItem('algoconnect_token');
+
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);

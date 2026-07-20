@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { getCampaigns, getCampaignById, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign, getCampaignStats, getEngineStatus, toggleEngineStatus, sendManualMessage, getCampaignLogs, getCampaignConnectedLeads } from '../controllers/campaign.controller';
+import { getCampaigns, getCampaignById, createCampaign, updateCampaign, deleteCampaign, addLeadsToCampaign, removeLeadFromCampaign, getCampaignStats, getEngineStatus, toggleEngineStatus, sendManualMessage, getCampaignLogs, getCampaignConnectedLeads, getEngineLogs } from '../controllers/campaign.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 router.get('/engine/status', authenticate, getEngineStatus);
 router.post('/engine/toggle', authenticate, toggleEngineStatus);
+router.get('/engine/logs', authenticate, getEngineLogs);
 
 router.get('/', authenticate, getCampaigns);
 router.get('/:id', authenticate, getCampaignById);

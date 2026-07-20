@@ -45,6 +45,7 @@ model Lead {
   phone2          String?
   source          String?
   type               String   @default("Manual")
+  status             String   @default("IMPORTED") // Single unified status
   salesStage         String   @default("New")
   verificationStatus String   @default("Unverified")
   engagementStatus   String   @default("Not Engaged")

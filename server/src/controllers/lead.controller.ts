@@ -5,7 +5,7 @@ import { messagingGateway } from '../services/messagingGateway.service';
 
 export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { subject, body, templateId } = req.body;
+  const { subject, body, templateId, recipientEmail } = req.body;
 
   const lead = await prisma.lead.findUnique({
     where: { id: parseInt(id as string) }
@@ -16,8 +16,10 @@ export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) 
     return;
   }
 
-  if (!lead.email) {
-    res.status(400).json({ message: 'Lead does not have an email address' });
+  const targetEmail = recipientEmail || lead.email;
+
+  if (!targetEmail) {
+    res.status(400).json({ message: 'No email address available to send to' });
     return;
   }
 
@@ -40,7 +42,7 @@ export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) 
   const result = await messagingGateway.sendMessage({
     leadId: lead.id,
     channel: 'EMAIL',
-    recipient: lead.email,
+    recipient: targetEmail,
     content: finalHtml,
     htmlContent: finalHtml,
     subject: req.body.subject || subject || 'Message from AlgoConnect',
@@ -125,50 +127,9 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (salesStage && salesStage !== 'All') where.salesStage = salesStage;
   
   if (unifiedStatus && unifiedStatus !== 'All') {
-    const higherSalesStages = ['Client Won', 'Client Lost', 'Negotiation', 'Qualified'];
-    const higherEngagement = ['Replied', 'Demo Requested', 'Clicked', 'Opened'];
-    const contactedEngagement = ['Sent', 'Delivered'];
-    
-    if (higherSalesStages.includes(unifiedStatus)) {
-      where.salesStage = unifiedStatus;
-    } else if (higherEngagement.includes(unifiedStatus)) {
-      where.salesStage = { notIn: higherSalesStages };
-      where.engagementStatus = unifiedStatus;
-    } else if (unifiedStatus === 'Contacted') {
-      where.salesStage = { notIn: higherSalesStages };
-      where.engagementStatus = { in: contactedEngagement };
-    } else if (['Active', 'Likely Inactive', 'Unverified'].includes(unifiedStatus)) {
-      where.salesStage = { notIn: higherSalesStages };
-      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
-      where.verificationStatus = unifiedStatus;
-    } else if (unifiedStatus === 'Enriched') {
-      where.salesStage = { notIn: higherSalesStages };
-      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
-      where.verificationStatus = { notIn: ['Active', 'Likely Inactive', 'Unverified'] };
-      
-      if (!where.AND) where.AND = [];
-      where.AND.push({
-        OR: [
-          { isEnriched: true },
-          { AND: [{ servicesSummary: { not: null } }, { servicesSummary: { not: '' } }] },
-          { AND: [{ enrichmentNotes: { not: null } }, { enrichmentNotes: { not: '' } }] }
-        ]
-      });
-    } else if (unifiedStatus === 'Imported') {
-      where.salesStage = { notIn: higherSalesStages };
-      where.engagementStatus = { notIn: [...higherEngagement, ...contactedEngagement] };
-      where.verificationStatus = { notIn: ['Active', 'Likely Inactive', 'Unverified'] };
-      
-      if (!where.AND) where.AND = [];
-      where.AND.push({
-        AND: [
-          { isEnriched: { not: true } },
-          { OR: [{ servicesSummary: null }, { servicesSummary: '' }] },
-          { OR: [{ enrichmentNotes: null }, { enrichmentNotes: '' }] }
-        ]
-      });
-    }
+    where.status = unifiedStatus;
   }
+  
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
   if (engagementStatus && engagementStatus !== 'All') where.engagementStatus = engagementStatus;
   if (consentStatus && consentStatus !== 'All') where.consentStatus = consentStatus;

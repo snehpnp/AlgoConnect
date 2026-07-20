@@ -82,6 +82,11 @@ export const campaignService = {
     return response.data;
   },
 
+  getEngineLogs: async (): Promise<{ data: any[] }> => {
+    const response = await apiClient.get<{ data: any[] }>('/campaigns/engine/logs');
+    return response.data;
+  },
+
   getEngineStatus: async (): Promise<{ data: { isRunning: boolean } }> => {
     const response = await apiClient.get<{ data: { isRunning: boolean } }>('/campaigns/engine/status');
     return response.data;
