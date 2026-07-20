@@ -3,13 +3,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Bell,
-  Search,
   User as UserIcon,
   LogOut,
   Settings,
   Menu,
-  ShieldCheck
+  Mail,
+  UserPlus,
+  RefreshCw,
+  Info
 } from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 
 interface HeaderProps {
   setIsSidebarOpen: (val: boolean) => void;
@@ -22,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
 
   if (!user) return null;
 
@@ -56,10 +60,11 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
             className={`relative rounded-xl p-2.5 transition-all duration-200 ${notificationOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
           >
             <Bell className={`h-5 w-5 ${notificationOpen ? 'fill-blue-100' : ''}`} />
-            {/* <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span>
-            </span> */}
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
 
           {notificationOpen && (
@@ -68,38 +73,59 @@ export const Header: React.FC<HeaderProps> = ({ setIsSidebarOpen, isSidebarColla
                 className="fixed inset-0 z-10"
                 onClick={() => setNotificationOpen(false)}
               ></div>
-              <div className="absolute right-0 mt-3 w-[calc(100vw-1.5rem)] sm:w-80 origin-top-right rounded-2xl border border-[#E2E8F0] bg-white shadow-xl ring-1 ring-black/5 z-20 overflow-hidden">
+              <div 
+                className="absolute right-0 sm:-right-4 mt-3 origin-top-right rounded-2xl border border-[#E2E8F0] bg-white shadow-xl ring-1 ring-black/5 z-50 overflow-hidden"
+                style={{ width: '350px', maxWidth: 'calc(100vw - 2rem)' }}
+              >
                 <div className="flex items-center justify-between border-b border-[#E2E8F0] bg-slate-50/50 px-4 py-3">
-                  <h3 className="font-bold text-[#0F172A]">Notifications</h3>
-                  <button className="text-xs font-semibold text-primary hover:text-blue-700 transition-colors">
-                    Mark all read
-                  </button>
+                  <h3 className="font-bold text-[#0F172A]">Notifications {unreadCount > 0 && `(${unreadCount})`}</h3>
+                  <div className="flex gap-3">
+                    <button onClick={() => markAllAsRead()} className="text-xs font-semibold text-primary hover:text-blue-700 transition-colors">
+                      Mark all read
+                    </button>
+                    <button onClick={() => clearAll()} className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">
+                      Clear
+                    </button>
+                  </div>
                 </div>
 
                 <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
-                  {/* Dummy Notification 1 */}
-                  <div className="flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer bg-blue-50/30">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                      <Search className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 leading-snug">New Lead Assigned</p>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">You have been assigned a new high-priority lead from the "Q3 Marketing" campaign.</p>
-                      <p className="text-[10px] font-bold text-blue-600 mt-1.5 uppercase tracking-wide">2 minutes ago</p>
-                    </div>
-                  </div>
-
-                  {/* Dummy Notification 2 */}
-                  <div className="flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                      <ShieldCheck className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 leading-snug">System Update</p>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">Consent management synchronization completed successfully across all channels.</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1.5 uppercase tracking-wide">1 hour ago</p>
-                    </div>
-                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-slate-500">No notifications yet.</div>
+                  ) : (
+                    notifications.map(notif => (
+                      <div 
+                        key={notif.id}
+                        onClick={() => {
+                          if (!notif.isRead) markAsRead(notif.id);
+                          if (notif.relatedEntity === 'Lead' && notif.relatedEntityId) {
+                            navigate(`/leads/${notif.relatedEntityId}`);
+                            setNotificationOpen(false);
+                          }
+                        }}
+                        className={`flex gap-3 border-b border-slate-100 p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!notif.isRead ? 'bg-blue-50/30' : ''}`}
+                      >
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                          notif.type.includes('EMAIL') ? 'bg-amber-100 text-amber-600' : 
+                          notif.type.includes('LEAD_CREATED') ? 'bg-blue-100 text-blue-600' :
+                          notif.type.includes('STATUS') ? 'bg-emerald-100 text-emerald-600' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {notif.type.includes('EMAIL') ? <Mail className="h-4 w-4" /> : 
+                           notif.type.includes('LEAD_CREATED') ? <UserPlus className="h-4 w-4" /> :
+                           notif.type.includes('STATUS') ? <RefreshCw className="h-4 w-4" /> :
+                           <Info className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm leading-snug ${!notif.isRead ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>{notif.title}</p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notif.message}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1.5 uppercase tracking-wide">
+                            {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="border-t border-[#E2E8F0] p-2 bg-slate-50/50">

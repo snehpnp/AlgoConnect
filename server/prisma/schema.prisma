@@ -21,6 +21,7 @@ model User {
   passwordResetExpiry DateTime?
   leads        Lead[]
   activityLogs ActivityLog[]
+  notifications Notification[]
 }
 
 model Role {
@@ -256,4 +257,18 @@ model EmailLinkTracking {
   device          String?
   browser         String?
   country         String?
+}
+
+model Notification {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  message         String
+  type            String   // e.g., 'EMAIL_OPENED', 'LEAD_CREATED', 'EMAIL_REPLIED', 'STATUS_CHANGED'
+  isRead          Boolean  @default(false)
+  relatedEntityId Int?     // e.g., leadId, messageSendId
+  relatedEntity   String?  // e.g., 'Lead', 'MessageSend'
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

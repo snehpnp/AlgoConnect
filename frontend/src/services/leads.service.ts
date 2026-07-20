@@ -90,6 +90,11 @@ export const leadsService = {
     return response.data;
   },
 
+  getLeadById: async (id: number): Promise<{ message: string; data: Lead }> => {
+    const response = await apiClient.get<{ message: string; data: Lead }>(`/leads/${id}`);
+    return response.data;
+  },
+
   getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[] }> => {
     const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[] } }>('/leads/filters/options', {
       params: { state }

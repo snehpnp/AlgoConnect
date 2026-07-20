@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { importLeads, getLeads, createLead, updateLead, deleteLead, getLeadLogs, sendDirectEmail } from '../controllers/lead.controller';
+import { importLeads, getLeads, getLeadById, createLead, updateLead, deleteLead, getLeadLogs, sendDirectEmail } from '../controllers/lead.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import multer from 'multer';
 import path from 'path';
@@ -22,6 +22,7 @@ const router = Router();
 // All lead routes require a valid JWT token
 router.get('/', authenticate, getLeads);
 router.post('/', authenticate, createLead);
+router.get('/:id', authenticate, getLeadById);
 router.put('/:id', authenticate, updateLead);
 router.delete('/:id', authenticate, deleteLead);
 router.post('/import', authenticate, importLeads);

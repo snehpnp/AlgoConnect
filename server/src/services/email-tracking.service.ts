@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { SocketService } from './socket.service';
 
 const prisma = new PrismaClient();
 
@@ -122,6 +123,27 @@ export class EmailTrackingService {
             data: { engagementStatus: newLeadStatus }
           });
         }
+      }
+
+      // 7. Real-time Notification
+      if (['OPENED', 'CLICKED', 'REPLIED'].includes(eventType) && messageSend.lead.userId) {
+        let title = '';
+        if (eventType === 'OPENED') title = 'Email Opened';
+        if (eventType === 'CLICKED') title = 'Email Clicked';
+        if (eventType === 'REPLIED') title = 'Email Replied';
+        
+        const notif = await tx.notification.create({
+          data: {
+            userId: messageSend.lead.userId,
+            title,
+            message: `${messageSend.lead.name} ${eventType.toLowerCase()} the email "${messageSend.subject}".`,
+            type: `EMAIL_${eventType}`,
+            relatedEntityId: messageSend.leadId,
+            relatedEntity: 'Lead'
+          }
+        });
+        
+        SocketService.sendToUser(messageSend.lead.userId, 'new_notification', notif);
       }
 
       return event;

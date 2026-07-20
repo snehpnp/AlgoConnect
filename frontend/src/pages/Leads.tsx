@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   Plus,
   Upload,
@@ -172,8 +172,42 @@ const getLeadScore = (lead: Lead): number => {
 export const Leads: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams<{ id?: string }>();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  // Automatically fetch and open lead drawer if navigated to /leads/:id
+  useEffect(() => {
+    if (id) {
+      const parsedId = parseInt(id);
+      if (!isNaN(parsedId)) {
+        // Try to find in existing leads first
+        const existingLead = leads.find(l => l.id === parsedId);
+        if (existingLead) {
+          setSelectedLead(existingLead);
+        } else {
+          // If not in current page, fetch directly
+          leadsService.getLeadById(parsedId).then(res => {
+            setSelectedLead(res.data);
+          }).catch(err => {
+            console.error('Error fetching specific lead:', err);
+            toast.error('Could not load lead details');
+            navigate('/leads');
+          });
+        }
+      }
+    } else {
+      setSelectedLead(null);
+    }
+  }, [id, leads, navigate]);
+
+  const handleCloseDrawer = () => {
+    setSelectedLead(null);
+    if (id) {
+      navigate('/leads');
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   
   // Read initial filter from location state, default to 'All'
@@ -833,9 +867,13 @@ export const Leads: React.FC = () => {
 
       <Lead360Drawer 
         isOpen={!!selectedLead} 
-        onClose={() => setSelectedLead(null)} 
+        onClose={handleCloseDrawer} 
         lead={selectedLead} 
-        onEdit={handleOpenForm} 
+        onEdit={(lead) => {
+          setFormData(lead);
+          setIsFormOpen(true);
+          handleCloseDrawer();
+        }}
       />
 
       <DirectMailModal 

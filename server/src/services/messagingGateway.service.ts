@@ -1,5 +1,6 @@
 import prisma from '../models/prismaClient';
 import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { SocketService } from './socket.service';
 
 export interface SendMessageOptions {
   leadId: number;
@@ -85,6 +86,21 @@ export const messagingGateway = {
           html: finalHtmlContent,
           messageId: `${providerMessageId}@algoconnect.local`
         });
+        
+        // Notify user about automated send if triggered by campaign
+        if (options.campaignId && lead && lead.userId) {
+          const notif = await prisma.notification.create({
+            data: {
+              userId: lead.userId,
+              title: 'Automated Email Sent',
+              message: `Email "${options.subject}" was sent to ${lead.name}.`,
+              type: 'EMAIL_SENT',
+              relatedEntityId: msg.id,
+              relatedEntity: 'MessageSend'
+            }
+          });
+          SocketService.sendToUser(lead.userId, 'new_notification', notif);
+        }
       }
 
       const sentDetails = {

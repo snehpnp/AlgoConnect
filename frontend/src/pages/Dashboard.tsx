@@ -109,7 +109,6 @@ export const Dashboard: React.FC = () => {
     },
   ];
 
-  const totalDist = stats.newLeads + stats.contactedLeads + stats.qualifiedLeads + stats.convertedLeads;
 
   return (
     <div className="space-y-5 sm:space-y-8 animate-fade-in pb-10">

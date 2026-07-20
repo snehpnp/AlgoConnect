@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
 import { messagingGateway } from '../services/messagingGateway.service';
+import { SocketService } from '../services/socket.service';
 
 export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -197,7 +198,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
   const { 
-    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+    name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, 
     registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
     website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
   } = req.body;
@@ -212,6 +213,7 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
       name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, 
       source: source || 'MANUAL', 
       type: type || 'Manual',
+      status: status || 'IMPORTED',
       salesStage: salesStage || 'New',
       verificationStatus: verificationStatus || 'Unverified',
       engagementStatus: engagementStatus || 'Not Engaged',
@@ -231,13 +233,47 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  // Notify system admins about the new lead
+  const admins = await prisma.user.findMany({
+    where: { role: { name: 'System Admin' } }
+  });
+  
+  for (const admin of admins) {
+    if (admin.id !== userId) { // Don't notify the person who created it if they are an admin
+      const notif = await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          title: 'New Lead Created',
+          message: `Lead "${newLead.name}" was just created by ${(req.user as any)?.name || 'a user'}.`,
+          type: 'LEAD_CREATED',
+          relatedEntityId: newLead.id,
+          relatedEntity: 'Lead'
+        }
+      });
+      SocketService.sendToUser(admin.id, 'new_notification', notif);
+    }
+  }
+
   res.status(201).json({ message: 'Lead created successfully', data: newLead });
+});
+
+export const getLeadById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const lead = await prisma.lead.findUnique({
+    where: { id: parseInt(id as string) }
+  });
+
+  if (!lead) {
+    throw new Error('Lead not found');
+  }
+
+  res.status(200).json({ message: 'Lead fetched successfully', data: lead });
 });
 
 export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { 
-    name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, 
+    name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, 
     registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
     website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
   } = req.body;
@@ -257,7 +293,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const updatedLead = await prisma.lead.update({
     where: { id: leadId },
     data: {
-      name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
+      name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
       website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
     }
   });
@@ -280,6 +316,29 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
           changes: JSON.stringify(changes)
         }
       });
+    }
+  }
+
+  // Check for status change notification (notify admins when status changes)
+  if (status && existingLead.status !== status) {
+    const admins = await prisma.user.findMany({
+      where: { role: { name: 'System Admin' } }
+    });
+    
+    for (const admin of admins) {
+      if (admin.id !== userId) {
+        const notif = await prisma.notification.create({
+          data: {
+            userId: admin.id,
+            title: 'Lead Status Changed',
+            message: `Status for "${updatedLead.name}" was changed to ${status} by ${(req.user as any)?.name || 'a user'}.`,
+            type: 'STATUS_CHANGED',
+            relatedEntityId: updatedLead.id,
+            relatedEntity: 'Lead'
+          }
+        });
+        SocketService.sendToUser(admin.id, 'new_notification', notif);
+      }
     }
   }
 
