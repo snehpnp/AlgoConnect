@@ -130,7 +130,7 @@ const AdminUsers = () => {
   const selectableRoles = roles.filter(role => role.name !== 'System Admin');
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div className="flex flex-col gap-6 pb-12 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -263,8 +263,8 @@ const AdminUsers = () => {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E2E8F0]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <h3 className="font-bold text-[#0F172A] text-lg flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" />
@@ -285,21 +285,21 @@ const AdminUsers = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Full Name</label>
-                  <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="e.g. Jane Doe" />
+                  <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="e.g. Jane Doe" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Email Address</label>
-                  <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="jane@algoconnect.com" />
+                  <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="jane@algoconnect.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">
                     {modalMode === 'ADD' ? 'Password' : 'New Password (Optional)'}
                   </label>
-                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="••••••••" />
+                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="••••••••" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Assign Role</label>
-                  <select required value={formData.roleId} onChange={e => setFormData({ ...formData, roleId: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:border-primary focus:bg-white transition-colors cursor-pointer">
+                  <select required value={formData.roleId} onChange={e => setFormData({ ...formData, roleId: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:border-primary focus:bg-white transition-colors cursor-pointer">
                     <option value="" disabled>Select a role...</option>
                     {selectableRoles.map(role => (
                       <option key={role.id} value={role.id}>{role.name}</option>
@@ -323,8 +323,8 @@ const AdminUsers = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border border-[#E2E8F0]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
             <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-100">
               <Trash2 className="w-6 h-6" />
             </div>

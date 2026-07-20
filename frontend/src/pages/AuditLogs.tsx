@@ -65,7 +65,7 @@ export const AuditLogs = () => {
   const handleFilterChange = () => setPage(1);
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

@@ -36,7 +36,7 @@ export default function StatusDictionary() {
   const categories = Array.from(new Set(filteredStatuses.map(s => s.category)));
 
   return (
-    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12">
+    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -57,7 +57,7 @@ export default function StatusDictionary() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveTab('docs')}
           className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'docs'

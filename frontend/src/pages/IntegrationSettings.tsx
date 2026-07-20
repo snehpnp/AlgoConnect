@@ -166,7 +166,7 @@ export const IntegrationSettings = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 sm:space-y-8 pb-12">
+    <div className="w-full max-w-6xl mx-auto space-y-5 sm:space-y-8 pb-12 px-4 sm:px-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Integration Settings</h1>
         <p className="text-slate-500 text-xs sm:text-sm mt-1">Manage credentials for Email, SMS, and WhatsApp communication channels.</p>
@@ -577,8 +577,8 @@ export const IntegrationSettings = () => {
 
       {/* Message Log Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedLog(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">

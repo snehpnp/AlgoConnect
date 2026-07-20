@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
@@ -37,21 +37,18 @@ import { Lead360Drawer } from '../components/Lead360Drawer';
 import { DirectMailModal } from '../components/DirectMailModal';
 import { LeadsBoard } from '../components/LeadsBoard';
 
-
 const hasValue = (val: any): boolean => {
   if (val === undefined || val === null) return false;
   const str = String(val).trim();
   return str !== '' && str.toLowerCase() !== 'null';
 };
 
-
-
 // Compute a deterministic lead score based on status components and data completeness
 const getLeadScore = (lead: Lead): number => {
   let score = 0;
 
   // --- PART 1: STATUS COMPONENTS (Max 60 points) ---
-  
+
   // 1. Sales Stage component (Max 20 points)
   switch (lead.salesStage) {
     case 'Client Won':
@@ -140,7 +137,7 @@ const getLeadScore = (lead: Lead): number => {
   }
 
   // --- PART 2: DATA COMPLETENESS & RICHNESS (Max 46 points) ---
-  
+
   // 5. Contact Completeness (Max 8 points)
   if (hasValue(lead.email)) score += 3;
   if (hasValue(lead.email2)) score += 1;
@@ -174,7 +171,16 @@ const getLeadScore = (lead: Lead): number => {
   return Math.max(0, Math.min(100, score));
 };
 
+// Small helper to color the sales-stage badge/select consistently everywhere
+const stageColorClasses = (stage?: string) => {
+  if (['Client Won', 'Qualified'].includes(stage || '')) return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100';
+  if (['Negotiation'].includes(stage || '')) return 'bg-purple-50 text-purple-700 ring-purple-600/20 hover:bg-purple-100';
+  if (['Contacted', 'Follow-up'].includes(stage || '')) return 'bg-blue-50 text-blue-700 ring-blue-600/20 hover:bg-blue-100';
+  if (['Client Lost', 'Do Not Contact'].includes(stage || '')) return 'bg-red-50 text-red-700 ring-red-600/20 hover:bg-red-100';
+  return 'bg-slate-50 text-slate-700 ring-slate-600/20 hover:bg-slate-100';
+};
 
+const SALES_STAGES = ['New', 'Contacted', 'Qualified', 'Follow-up', 'Negotiation', 'Client Won', 'Client Lost', 'Do Not Contact'];
 
 export const Leads: React.FC = () => {
   const navigate = useNavigate();
@@ -185,10 +191,11 @@ export const Leads: React.FC = () => {
   const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'board'>('grid');
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
-  const [savedViews, setSavedViews] = useState<{name: string, filters: any}[]>(() => {
+  const [savedViews, setSavedViews] = useState<{ name: string, filters: any }[]>(() => {
     const saved = localStorage.getItem('algoConnect_savedViews');
     return saved ? JSON.parse(saved) : [];
   });
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Fetch team members for bulk assign
   useEffect(() => {
@@ -230,7 +237,7 @@ export const Leads: React.FC = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const initialFilter = location.state?.unifiedStatus || 'All';
   const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
   const [typeFilter, setTypeFilter] = useState(location.state?.typeFilter || 'All');
@@ -260,10 +267,6 @@ export const Leads: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [scoreSort, setScoreSort] = useState<'none' | 'asc' | 'desc'>('desc');
-
-  const sortedLeads = useMemo(() => {
-    return leads;
-  }, [leads]);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
@@ -343,7 +346,15 @@ export const Leads: React.FC = () => {
       setFormData(lead);
     } else {
       setFormData({
-        name: '', email: '', phone: '', status: 'NEW', source: 'MANUAL', type: 'Manual', registrationNo: '',
+        name: '',
+        email: '',
+        phone: '',
+        salesStage: 'New',
+        verificationStatus: 'Unverified',
+        engagementStatus: 'Not Engaged',
+        consentStatus: 'Unknown',
+        type: 'Manual',
+        registrationNo: '',
       });
     }
     setIsFormOpen(true);
@@ -422,7 +433,6 @@ export const Leads: React.FC = () => {
     return () => clearTimeout(delay);
   }, [page, fetchLeads]);
 
-
   const handleRowClick = (lead: Lead) => {
     setSelectedLead(lead);
   };
@@ -450,27 +460,24 @@ export const Leads: React.FC = () => {
     }
   };
 
-
-
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedLeadIds(sortedLeads.map(l => l.id));
+      setSelectedLeadIds(leads.map(l => l.id));
     } else {
       setSelectedLeadIds([]);
     }
   };
 
   const handleSelectOne = (id: number) => {
-    setSelectedLeadIds(prev => 
+    setSelectedLeadIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
   const handleBulkDelete = async () => {
     if (!window.confirm(`Delete ${selectedLeadIds.length} leads? This cannot be undone.`)) return;
-    // For simplicity, looping over deletes (or you can add a bulk delete endpoint)
     try {
       await Promise.all(selectedLeadIds.map(id => leadsService.deleteLead(id)));
       toast.success('Leads deleted successfully');
@@ -521,33 +528,35 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All';
+
   return (
-    <div className="relative flex gap-6 pb-20">
+    <div className="relative flex gap-6 pb-24 sm:pb-20">
       {/* Main List Section */}
-      <div className="flex-1 space-y-6 min-w-0">
+      <div className="flex-1 space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between mb-1 sm:mb-2 px-1 sm:px-0">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A]">Leads</h1>
-              <span className="text-xs sm:text-sm font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-slate-800">Leads</h1>
+              <span className="text-[11px] sm:text-sm font-bold text-blue-600 bg-blue-50 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border border-blue-100 shadow-sm">
                 {totalRecords} Total
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-[#64748B] mt-1">
+            <p className="hidden sm:block text-xs sm:text-sm text-slate-500 mt-1.5 font-medium">
               Manage, track, and score your inbound and outbound leads.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => navigate('/leads/import')}
-              className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm"
+              className="btn-secondary flex-1 sm:flex-none justify-center !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Upload className="h-4 w-4" />
               <span>Import</span>
             </button>
-            <button 
-              className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm"
+            <button
+              className="btn-secondary flex-1 sm:flex-none justify-center !px-3 sm:!px-4 text-xs sm:text-sm"
               onClick={() => {
                 const params = new URLSearchParams();
                 if (stateFilter !== 'All') params.set('stateFilter', stateFilter);
@@ -559,11 +568,11 @@ export const Leads: React.FC = () => {
               }}
             >
               <Download className="h-4 w-4" />
-              <span>Export CSV</span>
+              <span>Export</span>
             </button>
             <button
               onClick={() => handleOpenForm()}
-              className="btn-primary !px-3 sm:!px-4 text-xs sm:text-sm"
+              className="btn-primary flex-1 sm:flex-none justify-center !px-3 sm:!px-4 text-xs sm:text-sm"
             >
               <Plus className="h-4 w-4" />
               <span>Add Lead</span>
@@ -572,23 +581,31 @@ export const Leads: React.FC = () => {
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-4 shadow-sm">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
-            <input
-              type="text"
-              placeholder="Search by name, email, ID, city, or state..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-base !pl-9"
-            />
+        <div className="glass-panel rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 mx-1 sm:mx-0">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search name, email, city..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input-base !pl-10 !py-2.5 shadow-sm w-full"
+              />
+            </div>
+            <button
+              onClick={() => setShowMobileFilters(prev => !prev)}
+              className={`sm:hidden inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold shrink-0 transition-colors ${hasActiveFilters ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'
+                }`}
+            >
+              Filters {hasActiveFilters && <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
+            </button>
           </div>
 
-          {(stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All') && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 mt-2">
+          {hasActiveFilters && (
+            <div className="hidden sm:flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 mt-2">
               <span className="text-xs font-medium text-slate-500">Active Filters:</span>
-              
-              <button 
+              <button
                 onClick={handleSaveView}
                 className="ml-auto flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
               >
@@ -598,87 +615,97 @@ export const Leads: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 w-full">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+          <div className={`flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full ${showMobileFilters ? 'flex' : 'hidden sm:flex'}`}>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:flex-1">
               <select
                 value={stateFilter}
-              onChange={(e) => {
-                setStateFilter(e.target.value);
-                setCityFilter('All'); // Reset city when state changes
-              }}
-              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary max-w-[150px]"
-            >
-              <option value="All">All States</option>
-              {filterOptions.states.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
+                onChange={(e) => {
+                  setStateFilter(e.target.value);
+                  setCityFilter('All'); // Reset city when state changes
+                }}
+                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+              >
+                <option value="All">All States</option>
+                {filterOptions.states.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
 
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary max-w-[150px]"
-            >
-              <option value="All">All Cities</option>
-              {filterOptions.cities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+              >
+                <option value="All">All Cities</option>
+                {filterOptions.cities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
 
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
-            >
-              <option value="All">All Types</option>
-              <option value="Manual">Manual</option>
-              <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
-              <option value="Sub Broker">Sub Broker</option>
-              <option value="Research Analyst (RA)">Research Analyst (RA)</option>
-            </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+              >
+                <option value="All">All Types</option>
+                <option value="Manual">Manual</option>
+                <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
+                <option value="Sub Broker">Sub Broker</option>
+                <option value="Research Analyst (RA)">Research Analyst (RA)</option>
+              </select>
 
-            <select
-              value={unifiedStatusFilter}
-              onChange={(e) => setUnifiedStatusFilter(e.target.value)}
-              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
-            >
-              <option value="All">All Statuses</option>
-              <option value="IMPORTED">Imported</option>
-              <option value="UNVERIFIED">Unverified</option>
-              <option value="NEW">New (Verified)</option>
-              <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
-              <option value="CONTACTED">Contacted (Only)</option>
-              <option value="FOLLOW_UP">Follow-up (Only)</option>
-              <option value="ENGAGED">Engaged</option>
-              <option value="QUALIFIED">Qualified</option>
-              <option value="NEGOTIATION">Negotiation</option>
-              <option value="WON">Client Won</option>
-              <option value="LOST">Client Lost</option>
-              <option value="DNC">Do Not Contact</option>
-              <option value="INVALID">Invalid/Inactive</option>
-            </select>
+              <select
+                value={unifiedStatusFilter}
+                onChange={(e) => setUnifiedStatusFilter(e.target.value)}
+                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
+              >
+                <option value="All">All Statuses</option>
+                <option value="IMPORTED">Imported</option>
+                <option value="UNVERIFIED">Unverified</option>
+                <option value="NEW">New (Verified)</option>
+                <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
+                <option value="CONTACTED">Contacted (Only)</option>
+                <option value="FOLLOW_UP">Follow-up (Only)</option>
+                <option value="ENGAGED">Engaged</option>
+                <option value="QUALIFIED">Qualified</option>
+                <option value="NEGOTIATION">Negotiation</option>
+                <option value="WON">Client Won</option>
+                <option value="LOST">Client Lost</option>
+                <option value="DNC">Do Not Contact</option>
+                <option value="INVALID">Invalid/Inactive</option>
+              </select>
 
-            <select
-              value={websiteStatusFilter}
-              onChange={(e) => setWebsiteStatusFilter(e.target.value)}
-              className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-primary"
-            >
-              <option value="All">All Websites</option>
-              <option value="HasWebsite">Has Website</option>
-              <option value="NoWebsite">No Website</option>
-            </select>
+              <select
+                value={websiteStatusFilter}
+                onChange={(e) => setWebsiteStatusFilter(e.target.value)}
+                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+              >
+                <option value="All">All Websites</option>
+                <option value="HasWebsite">Has Website</option>
+                <option value="NoWebsite">No Website</option>
+              </select>
 
-            <button
-              onClick={fetchLeads}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+              <button
+                onClick={fetchLeads}
+                disabled={isLoading}
+                className="btn-secondary !px-3 !py-2 !text-xs !min-h-0 w-full sm:w-auto justify-center"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={handleSaveView}
+                  className="sm:hidden flex items-center justify-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-2 rounded-md transition-colors col-span-2"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Save this View
+                </button>
+              )}
             </div>
-            
-            <div className="flex items-center rounded-lg bg-slate-100 p-1 shrink-0 self-start">
+
+            <div className="hidden sm:flex items-center rounded-lg bg-slate-100 p-1 shrink-0 self-start">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -699,11 +726,11 @@ export const Leads: React.FC = () => {
 
         {/* Smart Saved Views */}
         {savedViews.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0 flex items-center gap-1"><Bookmark className="w-3 h-3" /> Saved Views:</span>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide px-1 sm:px-0">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0 flex items-center gap-1"><Bookmark className="w-3 h-3" /> Saved:</span>
             {savedViews.map((view) => (
-              <div 
-                key={view.name} 
+              <div
+                key={view.name}
                 onClick={() => applyView(view.filters)}
                 className="group flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors shrink-0"
               >
@@ -716,7 +743,7 @@ export const Leads: React.FC = () => {
           </div>
         )}
 
-        {/* Leads Table */}
+        {/* Leads List */}
         <div className="card !p-0 overflow-hidden">
           {isLoading && leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
@@ -724,7 +751,7 @@ export const Leads: React.FC = () => {
               <p className="text-sm font-medium">Loading leads from server...</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+            <div className="flex flex-col items-center justify-center gap-4 py-20 text-center px-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
                 <AlertCircle className="h-7 w-7" />
               </div>
@@ -741,8 +768,8 @@ export const Leads: React.FC = () => {
               </button>
             </div>
           ) : viewMode === 'board' ? (
-            <LeadsBoard 
-              leads={sortedLeads} 
+            <LeadsBoard
+              leads={leads}
               onLeadClick={(lead) => {
                 navigate(`/leads/${lead.id}`);
               }}
@@ -760,29 +787,149 @@ export const Leads: React.FC = () => {
             />
           ) : (
             <>
-              <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <table className="w-full border-collapse text-left text-sm" style={{ minWidth: '900px' }}>
+              {/* Mobile Card List (app-like) */}
+              <div className="sm:hidden divide-y divide-slate-100">
+                {leads.length === 0 ? (
+                  <div className="py-16 text-center text-sm text-slate-400">
+                    No leads found matching your filters.
+                  </div>
+                ) : (
+                  leads.map((lead) => {
+                    const score = getLeadScore(lead);
+                    return (
+                      <div
+                        key={lead.id}
+                        className={`p-4 active:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : 'bg-white'}`}
+                        onClick={() => handleRowClick(lead)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1 rounded border-slate-300 text-primary focus:ring-primary shrink-0"
+                            checked={selectedLeadIds.includes(lead.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => handleSelectOne(lead.id)}
+                          />
+
+                          <div className="relative h-10 w-10 flex-shrink-0 select-none">
+                            {lead.logoUrl ? (
+                              <img
+                                src={lead.logoUrl}
+                                alt={lead.name}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  const sibling = (e.target as HTMLImageElement).nextElementSibling as HTMLDivElement;
+                                  if (sibling) sibling.style.display = 'flex';
+                                }}
+                                className="h-10 w-10 rounded-full object-cover border border-slate-200 bg-white"
+                              />
+                            ) : null}
+                            <div
+                              style={{ display: lead.logoUrl ? 'none' : 'flex' }}
+                              className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-600/10 text-primary border border-primary/20 items-center justify-center font-bold text-sm"
+                            >
+                              {lead.name.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-bold text-sm text-slate-800 truncate">{lead.name}</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                  setOpenMenuId(openMenuId === lead.id ? null : lead.id);
+                                }}
+                                className="shrink-0 -mr-1.5 -mt-1 rounded-lg p-1.5 text-slate-400"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                              {lead.email || lead.phone || '—'}
+                            </p>
+
+                            <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                              <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                {lead.type?.includes('(') ? lead.type.split('(')[1].replace(')', '') : lead.type || 'Manual'}
+                              </span>
+                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${stageColorClasses(lead.salesStage)}`}>
+                                {lead.salesStage || 'New'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-2.5">
+                              <div className="h-1.5 flex-1 rounded-full bg-slate-100">
+                                <div
+                                  className={`h-full rounded-full ${score >= 80 ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : score >= 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                  style={{ width: `${score}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-600 shrink-0">{score} pts</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-3 pl-[3.25rem]" onClick={(e) => e.stopPropagation()}>
+                          {lead.phone && (
+                            <a
+                              href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-600 py-2 text-[11px] font-bold"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /></svg>
+                              WhatsApp
+                            </a>
+                          )}
+                          <button
+                            onClick={() => { setSelectedLeadForMail(lead); setIsMailModalOpen(true); }}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-50 text-indigo-600 py-2 text-[11px] font-bold"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                            Email
+                          </button>
+                          <button
+                            onClick={() => handleOpenForm(lead)}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 text-blue-600 py-2 text-[11px] font-bold"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden sm:block table-scroll overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full border-collapse text-left text-sm" style={{ minWidth: '1000px' }}>
                   <thead>
-                    <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                      <th className="py-4 px-4 w-[2%] min-w-[40px]">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-slate-300 text-primary focus:ring-primary"
-                          checked={selectedLeadIds.length > 0 && selectedLeadIds.length === sortedLeads.length}
+                    <tr className="border-b border-slate-200/50 bg-slate-50/50 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <th className="py-4 px-4 w-[40px]">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-600"
+                          checked={selectedLeadIds.length > 0 && selectedLeadIds.length === leads.length}
                           onChange={handleSelectAll}
                         />
                       </th>
-                      <th className="py-4 px-2 w-[4%] min-w-[50px]">Id</th>
-                      <th className="py-4 px-6 w-[26%] min-w-[280px]">Name</th>
-                      <th className="py-4 px-6 w-[22%] min-w-[220px]">Email / Phone</th>
-                      <th className="py-4 px-6 w-[6%] min-w-[70px]">Type</th>
-                      <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
-                      <th className="py-4 px-6 w-[15%] min-w-[130px] text-center">Stage (Edit)</th>
-                      <th 
+                      <th className="py-4 px-2 w-[50px]">Id</th>
+                      <th className="py-4 px-4 w-[280px]">Name</th>
+                      <th className="py-4 px-4 w-[220px]">Email / Phone</th>
+                      <th className="py-4 px-4 w-[100px]">Type</th>
+                      <th className="py-4 px-4 w-[120px]">Reg No.</th>
+                      <th className="py-4 px-4 w-[150px] text-center">Stage (Edit)</th>
+                      <th
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
                         }}
-                        className="py-4 px-6 w-[11%] min-w-[110px] cursor-pointer select-none hover:text-[#0F172A] transition-colors"
+                        className="py-4 px-4 w-[120px] cursor-pointer select-none hover:text-slate-800 transition-colors"
                       >
                         <div className="flex items-center gap-1">
                           Lead Score
@@ -791,18 +938,18 @@ export const Leads: React.FC = () => {
                           </span>
                         </div>
                       </th>
-                      <th className="py-4 px-6 w-[5%] min-w-[120px] text-right">Actions</th>
+                      <th className="py-4 px-4 w-[120px] text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E2E8F0]">
-                    {sortedLeads.length === 0 ? (
+                  <tbody className="divide-y divide-slate-100/80 bg-white/40 backdrop-blur-sm">
+                    {leads.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-16 text-center text-sm text-slate-400">
                           No leads found matching your filters.
                         </td>
                       </tr>
                     ) : (
-                      sortedLeads.map((lead, index) => {
+                      leads.map((lead, index) => {
                         const score = getLeadScore(lead);
                         return (
                           <tr
@@ -811,8 +958,8 @@ export const Leads: React.FC = () => {
                               }`}
                           >
                             <td className="py-4 px-4" onClick={e => e.stopPropagation()}>
-                              <input 
-                                type="checkbox" 
+                              <input
+                                type="checkbox"
                                 className="rounded border-slate-300 text-primary focus:ring-primary"
                                 checked={selectedLeadIds.includes(lead.id)}
                                 onChange={() => handleSelectOne(lead.id)}
@@ -830,8 +977,8 @@ export const Leads: React.FC = () => {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-9 w-9 flex-shrink-0 select-none">
                                   {lead.logoUrl ? (
-                                    <img 
-                                      src={lead.logoUrl} 
+                                    <img
+                                      src={lead.logoUrl}
                                       alt={lead.name}
                                       onError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -841,7 +988,7 @@ export const Leads: React.FC = () => {
                                       className="h-9 w-9 rounded-full object-cover border border-slate-200 bg-white"
                                     />
                                   ) : null}
-                                  <div 
+                                  <div
                                     style={{ display: lead.logoUrl ? 'none' : 'flex' }}
                                     className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-600/10 text-primary border border-primary/20 items-center justify-center font-bold text-sm"
                                   >
@@ -888,7 +1035,7 @@ export const Leads: React.FC = () => {
                                 {lead.phone && (
                                   <div className="flex items-center gap-2">
                                     <p className="text-xs text-[#64748B]">{lead.phone}</p>
-                                    <a 
+                                    <a
                                       href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -903,7 +1050,7 @@ export const Leads: React.FC = () => {
                                 {lead.phone2 && (
                                   <div className="flex items-center gap-2">
                                     <p className="text-xs text-[#64748B]">{lead.phone2}</p>
-                                    <a 
+                                    <a
                                       href={`https://wa.me/${lead.phone2.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -933,7 +1080,6 @@ export const Leads: React.FC = () => {
                                   {lead.registrationNo}
                                 </span>
                               ) : <span className="text-slate-400">—</span>}
-
                             </td>
 
                             {/* Inline Edit Stage */}
@@ -941,15 +1087,9 @@ export const Leads: React.FC = () => {
                               <select
                                 value={lead.salesStage || 'New'}
                                 onChange={(e) => handleUpdateStatus(lead, e.target.value)}
-                                className={`inline-flex w-full items-center rounded-md px-2 py-1.5 text-xs font-bold outline-none ring-1 ring-inset cursor-pointer appearance-none text-center ${
-                                  ['Client Won', 'Qualified'].includes(lead.salesStage || '') ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100' :
-                                  ['Negotiation'].includes(lead.salesStage || '') ? 'bg-purple-50 text-purple-700 ring-purple-600/20 hover:bg-purple-100' :
-                                  ['Contacted', 'Follow-up'].includes(lead.salesStage || '') ? 'bg-blue-50 text-blue-700 ring-blue-600/20 hover:bg-blue-100' :
-                                  ['Client Lost', 'Do Not Contact'].includes(lead.salesStage || '') ? 'bg-red-50 text-red-700 ring-red-600/20 hover:bg-red-100' :
-                                  'bg-slate-50 text-slate-700 ring-slate-600/20 hover:bg-slate-100'
-                                }`}
+                                className={`inline-flex w-[140px] items-center rounded-md px-2.5 py-1.5 text-xs font-bold outline-none ring-1 ring-inset cursor-pointer transition-colors ${stageColorClasses(lead.salesStage)}`}
                               >
-                                {['New', 'Contacted', 'Qualified', 'Follow-up', 'Negotiation', 'Client Won', 'Client Lost', 'Do Not Contact'].map(stage => (
+                                {SALES_STAGES.map(stage => (
                                   <option key={stage} value={stage}>{stage}</option>
                                 ))}
                               </select>
@@ -973,7 +1113,6 @@ export const Leads: React.FC = () => {
                               </div>
                             </td>
 
-
                             {/* Row Actions */}
                             <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="relative flex justify-end gap-1 sm:gap-2">
@@ -986,7 +1125,7 @@ export const Leads: React.FC = () => {
                                   className="inline-flex items-center justify-center rounded-lg p-2 text-indigo-500 hover:bg-indigo-50 transition-colors shrink-0 min-w-[32px] sm:min-w-[36px]"
                                   title="Send Direct Email"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mail"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mail"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
                                 </button>
                                 <button
                                   onClick={() => handleRowClick(lead)}
@@ -1016,62 +1155,6 @@ export const Leads: React.FC = () => {
                                 >
                                   <MoreVertical className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                                 </button>
-
-                                {/* Dropdown Menu */}
-                                {openMenuId === lead.id && createPortal(
-                                  <div
-                                    ref={menuRef}
-                                    style={{ top: menuPos.top, right: menuPos.right }}
-                                    className="fixed z-50 mt-1 w-52 rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-lg"
-                                  >
-                                    <button
-                                      onClick={() => { setOpenMenuId(null); handleRowClick(lead); }}
-                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
-                                    >
-                                      <Sparkles className="h-3.5 w-3.5 text-slate-400" />
-                                      View details
-                                    </button>
-                                    <button
-                                      onClick={() => { setOpenMenuId(null); handleOpenForm(lead); }}
-                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
-                                    >
-                                      <Edit2 className="h-3.5 w-3.5 text-slate-400" />
-                                      Edit lead
-                                    </button>
-
-                                    <div className="my-1 border-t border-[#E2E8F0]" />
-
-                                    {lead.status !== 'CONTACTED' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(lead, 'CONTACTED')}
-                                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
-                                      >
-                                        <PhoneCall className="h-3.5 w-3.5 text-amber-500" />
-                                        Mark as contacted
-                                      </button>
-                                    )}
-                                    {lead.status !== 'CONVERTED' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(lead, 'CONVERTED')}
-                                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
-                                      >
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
-                                        Mark as converted
-                                      </button>
-                                    )}
-
-                                    <div className="my-1 border-t border-[#E2E8F0]" />
-
-                                    <button
-                                      onClick={() => handleDeleteLead(lead)}
-                                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      Delete lead
-                                    </button>
-                                  </div>,
-                                  document.body
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -1081,6 +1164,66 @@ export const Leads: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Shared row-action dropdown menu (used by both mobile card list and desktop table) */}
+              {openMenuId !== null && (() => {
+                const lead = leads.find(l => l.id === openMenuId);
+                if (!lead) return null;
+                return createPortal(
+                  <div
+                    ref={menuRef}
+                    style={{ top: menuPos.top, right: menuPos.right }}
+                    className="fixed z-50 mt-1 w-52 rounded-xl border border-[#E2E8F0] bg-white py-1.5 shadow-lg"
+                  >
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleRowClick(lead); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-slate-400" />
+                      View details
+                    </button>
+                    <button
+                      onClick={() => { setOpenMenuId(null); handleOpenForm(lead); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                    >
+                      <Edit2 className="h-3.5 w-3.5 text-slate-400" />
+                      Edit lead
+                    </button>
+
+                    <div className="my-1 border-t border-[#E2E8F0]" />
+
+                    {lead.salesStage !== 'Contacted' && (
+                      <button
+                        onClick={() => handleUpdateStatus(lead, 'Contacted')}
+                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                      >
+                        <PhoneCall className="h-3.5 w-3.5 text-amber-500" />
+                        Mark as contacted
+                      </button>
+                    )}
+                    {lead.salesStage !== 'Client Won' && (
+                      <button
+                        onClick={() => handleUpdateStatus(lead, 'Client Won')}
+                        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
+                        Mark as converted
+                      </button>
+                    )}
+
+                    <div className="my-1 border-t border-[#E2E8F0]" />
+
+                    <button
+                      onClick={() => handleDeleteLead(lead)}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete lead
+                    </button>
+                  </div>,
+                  document.body
+                );
+              })()}
 
               {/* Infinite Scroll Indicator */}
               <div ref={loaderRef} className="flex justify-center items-center py-6 border-t border-[#E2E8F0] select-none">
@@ -1104,15 +1247,15 @@ export const Leads: React.FC = () => {
 
       {/* Bulk Actions Floating Bar */}
       {selectedLeadIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 z-40 border border-slate-700 animate-fade-in">
-          <div className="text-sm font-bold">
-            <span className="text-blue-400">{selectedLeadIds.length}</span> leads selected
+        <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full shadow-2xl flex items-center gap-3 sm:gap-6 z-40 border border-slate-700 animate-fade-in max-w-[94vw] overflow-x-auto">
+          <div className="text-xs sm:text-sm font-bold shrink-0">
+            <span className="text-blue-400">{selectedLeadIds.length}</span> selected
           </div>
-          <div className="h-4 w-px bg-slate-700"></div>
-          <div className="flex items-center gap-3">
+          <div className="h-4 w-px bg-slate-700 shrink-0"></div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <select
               onChange={(e) => handleBulkAssign(e.target.value)}
-              className="text-xs font-bold text-slate-800 bg-slate-100 hover:bg-white px-3 py-1.5 rounded-md outline-none cursor-pointer"
+              className="text-[11px] sm:text-xs font-bold text-slate-800 bg-slate-100 hover:bg-white px-2 sm:px-3 py-1.5 rounded-md outline-none cursor-pointer"
             >
               <option value="">Assign To...</option>
               {teamMembers.map(member => (
@@ -1120,15 +1263,15 @@ export const Leads: React.FC = () => {
               ))}
             </select>
             <div className="h-3 w-px bg-slate-700"></div>
-            <button 
+            <button
               onClick={handleBulkDelete}
-              className="text-xs font-bold text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-3 py-1.5 rounded-md transition-colors"
+              className="text-[11px] sm:text-xs font-bold text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-2 sm:px-3 py-1.5 rounded-md transition-colors"
             >
-              Delete Selected
+              Delete
             </button>
-            <button 
+            <button
               onClick={() => setSelectedLeadIds([])}
-              className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md transition-colors"
+              className="text-[11px] sm:text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 sm:px-3 py-1.5 rounded-md transition-colors"
             >
               Cancel
             </button>
@@ -1136,10 +1279,10 @@ export const Leads: React.FC = () => {
         </div>
       )}
 
-      <Lead360Drawer 
-        isOpen={!!selectedLead} 
-        onClose={handleCloseDrawer} 
-        lead={selectedLead} 
+      <Lead360Drawer
+        isOpen={!!selectedLead}
+        onClose={handleCloseDrawer}
+        lead={selectedLead}
         onEdit={(lead) => {
           setFormData(lead);
           setIsFormOpen(true);
@@ -1147,7 +1290,7 @@ export const Leads: React.FC = () => {
         }}
       />
 
-      <DirectMailModal 
+      <DirectMailModal
         isOpen={isMailModalOpen}
         onClose={() => setIsMailModalOpen(false)}
         lead={selectedLeadForMail}
@@ -1155,23 +1298,29 @@ export const Leads: React.FC = () => {
 
       {/* Add/Edit Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-[95vw] max-w-3xl border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-4 sm:p-6 relative max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
-              <h2 className="text-lg font-bold text-[#0F172A]">
+        <div
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/40 sm:p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setIsFormOpen(false)}
+        >
+          <div
+            className="w-full sm:w-[95vw] sm:max-w-3xl glass-panel rounded-t-2xl sm:rounded-2xl shadow-premium p-4 sm:p-6 relative max-h-[94vh] sm:max-h-[92vh] overflow-y-auto custom-scrollbar"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200/50 pb-3 sm:pb-4 mb-4 sm:mb-5 sticky top-0 bg-white/95 backdrop-blur -mt-4 sm:mt-0 pt-4 sm:pt-0 -mx-4 sm:mx-0 px-4 sm:px-0 z-10">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800">
                 {formData.id ? 'Edit Lead' : 'Add New Lead'}
               </h2>
               <button
                 onClick={() => setIsFormOpen(false)}
-                className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC] hover:text-slate-900 transition-colors"
+                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveLead} className="space-y-6">
+            <form onSubmit={handleSaveLead} className="space-y-5 sm:space-y-6">
               {/* Basic Details */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-primary" /> Basic Details
                 </h3>
@@ -1187,7 +1336,7 @@ export const Leads: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email</label>
                     <input
@@ -1214,7 +1363,7 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone</label>
                     <input
@@ -1241,7 +1390,7 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Contact Person</label>
                     <input
@@ -1268,11 +1417,11 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Status & Segmentation */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" /> Status & Segment
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
                     <select
@@ -1280,14 +1429,9 @@ export const Leads: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
                       className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
                     >
-                      <option value="New">New</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Qualified">Qualified</option>
-                      <option value="Follow-up">Follow-up</option>
-                      <option value="Negotiation">Negotiation</option>
-                      <option value="Client Won">Client Won</option>
-                      <option value="Client Lost">Client Lost</option>
-                      <option value="Do Not Contact">Do Not Contact</option>
+                      {SALES_STAGES.map(stage => (
+                        <option key={stage} value={stage}>{stage}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1307,7 +1451,7 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Engagement</label>
                     <select
@@ -1339,7 +1483,7 @@ export const Leads: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
                     <select
@@ -1367,11 +1511,11 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Company & Registration */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" /> Company & Registration
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Registration No</label>
                     <input
@@ -1395,7 +1539,7 @@ export const Leads: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Trade Name</label>
                     <input
@@ -1420,7 +1564,7 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Location */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" /> Location
                 </h3>
@@ -1434,7 +1578,7 @@ export const Leads: React.FC = () => {
                     placeholder="Full street address"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">City</label>
                     <input
@@ -1468,7 +1612,7 @@ export const Leads: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Fax</label>
                     <input
@@ -1485,11 +1629,11 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Socials */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Link className="h-4 w-4 text-primary" /> Social Links
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">LinkedIn</label>
                     <input
@@ -1526,7 +1670,7 @@ export const Leads: React.FC = () => {
                       placeholder="https://facebook.com/..."
                     />
                   </div>
-              </div>
+                </div>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Other Listings / URLs</label>
                   <textarea
@@ -1539,11 +1683,11 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Enrichment Data */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-primary" /> Enrichment Data
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sells Algo Trading?</label>
                     <input
@@ -1565,7 +1709,7 @@ export const Leads: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Company Size</label>
                     <input
@@ -1618,7 +1762,7 @@ export const Leads: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-[#E2E8F0] mt-6">
+              <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-[#E2E8F0] mt-6 -mx-4 sm:mx-0 px-4 sm:px-0">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}

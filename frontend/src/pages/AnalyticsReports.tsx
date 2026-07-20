@@ -48,7 +48,7 @@ export const AnalyticsReports = () => {
   const leadTypes = data.leadTypes || [];
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
@@ -65,7 +65,7 @@ export const AnalyticsReports = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Database', value: data.stats.totalLeads, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Conversion Rate', value: `${((data.stats.convertedLeads / (data.stats.totalLeads || 1)) * 100).toFixed(1)}%`, icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -154,8 +154,8 @@ export const AnalyticsReports = () => {
           <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
             <PieChartIcon className="h-5 w-5 text-purple-500" /> Source Attribution & Win Rates
           </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[500px] text-left text-sm">
               <thead className="bg-slate-50 border-y border-slate-200">
                 <tr>
                   <th className="px-4 py-3 font-bold text-slate-700">Source Type</th>
@@ -190,8 +190,8 @@ export const AnalyticsReports = () => {
           <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <Users className="h-5 w-5 text-emerald-500" /> Rep Performance Matrix
           </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[600px] text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 font-bold text-slate-600">Sales Rep</th>

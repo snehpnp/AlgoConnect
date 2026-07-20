@@ -220,22 +220,28 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
   if (!isOpen || !lead) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
-      <div className="flex h-full w-full max-w-2xl flex-col bg-slate-50 shadow-2xl transition-transform duration-300 transform translate-x-0">
+    <div 
+      className="fixed inset-0 z-[70] flex justify-end bg-slate-900/40 backdrop-blur-sm transition-opacity animate-fade-in"
+      onClick={onClose}
+    >
+      <div 
+        className="flex h-full w-full sm:w-[500px] md:w-[600px] max-w-2xl flex-col bg-slate-50/95 backdrop-blur-xl shadow-premium border-l border-white/50 transition-transform duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm z-10">
+        <div className="flex items-center justify-between border-b border-slate-200/50 bg-white/50 px-6 py-4 z-10">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-800 flex items-center gap-2">
               Lead 360 View
             </h2>
-            <p className="text-slate-500 text-xs mt-1">
+            <p className="text-slate-500 text-xs mt-1 font-medium">
               Complete details and history for this lead
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100/50 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -245,9 +251,11 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
           {/* Profile Section */}
-          <div className="flex items-center gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white/80 p-5 rounded-2xl border border-white/50 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            
             {lead.logoUrl ? (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl overflow-hidden ring-1 ring-inset ring-slate-200 bg-white">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl overflow-hidden ring-1 ring-inset ring-slate-200/50 bg-white shadow-sm">
                 <img src={lead.logoUrl} alt={lead.name} className="h-full w-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="flex h-16 w-16 items-center justify-center bg-blue-50 text-blue-600 font-bold text-xl">${lead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>` }} />
               </div>
             ) : (
@@ -290,13 +298,13 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               <p className="text-sm text-slate-500 mt-1">Lead ID: <span className="font-medium text-slate-700">{lead.id}</span></p>
             </div>
             
-            <div className="shrink-0 flex flex-col items-end gap-1">
+            <div className="shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-2 sm:gap-1 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
               <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assign To</label>
               <select 
                 disabled={isUpdatingStatus}
                 value={lead.userId || ''} 
                 onChange={handleAssignUser}
-                className="text-xs bg-slate-50 border border-slate-200 text-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
+                className="input-base !py-1.5 !text-xs !min-h-0 disabled:opacity-50"
               >
                 <option value="">Unassigned</option>
                 {teamMembers.map(u => (
@@ -427,7 +435,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
           )}
 
           {/* Quick Actions Bar */}
-          <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 bg-white/80 p-3 rounded-xl border border-white/50 shadow-sm">
             {lead.phone && (
               <a 
                 href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}

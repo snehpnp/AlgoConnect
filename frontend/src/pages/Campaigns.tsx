@@ -276,7 +276,99 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[300px] w-full pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Mobile View (Cards) */}
+        <div className="md:hidden flex flex-col p-3 gap-3 bg-slate-50/50 min-h-[300px] pb-32">
+          {loading ? (
+            <div className="py-8 text-center text-sm font-medium text-[#64748B]">Loading campaigns...</div>
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="py-8 text-center text-sm font-medium text-[#64748B]">No campaigns found.</div>
+          ) : (
+            filteredCampaigns.map((camp) => (
+              <div 
+                key={camp.id} 
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative flex flex-col gap-3"
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div 
+                    className="flex gap-3 items-center min-w-0 cursor-pointer"
+                    onClick={() => {
+                      setSelectedCampaignForDrawer(camp);
+                      setIsDrawerOpen(true);
+                    }}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Megaphone className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-900 text-[15px] truncate">{camp.name}</h3>
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{camp.type}</p>
+                    </div>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === camp.id ? null : camp.id);
+                      }}
+                      className="p-2 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                    
+                    {openMenuId === camp.id && (
+                      <div className="absolute right-0 top-10 z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                        {isAdmin && (
+                          <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
+                            <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                            {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
+                        <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <Users className="h-4 w-4" /> Add Leads
+                        </button>
+                        <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <Edit2 className="h-4 w-4" /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
+                          <Trash2 className="h-4 w-4" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col justify-center">
+                    <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Target Segment</p>
+                    <p className="text-xs font-bold text-slate-700 truncate">
+                      {camp.segments && camp.segments.length > 0 ? camp.segments.map(s => s.name).join(', ') : 'Manual'}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col justify-center items-start">
+                     <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                     <span className={`badge-${camp.status === 'ACTIVE' ? 'success' : 'neutral'} text-[10px] px-2 py-0.5 shadow-sm`}>
+                       {camp.status}
+                     </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-1 pt-3 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-500">Connected Leads</span>
+                  <button
+                    onClick={() => openConnectedLeadsModal(camp)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors shadow-sm"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    {camp._count?.leads || 0}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View (Table) */}
+        <div className="hidden md:block overflow-x-auto min-h-[300px] w-full pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full text-left" style={{ minWidth: '700px' }}>
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">

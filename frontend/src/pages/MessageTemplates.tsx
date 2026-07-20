@@ -92,23 +92,23 @@ export const MessageTemplates = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Message Templates</h1>
           <p className="text-sm text-gray-500">Manage your Email, SMS, and WhatsApp templates.</p>
         </div>
         <button
           onClick={() => navigate('/templates/create')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 sm:py-2 rounded-lg flex items-center shadow-sm transition-colors w-full sm:w-auto justify-center"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Template
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto custom-scrollbar w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
               <th className="p-4 font-medium">Name</th>

@@ -103,15 +103,21 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
   if ((lead as any)?.scrapedEmail) availableEmails.push({label: `Scraped (${(lead as any).scrapedEmail})`, value: (lead as any).scrapedEmail});
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
+      <div 
+        className="glass-panel rounded-2xl shadow-premium w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50 bg-white/50">
           <div className="flex items-center gap-2 text-indigo-600">
             <Mail className="h-5 w-5" />
             <h2 className="text-lg font-bold text-slate-800">Send Direct Email</h2>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 rounded-lg transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -179,17 +185,17 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+        <div className="px-6 py-4 border-t border-slate-200/50 flex justify-end gap-3 bg-white/30 backdrop-blur-sm">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100/50 rounded-lg transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSend}
             disabled={isSending || !lead.email}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary !px-6 !py-2 text-sm"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

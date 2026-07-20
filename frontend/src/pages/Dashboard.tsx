@@ -170,7 +170,7 @@ export const Dashboard: React.FC = () => {
             <div className="mt-5 relative z-10">
               <h3 className="text-sm font-semibold text-slate-500">{stat.name}</h3>
               <div className="mt-1 flex items-baseline gap-2">
-                <p className="text-3xl font-extrabold tracking-tight text-slate-800">{stat.value}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-800">{stat.value}</p>
               </div>
             </div>
           </div>
@@ -185,9 +185,9 @@ export const Dashboard: React.FC = () => {
               <p className="text-xs text-[#64748B]">Monthly performance overview</p>
             </div>
           </div>
-          <div className="mt-8 flex h-60 items-end gap-4 px-2">
+          <div className="mt-8 flex h-64 items-end gap-3 sm:gap-4 px-2 overflow-x-auto pb-4 custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             {analytics.map((bar, idx) => (
-              <div key={idx} className="group flex flex-1 flex-col items-center gap-3">
+              <div key={idx} className="group flex flex-1 flex-col items-center gap-3 min-w-[36px] sm:min-w-[40px]">
                 <div className="relative w-full rounded-xl bg-slate-50 overflow-hidden border border-slate-100 transition-all hover:bg-slate-100 hover:border-slate-200 shadow-inner" style={{ height: '200px' }}>
                   <div 
                     className="absolute bottom-0 w-full rounded-xl bg-gradient-to-t from-indigo-500 to-blue-400 transition-all duration-500 group-hover:from-indigo-600 group-hover:to-blue-500" 
@@ -200,7 +200,7 @@ export const Dashboard: React.FC = () => {
                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{bar.label}</span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-colors">{bar.label}</span>
               </div>
             ))}
           </div>

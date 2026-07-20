@@ -115,7 +115,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
       <div className="flex h-full w-full max-w-xl flex-col bg-slate-50 shadow-2xl transition-transform duration-300 transform translate-x-0">
         
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm z-10">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 py-4 shadow-sm z-10">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               <Target className="h-6 w-6 text-primary" />
@@ -134,10 +134,10 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
         </div>
 
         {/* Drawer Body - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           
           {/* Segment Details */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <BarChart className="h-4 w-4 text-indigo-500" />
               Segment Details
@@ -150,7 +150,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
                   placeholder="e.g. Active RAs in Maharashtra"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -160,14 +160,14 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 resize-none"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
             </div>
           </div>
 
           {/* Targeting Rules */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Filter className="h-4 w-4 text-emerald-500" />
               Targeting Rules
@@ -214,7 +214,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
                   value={rules.city}
                   onChange={(e) => handleRuleChange('city', e.target.value)}
                   disabled={!rules.region || rules.region === 'All'}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="All">Any City</option>
                   {dbOptions.cities.map(city => (
@@ -282,7 +282,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
               <button
                 onClick={handlePreview}
                 disabled={isPreviewing}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-50 px-4 py-3 sm:py-2.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
               >
                 {isPreviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                 {isPreviewing ? 'Running Query...' : 'Preview Matching Leads'}
@@ -337,14 +337,14 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
         <div className="border-t border-slate-200 bg-white p-4 flex items-center justify-end gap-3 z-10">
           <button
             onClick={onClose}
-            className="rounded-lg px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+            className="rounded-lg px-5 py-3 sm:py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {isSaving ? 'Saving...' : 'Save Segment'}

@@ -75,15 +75,15 @@ export const SegmentList = () => {
             Manage targeted groups of leads for your campaigns.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
               placeholder="Search segments..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pr-4 pl-9 text-sm outline-none transition-all focus:border-primary focus:bg-white"
+              className="w-full sm:w-64 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] py-2 pr-4 pl-9 text-sm outline-none transition-all focus:border-primary focus:bg-white"
             />
           </div>
           <button
