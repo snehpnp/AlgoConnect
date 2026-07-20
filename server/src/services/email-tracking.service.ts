@@ -118,9 +118,16 @@ export class EmailTrackingService {
         const newRank = statusHierarchy[newLeadStatus] || 0;
 
         if (newRank > currentRank) {
+          const updatePayload: any = { engagementStatus: newLeadStatus };
+          
+          // Auto Status Progression: if lead replies, upgrade CRM salesStage
+          if (eventType === 'REPLIED' && ['New', 'Contacted', 'Follow-up'].includes(lead?.salesStage || 'New')) {
+            updatePayload.salesStage = 'Qualified';
+          }
+          
           await tx.lead.update({
             where: { id: messageSend.leadId },
-            data: { engagementStatus: newLeadStatus }
+            data: updatePayload
           });
         }
       }

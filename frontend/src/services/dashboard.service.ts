@@ -47,11 +47,29 @@ export interface DashboardResponse {
   message: string;
   data: {
     stats: DashboardStats;
-    leadTypes: { type: string, count: number }[];
+    leadTypes: { type: string, count: number, wonCount: number, winRate: number }[];
     leadsByStatus: { status: string, count: number }[];
     analytics: MonthlyAnalytics[];
     activities: Activity[];
     recentCommunications?: CommunicationEvent[];
+    leaderboard?: {
+      id: number;
+      name: string;
+      avatar: string | null;
+      totalLeads: number;
+      wonLeads: number;
+      activities: number;
+      score: number;
+    }[];
+    topCampaigns?: {
+      id: number;
+      name: string;
+      type: string;
+      totalSent: number;
+      successCount: number;
+      conversionRate: number;
+    }[];
+    averageTimeToClose?: number;
   };
 }
 

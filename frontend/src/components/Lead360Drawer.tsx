@@ -2,11 +2,16 @@ import { useState, useEffect } from 'react';
 import {
   X, Mail, Phone as PhoneIcon, MapPin, Clock,
   CheckCircle2, Sparkles, ArrowRight, Globe,
-  Link as LinkIcon, Briefcase, AlertCircle, Edit2
+  Link as LinkIcon, Briefcase, AlertCircle, Edit2,
+  StickyNote, Calendar, Send, Trash2, Bell,
+  MessageSquare, PhoneCall
 } from 'lucide-react';
 import type { Lead } from '../services/leads.service';
 import { leadsService, getUnifiedStatus } from '../services/leads.service';
 import { apiClient } from '../services/apiClient';
+import { usersService } from '../services/users.service';
+import type { User } from '../services/users.service';
+import toast from 'react-hot-toast';
 
 interface Lead360DrawerProps {
   isOpen: boolean;
@@ -30,13 +35,50 @@ const formatDate = (dateString?: string) => {
 
 const getLeadScore = (lead: any) => lead.leadScore || 0;
 
+// Helper to strip quoted email threads from replies
+const parseEmailBody = (body: string) => {
+  if (!body) return '';
+  // Split at common quote markers like "On ... wrote:" or original message boundaries
+  const quoteRegex = /(?:\n\s*On\s+.+?wrote:)|(?:\n\s*_{2,}\n)|(?:\n\s*--+.*Original Message.*--+)/i;
+  const parts = body.split(quoteRegex);
+  // Optional: Also remove any trailing lines that start with ">"
+  let cleanText = parts[0].trim();
+  cleanText = cleanText.split('\n').filter(line => !line.trim().startsWith('>')).join('\n');
+  return cleanText.trim();
+};
+
 export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerProps) => {
-  const [activeTab, setActiveTab] = useState<'data' | 'history' | 'email'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes' | 'emails'>('data');
   const [dataView, setDataView] = useState<'sebi' | 'scraped' | 'all'>('sebi');
   const [logs, setLogs] = useState<any[]>([]);
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+
+  // Notes state
+  const [notes, setNotes] = useState<any[]>([]);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Follow-Up state
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [followUpNote, setFollowUpNote] = useState('');
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+
+  // Call Log state
+  const [showCallLogModal, setShowCallLogModal] = useState(false);
+  const [callOutcome, setCallOutcome] = useState('Interested');
+  const [callNotes, setCallNotes] = useState('');
+  const [isLoggingCall, setIsLoggingCall] = useState(false);
+
+  // Email Replies state
+  const [emailReplies, setEmailReplies] = useState<any[]>([]);
+
+  useEffect(() => {
+    usersService.getUsers().then(res => setTeamMembers(res.data)).catch(console.error);
+  }, []);
 
   const updateStatus = async (newStatus: string) => {
     if (!lead) return;
@@ -51,25 +93,129 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
     }
   };
 
+  const handleAssignUser = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newUserId = e.target.value ? parseInt(e.target.value) : null;
+    try {
+      setIsUpdatingStatus(true);
+      const res = await leadsService.updateLead(lead!.id, { userId: newUserId } as any);
+      toast.success('Lead assigned successfully');
+      // Opt: update local lead state or trigger onEdit
+      onEdit((res as any).data || res);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to assign lead');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && lead) {
       setActiveTab('data');
       setDataView('sebi');
       setIsLoadingLogs(true);
+      // Reset follow-up form
+      setFollowUpDate(lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt as any).toISOString().slice(0, 16) : '');
+      setFollowUpNote((lead as any).followUpNotes || '');
+      setShowFollowUpForm(false);
       Promise.all([
         leadsService.getLeadLogs(lead.id).catch(() => []),
-        apiClient.get(`/messages/leads/${lead.id}`).then(res => res.data.data).catch(() => [])
+        apiClient.get(`/messages/leads/${lead.id}`).then(res => res.data.data).catch(() => []),
+        apiClient.get(`/leads/${lead.id}/notes`).then(res => res.data.data).catch(() => []),
+        apiClient.get(`/messages/leads/${lead.id}/email-replies`).then(res => res.data.data).catch(() => [])
       ])
-        .then(([logsRes, emailRes]) => {
+        .then(([logsRes, emailRes, notesRes, repliesRes]) => {
           setLogs(logsRes);
           setEmailLogs(emailRes);
+          setNotes(notesRes);
+          setEmailReplies(repliesRes);
         })
         .finally(() => setIsLoadingLogs(false));
     } else {
       setLogs([]);
       setEmailLogs([]);
+      setNotes([]);
+      setEmailReplies([]);
     }
   }, [isOpen, lead]);
+
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim() || !lead) return;
+    setIsSavingNote(true);
+    try {
+      const res = await apiClient.post(`/leads/${lead.id}/notes`, { content: newNoteContent });
+      setNotes(prev => [res.data.data, ...prev]);
+      setNewNoteContent('');
+      toast.success('Note added!');
+    } catch {
+      toast.error('Failed to add note');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: number) => {
+    try {
+      await apiClient.delete(`/notes/${noteId}`);
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+    } catch {
+      toast.error('Failed to delete note');
+    }
+  };
+
+  const handleSaveFollowUp = async () => {
+    if (!lead) return;
+    setIsSavingFollowUp(true);
+    try {
+      const res = await apiClient.put(`/leads/${lead.id}/follow-up`, {
+        nextFollowUpAt: followUpDate || null,
+        followUpNotes: followUpNote
+      });
+      onEdit({ ...lead, ...res.data.data } as any);
+      toast.success('Follow-up saved!');
+      setShowFollowUpForm(false);
+    } catch {
+      toast.error('Failed to save follow-up');
+    } finally {
+      setIsSavingFollowUp(false);
+    }
+  };
+
+  const handleLogCall = async () => {
+    if (!lead) return;
+    setIsLoggingCall(true);
+    try {
+      const res = await apiClient.post(`/leads/${lead.id}/notes`, {
+        content: `📞 Call Logged [${callOutcome}]\n${callNotes}`
+      });
+      setNotes(prev => [res.data.data, ...prev]);
+      
+      // Update last contacted date via follow-up endpoint
+      await apiClient.put(`/leads/${lead.id}/follow-up`, {
+        nextFollowUpAt: (lead as any).nextFollowUpAt, // keep existing
+        followUpNotes: (lead as any).followUpNotes // keep existing
+        // The backend `setFollowUp` actually logs activity but we might want a real lastContactedAt update.
+      });
+
+      // Update lead sales stage if outcome warrants it
+      if (callOutcome === 'Interested') {
+        await leadsService.updateLead(lead.id, { salesStage: 'Contacted' } as any);
+      }
+      
+      toast.success('Call logged successfully!');
+      setShowCallLogModal(false);
+      setCallNotes('');
+      setCallOutcome('Interested');
+      
+      // we need to notify parent to refetch
+      onEdit({ ...lead, salesStage: callOutcome === 'Interested' ? 'Contacted' : lead.salesStage } as any);
+
+    } catch (err) {
+      toast.error('Failed to log call');
+    } finally {
+      setIsLoggingCall(false);
+    }
+  };
 
   if (!isOpen || !lead) return null;
 
@@ -143,29 +289,302 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               </div>
               <p className="text-sm text-slate-500 mt-1">Lead ID: <span className="font-medium text-slate-700">{lead.id}</span></p>
             </div>
+            
+            <div className="shrink-0 flex flex-col items-end gap-1">
+              <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assign To</label>
+              <select 
+                disabled={isUpdatingStatus}
+                value={lead.userId || ''} 
+                onChange={handleAssignUser}
+                className="text-xs bg-slate-50 border border-slate-200 text-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
+              >
+                <option value="">Unassigned</option>
+                {teamMembers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* Notes + Follow-Up Tab */}
+          {activeTab === 'notes' && (
+            <div className="space-y-5">
+              {/* Follow-Up Card */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-amber-500" />
+                    <h3 className="text-sm font-bold text-slate-800">Follow-Up Reminder</h3>
+                  </div>
+                  {(lead as any).nextFollowUpAt && (
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                      new Date((lead as any).nextFollowUpAt) < new Date()
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {new Date((lead as any).nextFollowUpAt) < new Date() ? '⚠️ Overdue' : '📅 Scheduled'}: {new Date((lead as any).nextFollowUpAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+
+                {!showFollowUpForm ? (
+                  <button
+                    onClick={() => setShowFollowUpForm(true)}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-amber-200 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-50 text-amber-600 rounded-lg py-3 text-sm font-semibold transition-all"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {(lead as any).nextFollowUpAt ? 'Change Follow-Up Date' : 'Schedule Follow-Up'}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1 block">Follow-Up Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1 block">Reminder Note (optional)</label>
+                      <input
+                        type="text"
+                        value={followUpNote}
+                        onChange={(e) => setFollowUpNote(e.target.value)}
+                        placeholder="e.g. Call about pricing proposal..."
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveFollowUp}
+                        disabled={isSavingFollowUp}
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isSavingFollowUp ? 'Saving...' : 'Save Follow-Up'}
+                      </button>
+                      <button
+                        onClick={() => setShowFollowUpForm(false)}
+                        className="px-4 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes Card */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <StickyNote className="h-4 w-4 text-slate-500" />
+                  <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+                  <span className="text-xs text-slate-400">({notes.length} notes)</span>
+                </div>
+
+                {/* Add Note */}
+                <div className="flex gap-2 mb-5">
+                  <textarea
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    placeholder="Add a note, call outcome, or observation..."
+                    rows={2}
+                    className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) handleAddNote(); }}
+                  />
+                  <button
+                    onClick={handleAddNote}
+                    disabled={isSavingNote || !newNoteContent.trim()}
+                    className="px-3 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-40 flex items-center justify-center"
+                    title="Add note (Ctrl+Enter)"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Notes List */}
+                {notes.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">No notes yet. Add your first note above.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {notes.map((note) => (
+                      <div key={note.id} className="group bg-amber-50/60 border border-amber-100 rounded-lg p-3 relative">
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap pr-6">{note.content}</p>
+                        <p className="text-[10px] text-slate-400 mt-2">{new Date(note.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                        <button
+                          onClick={() => handleDeleteNote(note.id)}
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions Bar */}
+          <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+            {lead.phone && (
+              <a 
+                href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+            )}
+            {lead.phone && (
+              <a 
+                href={`tel:${lead.phone}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+              >
+                <PhoneIcon className="h-3.5 w-3.5" /> Call
+              </a>
+            )}
+            <button
+              onClick={() => setShowCallLogModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg text-xs font-bold transition-colors"
+            >
+              <PhoneCall className="h-3.5 w-3.5" /> Log Call
+            </button>
+          </div>
+
+          {/* Call Log Modal */}
+          {showCallLogModal && (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 shadow-sm relative animate-in fade-in zoom-in duration-200">
+              <button 
+                onClick={() => setShowCallLogModal(false)}
+                className="absolute top-3 right-3 text-purple-400 hover:text-purple-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-2 mb-3">
+                <PhoneCall className="h-4 w-4 text-purple-600" />
+                <h3 className="text-sm font-bold text-purple-900">Log a Call</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-purple-800 mb-1 block">Outcome</label>
+                  <select
+                    value={callOutcome}
+                    onChange={(e) => setCallOutcome(e.target.value)}
+                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700"
+                  >
+                    <option value="Interested">Interested / Follow Up</option>
+                    <option value="Not Interested">Not Interested</option>
+                    <option value="No Answer">No Answer / Left Voicemail</option>
+                    <option value="Invalid Number">Invalid Number</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-purple-800 mb-1 block">Call Notes</label>
+                  <textarea
+                    value={callNotes}
+                    onChange={(e) => setCallNotes(e.target.value)}
+                    placeholder="What was discussed?"
+                    rows={2}
+                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={handleLogCall}
+                  disabled={isLoggingCall || !callNotes.trim()}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isLoggingCall ? 'Saving...' : 'Save Call Log'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex border-b border-slate-200">
             <button
               onClick={() => setActiveTab('data')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
-              Lead Data
+              Data
             </button>
             <button
-              onClick={() => setActiveTab('history')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              onClick={() => setActiveTab('notes')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'notes' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
-              Activity History
+              Notes
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'notes' ? 'bg-amber-100' : 'bg-slate-100 text-slate-500'}`}>{notes.length}</span>
             </button>
             <button
-              onClick={() => setActiveTab('email')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'email' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              onClick={() => setActiveTab('emails')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'emails' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
-              Email History
+              Inbox
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'emails' ? 'bg-indigo-100' : 'bg-slate-100 text-slate-500'}`}>{emailReplies.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('timeline')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'timeline' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              Timeline
             </button>
           </div>
+
+          {/* Email Inbox Tab */}
+          {activeTab === 'emails' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Mail className="h-5 w-5 text-indigo-500" />
+                <h3 className="text-lg font-bold text-slate-800">Email Replies</h3>
+              </div>
+              
+              {emailReplies.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <Mail className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-slate-500">No replies received yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {emailReplies.map((reply) => (
+                    <div key={reply.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">{reply.fromEmail}</p>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                              Re: {reply.subject || reply.messageSend?.subject || 'Unknown Subject'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded-md border border-slate-200">
+                            {new Date(reply.receivedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {reply.messageSend?.campaign?.name && (
+                          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+                            <Send className="h-3 w-3" />
+                            Campaign: {reply.messageSend.campaign.name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white">
+                        {parseEmailBody(reply.body)}
+                      </div>
+                      <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-end">
+                        <a 
+                          href={`mailto:${reply.fromEmail}?subject=Re: ${encodeURIComponent(reply.subject || '')}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                        >
+                          <Mail className="h-3.5 w-3.5" /> Reply back
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Data Tab */}
           {activeTab === 'data' && (
@@ -523,91 +942,74 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             </div>
           )}
 
-          {/* History Tab */}
-          {activeTab === 'history' && (
+          {/* Unified Timeline Tab */}
+          {activeTab === 'timeline' && (
             <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
               {isLoadingLogs ? (
                 <div className="flex items-center justify-center py-8">
-                  <span className="text-sm font-medium text-slate-500">Loading history...</span>
+                  <span className="text-sm font-medium text-slate-500">Loading timeline...</span>
                 </div>
-              ) : logs.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-8">No activity history found for this lead.</p>
-              ) : (
-                <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
-                  {logs.map((log) => (
-                    <div key={log.id} className="relative pl-6">
-                      <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-primary" />
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-bold text-slate-800">{log.action.replace(/_/g, ' ')}</span>
-                        <span className="text-xs font-medium text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
-                      </div>
-                      <p className="text-sm text-slate-600 mb-2">{log.details}</p>
-                      {log.changes && (
-                        <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                          {Object.entries(JSON.parse(log.changes)).map(([field, vals]: any) => (
-                            <div key={field} className="flex items-center text-xs mb-1 last:mb-0">
-                              <span className="font-semibold text-slate-700 w-32 capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>
-                              <span className="text-slate-500 bg-white border px-1.5 py-0.5 rounded mr-2 line-through">{vals.from}</span>
-                              <ArrowRight className="w-3 h-3 text-slate-400 mr-2" />
-                              <span className="text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded font-medium">{vals.to}</span>
+              ) : (() => {
+                // Merge logs and emailLogs
+                const merged = [
+                  ...logs.map(log => ({ ...log, _type: 'activity', _date: new Date(log.createdAt).getTime() })),
+                  ...emailLogs.map(msg => ({ ...msg, _type: 'email', _date: new Date(msg.sentAt || msg.createdAt).getTime() }))
+                ].sort((a, b) => b._date - a._date);
+
+                if (merged.length === 0) {
+                  return <p className="text-sm text-slate-500 text-center py-8">No activity history found for this lead.</p>;
+                }
+
+                return (
+                  <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
+                    {merged.map((item, idx) => {
+                      if (item._type === 'activity') {
+                        const log = item;
+                        return (
+                          <div key={`act-${log.id}-${idx}`} className="relative pl-6 group">
+                            <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-primary group-hover:scale-125 transition-transform" />
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-bold text-slate-800">{log.action.replace(/_/g, ' ')}</span>
+                              <span className="text-xs font-medium text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Email History Tab */}
-          {activeTab === 'email' && (
-            <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
-              {isLoadingLogs ? (
-                <div className="flex items-center justify-center py-10">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                </div>
-              ) : emailLogs.length === 0 ? (
-                <div className="text-center py-10 text-slate-500 text-sm">
-                  No email history available for this lead.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {emailLogs.map((msg) => (
-                    <div key={msg.id} className="p-4 border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-sm">{msg.subject || '(No Subject)'}</h4>
-                          <p className="text-xs text-slate-500 mt-0.5">Campaign: {msg.campaign?.name}</p>
-                        </div>
-                        <span className={`px-2 py-1 text-[10px] font-bold rounded-full ${msg.status === 'REPLIED' ? 'bg-green-100 text-green-700' : msg.status === 'CLICKED' ? 'bg-purple-100 text-purple-700' : msg.status === 'OPENED' ? 'bg-emerald-100 text-emerald-700' : msg.status === 'DELIVERED' ? 'bg-cyan-100 text-cyan-700' : msg.status === 'QUEUED' || msg.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                          {msg.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100">
-                        <div className="text-xs text-slate-500">
-                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Sent</span>
-                          {formatDate(msg.sentAt) || '—'}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Opened</span>
-                          {formatDate(msg.openedAt) || '—'}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Clicked</span>
-                          {formatDate(msg.clickedAt) || '—'}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          <span className="block font-medium text-slate-400 uppercase text-[9px] tracking-wider">Replied</span>
-                          {formatDate(msg.repliedAt) || '—'}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                            <p className="text-sm text-slate-600 mb-2">{log.details}</p>
+                            {log.changes && (
+                              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 mt-2 text-xs">
+                                {Object.entries(JSON.parse(log.changes)).map(([field, vals]: any) => (
+                                  <div key={field} className="flex items-center text-xs mb-1 last:mb-0">
+                                    <span className="font-semibold text-slate-700 w-32 capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                    <span className="text-slate-500 bg-white border px-1.5 py-0.5 rounded mr-2 line-through">{vals.from}</span>
+                                    <ArrowRight className="w-3 h-3 text-slate-400 mr-2" />
+                                    <span className="text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded font-medium">{vals.to}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        const msg = item;
+                        return (
+                          <div key={`eml-${msg.id}-${idx}`} className="relative pl-6 group">
+                            <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-emerald-500 group-hover:scale-125 transition-transform" />
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-bold text-slate-800">Email: {msg.subject || '(No Subject)'}</span>
+                              <span className="text-xs font-medium text-slate-500">{new Date(msg.sentAt || msg.createdAt).toLocaleString()}</span>
+                            </div>
+                            <p className="text-sm text-slate-600 mb-2">Campaign: {msg.campaign?.name}</p>
+                            <div className="inline-flex items-center gap-2 mt-1">
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${msg.status === 'REPLIED' ? 'bg-green-100 text-green-700' : msg.status === 'CLICKED' ? 'bg-purple-100 text-purple-700' : msg.status === 'OPENED' ? 'bg-emerald-100 text-emerald-700' : msg.status === 'DELIVERED' ? 'bg-cyan-100 text-cyan-700' : msg.status === 'QUEUED' || msg.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                                {msg.status}
+                              </span>
+                              {msg.openedAt && <span className="text-[10px] text-slate-500">👁️ Opened: {new Date(msg.openedAt).toLocaleTimeString()}</span>}
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

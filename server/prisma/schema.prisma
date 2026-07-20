@@ -83,6 +83,9 @@ model Lead {
 
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id])
+  nextFollowUpAt  DateTime?     // Scheduled follow-up date
+  followUpNotes   String?       @db.Text // Quick note for the next follow-up
+  lastContactedAt DateTime?     // Auto-updated when a call/email is logged
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   activityLogs    ActivityLog[]
@@ -90,6 +93,17 @@ model Lead {
   consents        Consent[]
   messageSends    MessageSend[]
   emailReplies    EmailReply[]
+  notes           Note[]
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    Int?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Campaign {

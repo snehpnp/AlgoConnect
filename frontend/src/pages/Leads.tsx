@@ -17,18 +17,25 @@ import {
   AlertCircle,
   RefreshCw,
   Eye,
-  User,
+  User as UserIcon,
   MapPin,
   Building2,
   Link,
   Briefcase,
-  Activity
+  Activity,
+  LayoutGrid,
+  KanbanSquare,
+  Save,
+  Bookmark
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { leadsService, getUnifiedStatus } from '../services/leads.service';
+import { leadsService } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
+import { usersService } from '../services/users.service';
+import type { User } from '../services/users.service';
 import { Lead360Drawer } from '../components/Lead360Drawer';
 import { DirectMailModal } from '../components/DirectMailModal';
+import { LeadsBoard } from '../components/LeadsBoard';
 
 
 const hasValue = (val: any): boolean => {
@@ -175,6 +182,20 @@ export const Leads: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'board'>('grid');
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  const [savedViews, setSavedViews] = useState<{name: string, filters: any}[]>(() => {
+    const saved = localStorage.getItem('algoConnect_savedViews');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Fetch team members for bulk assign
+  useEffect(() => {
+    usersService.getUsers().then((res: any) => {
+      setTeamMembers(res.data);
+    }).catch((err: any) => console.error('Failed to load team members:', err));
+  }, []);
 
   // Automatically fetch and open lead drawer if navigated to /leads/:id
   useEffect(() => {
@@ -210,14 +231,23 @@ export const Leads: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Read initial filter from location state, default to 'All'
   const initialFilter = location.state?.unifiedStatus || 'All';
   const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
-  
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [stateFilter, setStateFilter] = useState('All');
-  const [cityFilter, setCityFilter] = useState('All');
-  const [websiteStatusFilter, setWebsiteStatusFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState(location.state?.typeFilter || 'All');
+  const [stateFilter, setStateFilter] = useState(location.state?.stateFilter || 'All');
+  const [cityFilter, setCityFilter] = useState(location.state?.cityFilter || 'All');
+  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(location.state?.websiteStatusFilter || 'All');
+
+  // Sync state if navigation occurs (e.g. clicking dashboard cards again)
+  useEffect(() => {
+    if (location.state) {
+      setUnifiedStatusFilter(location.state.unifiedStatus || 'All');
+      setTypeFilter(location.state.typeFilter || 'All');
+      setStateFilter(location.state.stateFilter || 'All');
+      setCityFilter(location.state.cityFilter || 'All');
+      setWebsiteStatusFilter(location.state.websiteStatusFilter || 'All');
+    }
+  }, [location.state]);
   const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[] }>({ states: [], cities: [], types: [] });
 
   // Pagination State
@@ -424,8 +454,75 @@ export const Leads: React.FC = () => {
 
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedLeadIds(sortedLeads.map(l => l.id));
+    } else {
+      setSelectedLeadIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: number) => {
+    setSelectedLeadIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Delete ${selectedLeadIds.length} leads? This cannot be undone.`)) return;
+    // For simplicity, looping over deletes (or you can add a bulk delete endpoint)
+    try {
+      await Promise.all(selectedLeadIds.map(id => leadsService.deleteLead(id)));
+      toast.success('Leads deleted successfully');
+      setSelectedLeadIds([]);
+      fetchLeads();
+    } catch (err: any) {
+      toast.error('Failed to delete some leads');
+    }
+  };
+
+  const handleBulkAssign = async (userId: string) => {
+    if (!userId) return;
+    try {
+      await Promise.all(selectedLeadIds.map(id => leadsService.updateLead(id, { userId: parseInt(userId) } as any)));
+      toast.success('Leads assigned successfully');
+      setSelectedLeadIds([]);
+      fetchLeads();
+    } catch (err: any) {
+      toast.error('Failed to assign some leads');
+    }
+  };
+
+  const handleSaveView = () => {
+    const name = window.prompt('Enter a name for this view (e.g. Hot Mumbai Leads):');
+    if (!name) return;
+    const newView = {
+      name,
+      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, websiteStatusFilter }
+    };
+    const newSavedViews = [...savedViews, newView];
+    setSavedViews(newSavedViews);
+    localStorage.setItem('algoConnect_savedViews', JSON.stringify(newSavedViews));
+    toast.success('View saved successfully!');
+  };
+
+  const applyView = (filters: any) => {
+    setStateFilter(filters.stateFilter || 'All');
+    setCityFilter(filters.cityFilter || 'All');
+    setUnifiedStatusFilter(filters.unifiedStatusFilter || 'All');
+    setTypeFilter(filters.typeFilter || 'All');
+    setWebsiteStatusFilter(filters.websiteStatusFilter || 'All');
+  };
+
+  const deleteView = (name: string, e: any) => {
+    e.stopPropagation();
+    const newViews = savedViews.filter(v => v.name !== name);
+    setSavedViews(newViews);
+    localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
+  };
+
   return (
-    <div className="relative flex gap-6">
+    <div className="relative flex gap-6 pb-20">
       {/* Main List Section */}
       <div className="flex-1 space-y-6 min-w-0">
         {/* Header */}
@@ -449,9 +546,20 @@ export const Leads: React.FC = () => {
               <Upload className="h-4 w-4" />
               <span>Import</span>
             </button>
-            <button className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm">
+            <button 
+              className="btn-secondary !px-3 sm:!px-4 text-xs sm:text-sm"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (stateFilter !== 'All') params.set('stateFilter', stateFilter);
+                if (cityFilter !== 'All') params.set('cityFilter', cityFilter);
+                if (typeFilter !== 'All') params.set('typeFilter', typeFilter);
+                if (searchQuery) params.set('search', searchQuery);
+                const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
+                window.open(`${baseUrl}/api/leads/export/csv?${params.toString()}`, '_blank');
+              }}
+            >
               <Download className="h-4 w-4" />
-              <span>Export</span>
+              <span>Export CSV</span>
             </button>
             <button
               onClick={() => handleOpenForm()}
@@ -476,9 +584,24 @@ export const Leads: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <select
-              value={stateFilter}
+          {(stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All') && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 mt-2">
+              <span className="text-xs font-medium text-slate-500">Active Filters:</span>
+              
+              <button 
+                onClick={handleSaveView}
+                className="ml-auto flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                Save this View
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 w-full">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+              <select
+                value={stateFilter}
               onChange={(e) => {
                 setStateFilter(e.target.value);
                 setCityFilter('All'); // Reset city when state changes
@@ -523,12 +646,15 @@ export const Leads: React.FC = () => {
               <option value="IMPORTED">Imported</option>
               <option value="UNVERIFIED">Unverified</option>
               <option value="NEW">New (Verified)</option>
-              <option value="CONTACTED">Contacted</option>
+              <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
+              <option value="CONTACTED">Contacted (Only)</option>
+              <option value="FOLLOW_UP">Follow-up (Only)</option>
               <option value="ENGAGED">Engaged</option>
               <option value="QUALIFIED">Qualified</option>
               <option value="NEGOTIATION">Negotiation</option>
               <option value="WON">Client Won</option>
               <option value="LOST">Client Lost</option>
+              <option value="DNC">Do Not Contact</option>
               <option value="INVALID">Invalid/Inactive</option>
             </select>
 
@@ -550,8 +676,45 @@ export const Leads: React.FC = () => {
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            </div>
+            
+            <div className="flex items-center rounded-lg bg-slate-100 p-1 shrink-0 self-start">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                title="List View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('board')}
+                className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${viewMode === 'board' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Board View"
+              >
+                <KanbanSquare className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Smart Saved Views */}
+        {savedViews.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0 flex items-center gap-1"><Bookmark className="w-3 h-3" /> Saved Views:</span>
+            {savedViews.map((view) => (
+              <div 
+                key={view.name} 
+                onClick={() => applyView(view.filters)}
+                className="group flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors shrink-0"
+              >
+                <span>{view.name}</span>
+                <button onClick={(e) => deleteView(view.name, e)} className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-red-500 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Leads Table */}
         <div className="card !p-0 overflow-hidden">
@@ -577,18 +740,44 @@ export const Leads: React.FC = () => {
                 Retry
               </button>
             </div>
+          ) : viewMode === 'board' ? (
+            <LeadsBoard 
+              leads={sortedLeads} 
+              onLeadClick={(lead) => {
+                navigate(`/leads/${lead.id}`);
+              }}
+              onUpdateStage={async (leadId, newStage) => {
+                // Optimistically update local state for drag drop
+                setLeads(prev => prev.map(l => l.id === leadId ? { ...l, salesStage: newStage } : l));
+                try {
+                  await leadsService.updateLead(leadId, { salesStage: newStage } as any);
+                  toast.success('Lead stage updated');
+                } catch (err) {
+                  toast.error('Failed to update lead stage');
+                  fetchLeads(); // revert on failure
+                }
+              }}
+            />
           ) : (
             <>
               <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <table className="w-full border-collapse text-left text-sm" style={{ minWidth: '900px' }}>
                   <thead>
                     <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC] text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                      <th className="py-4 px-6 w-[4%] min-w-[50px]">Id</th>
+                      <th className="py-4 px-4 w-[2%] min-w-[40px]">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                          checked={selectedLeadIds.length > 0 && selectedLeadIds.length === sortedLeads.length}
+                          onChange={handleSelectAll}
+                        />
+                      </th>
+                      <th className="py-4 px-2 w-[4%] min-w-[50px]">Id</th>
                       <th className="py-4 px-6 w-[26%] min-w-[280px]">Name</th>
                       <th className="py-4 px-6 w-[22%] min-w-[220px]">Email / Phone</th>
                       <th className="py-4 px-6 w-[6%] min-w-[70px]">Type</th>
                       <th className="py-4 px-6 w-[10%] min-w-[100px]">Reg No.</th>
-                      <th className="py-4 px-6 w-[15%] min-w-[130px] text-center">Status</th>
+                      <th className="py-4 px-6 w-[15%] min-w-[130px] text-center">Stage (Edit)</th>
                       <th 
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
@@ -621,7 +810,15 @@ export const Leads: React.FC = () => {
                             className={`hover:bg-slate-50 transition-colors ${selectedLead?.id === lead.id ? 'bg-blue-50/60' : ''
                               }`}
                           >
-                            <td className="py-4 px-6">
+                            <td className="py-4 px-4" onClick={e => e.stopPropagation()}>
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-slate-300 text-primary focus:ring-primary"
+                                checked={selectedLeadIds.includes(lead.id)}
+                                onChange={() => handleSelectOne(lead.id)}
+                              />
+                            </td>
+                            <td className="py-4 px-2">
                               <div className="flex items-center gap-3">
                                 <p className="text-xs font-bold text-slate-500">
                                   #{rangeStart + index}
@@ -662,19 +859,62 @@ export const Leads: React.FC = () => {
                                   >
                                     {lead.name}
                                   </a>
+                                  {lead.user ? (
+                                    <div className="flex items-center gap-1.5 mt-1" title={`Assigned to ${lead.user.name}`}>
+                                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">
+                                        {lead.user.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{lead.user.name}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 mt-1" title="Unassigned">
+                                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-400">
+                                        ?
+                                      </div>
+                                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Unassigned</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
 
                             {/* Contact Info */}
                             <td className="py-4 px-6">
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-1.5">
                                 {lead.email && <p className="font-medium text-[#0F172A]">{lead.email}</p>}
                                 {lead.email2 && <p className="font-medium text-[#0F172A]">{lead.email2}</p>}
                                 {(!lead.email && !lead.email2) && <p className="font-medium text-[#0F172A]">—</p>}
 
-                                {lead.phone && <p className="text-xs text-[#64748B]">{lead.phone}</p>}
-                                {lead.phone2 && <p className="text-xs text-[#64748B]">{lead.phone2}</p>}
+                                {lead.phone && (
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-[#64748B]">{lead.phone}</p>
+                                    <a 
+                                      href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="WhatsApp"
+                                      className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" /></svg>
+                                    </a>
+                                  </div>
+                                )}
+                                {lead.phone2 && (
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-[#64748B]">{lead.phone2}</p>
+                                    <a 
+                                      href={`https://wa.me/${lead.phone2.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="WhatsApp"
+                                      className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" /></svg>
+                                    </a>
+                                  </div>
+                                )}
                                 {(!lead.phone && !lead.phone2) && <p className="text-xs text-[#64748B]">—</p>}
                               </div>
                             </td>
@@ -696,26 +936,23 @@ export const Leads: React.FC = () => {
 
                             </td>
 
-                            {/* Unified Status */}
-                            <td className="py-4 px-6 text-center">
-                              {(() => {
-                                const status = getUnifiedStatus(lead);
-                                let colorClass = 'bg-slate-100 text-slate-700';
-                                
-                                if (['Client Won', 'Qualified', 'Converted / Closed'].includes(status)) colorClass = 'bg-emerald-100 text-emerald-700';
-                                else if (['Replied', 'Demo Requested', 'Negotiation'].includes(status)) colorClass = 'bg-purple-100 text-purple-700';
-                                else if (['Opened', 'Clicked', 'Contacted'].includes(status)) colorClass = 'bg-blue-100 text-blue-700';
-                                else if (['Active'].includes(status)) colorClass = 'bg-teal-100 text-teal-700';
-                                else if (['Enriched', 'Imported'].includes(status)) colorClass = 'bg-slate-100 text-slate-700';
-                                else if (['Client Lost', 'Likely Inactive'].includes(status)) colorClass = 'bg-red-100 text-red-700';
-                                else if (status === 'Unverified') colorClass = 'bg-amber-100 text-amber-700';
-
-                                return (
-                                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${colorClass}`}>
-                                    {status}
-                                  </span>
-                                );
-                              })()}
+                            {/* Inline Edit Stage */}
+                            <td className="py-4 px-6 text-center" onClick={e => e.stopPropagation()}>
+                              <select
+                                value={lead.salesStage || 'New'}
+                                onChange={(e) => handleUpdateStatus(lead, e.target.value)}
+                                className={`inline-flex w-full items-center rounded-md px-2 py-1.5 text-xs font-bold outline-none ring-1 ring-inset cursor-pointer appearance-none text-center ${
+                                  ['Client Won', 'Qualified'].includes(lead.salesStage || '') ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100' :
+                                  ['Negotiation'].includes(lead.salesStage || '') ? 'bg-purple-50 text-purple-700 ring-purple-600/20 hover:bg-purple-100' :
+                                  ['Contacted', 'Follow-up'].includes(lead.salesStage || '') ? 'bg-blue-50 text-blue-700 ring-blue-600/20 hover:bg-blue-100' :
+                                  ['Client Lost', 'Do Not Contact'].includes(lead.salesStage || '') ? 'bg-red-50 text-red-700 ring-red-600/20 hover:bg-red-100' :
+                                  'bg-slate-50 text-slate-700 ring-slate-600/20 hover:bg-slate-100'
+                                }`}
+                              >
+                                {['New', 'Contacted', 'Qualified', 'Follow-up', 'Negotiation', 'Client Won', 'Client Lost', 'Do Not Contact'].map(stage => (
+                                  <option key={stage} value={stage}>{stage}</option>
+                                ))}
+                              </select>
                             </td>
 
                             {/* Lead Score */}
@@ -865,6 +1102,40 @@ export const Leads: React.FC = () => {
         </div>
       </div>
 
+      {/* Bulk Actions Floating Bar */}
+      {selectedLeadIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 z-40 border border-slate-700 animate-fade-in">
+          <div className="text-sm font-bold">
+            <span className="text-blue-400">{selectedLeadIds.length}</span> leads selected
+          </div>
+          <div className="h-4 w-px bg-slate-700"></div>
+          <div className="flex items-center gap-3">
+            <select
+              onChange={(e) => handleBulkAssign(e.target.value)}
+              className="text-xs font-bold text-slate-800 bg-slate-100 hover:bg-white px-3 py-1.5 rounded-md outline-none cursor-pointer"
+            >
+              <option value="">Assign To...</option>
+              {teamMembers.map(member => (
+                <option key={member.id} value={member.id}>{member.name}</option>
+              ))}
+            </select>
+            <div className="h-3 w-px bg-slate-700"></div>
+            <button 
+              onClick={handleBulkDelete}
+              className="text-xs font-bold text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-3 py-1.5 rounded-md transition-colors"
+            >
+              Delete Selected
+            </button>
+            <button 
+              onClick={() => setSelectedLeadIds([])}
+              className="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <Lead360Drawer 
         isOpen={!!selectedLead} 
         onClose={handleCloseDrawer} 
@@ -902,7 +1173,7 @@ export const Leads: React.FC = () => {
               {/* Basic Details */}
               <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-5 space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" /> Basic Details
+                  <UserIcon className="h-4 w-4 text-primary" /> Basic Details
                 </h3>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Name *</label>

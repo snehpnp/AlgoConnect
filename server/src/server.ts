@@ -18,6 +18,8 @@ import messageRoutes from './routes/message.routes';
 import trackingRoutes from './routes/tracking.routes';
 import aiRoutes from './routes/ai.routes';
 import notificationRoutes from './routes/notification.routes';
+import notesRoutes from './routes/notes.routes';
+import auditRoutes from './routes/audit.routes';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -46,6 +48,8 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/track', trackingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api', notesRoutes); // notes, follow-ups, csv export
+app.use('/api/audit-logs', auditRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

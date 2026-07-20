@@ -11,7 +11,8 @@ import {
   Target,
   ChevronLeft,
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  Activity
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -76,6 +77,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, isCollapsed
       name: 'Msg Templates',
       path: '/templates',
       icon: <MessageSquare className="h-5 w-5" />,
+      allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
+    },
+    {
+      name: 'Reports',
+      path: '/reports',
+      icon: <Activity className="h-5 w-5" />,
       allowedRoles: ['System Admin', 'Growth Operator', 'Compliance Admin'],
     },
     {

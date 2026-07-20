@@ -25,8 +25,15 @@ export interface Lead {
   exchangeName?: string | null;
   tradeName?: string | null;
   userId: number | null;
+  user?: { id: number; name: string } | null;
+  leadScore?: number;
   createdAt: string;
   updatedAt: string;
+
+  // Follow-Up fields
+  nextFollowUpAt?: string | null;
+  followUpNotes?: string | null;
+  lastContactedAt?: string | null;
   
   // Enrichment fields
   isEnriched?: boolean;

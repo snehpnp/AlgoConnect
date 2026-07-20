@@ -3,6 +3,7 @@ import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
 import { messagingGateway } from '../services/messagingGateway.service';
 import { SocketService } from '../services/socket.service';
+import { RoutingService } from '../services/routing.service';
 
 export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -103,6 +104,22 @@ export const importLeads = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  // Auto-route the newly imported leads
+  try {
+    const newLeadRecords = await prisma.lead.findMany({
+      where: {
+        createdAt: { gte: new Date(Date.now() - 10000) }, // Roughly leads just created
+      },
+      select: { id: true },
+      take: createdLeads.count,
+      orderBy: { id: 'desc' }
+    });
+    const newLeadIds = newLeadRecords.map(l => l.id);
+    await RoutingService.autoAssignLeadsBulk(newLeadIds);
+  } catch (err) {
+    console.error('Auto-routing failed during import:', err);
+  }
+
   res.status(200).json({ message: 'Leads imported successfully', count: createdLeads.count });
 });
 
@@ -128,7 +145,49 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (salesStage && salesStage !== 'All') where.salesStage = salesStage;
   
   if (unifiedStatus && unifiedStatus !== 'All') {
-    where.status = unifiedStatus;
+    switch(unifiedStatus) {
+      case 'NEW':
+        where.salesStage = 'New';
+        break;
+      case 'CONTACTED':
+        where.salesStage = 'Contacted';
+        break;
+      case 'FOLLOW_UP':
+        where.salesStage = 'Follow-up';
+        break;
+      case 'CONTACTED_OR_FOLLOW_UP':
+        where.salesStage = { in: ['Contacted', 'Follow-up'] };
+        break;
+      case 'QUALIFIED':
+        where.salesStage = 'Qualified';
+        break;
+      case 'NEGOTIATION':
+        where.salesStage = 'Negotiation';
+        break;
+      case 'WON':
+        where.salesStage = 'Client Won';
+        break;
+      case 'LOST':
+        where.salesStage = 'Client Lost';
+        break;
+      case 'DNC':
+        where.salesStage = 'Do Not Contact';
+        break;
+      case 'UNVERIFIED':
+        where.verificationStatus = 'Unverified';
+        break;
+      case 'ENGAGED':
+        where.engagementStatus = { not: 'Not Engaged' };
+        break;
+      case 'IMPORTED':
+        where.verificationStatus = 'Imported';
+        break;
+      case 'INVALID':
+        where.verificationStatus = { in: ['Likely Inactive', 'Duplicate'] };
+        break;
+      default:
+        where.status = unifiedStatus;
+    }
   }
   
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
@@ -180,6 +239,9 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       orderBy: { [sortField]: sortOrder },
       skip,
       take: limit,
+      include: {
+        user: { select: { id: true, name: true } }
+      }
     }),
     prisma.lead.count({ where })
   ]);
@@ -254,13 +316,23 @@ export const createLead = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
+  // Auto-route the new lead
+  try {
+    await RoutingService.autoAssignLead(newLead.id);
+  } catch (err) {
+    console.error('Auto-routing failed for new lead:', err);
+  }
+
   res.status(201).json({ message: 'Lead created successfully', data: newLead });
 });
 
 export const getLeadById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const lead = await prisma.lead.findUnique({
-    where: { id: parseInt(id as string) }
+    where: { id: parseInt(id as string) },
+    include: {
+      user: { select: { id: true, name: true } }
+    }
   });
 
   if (!lead) {
@@ -275,9 +347,10 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
   const { 
     name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, 
     registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
-    website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
+    website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl,
+    userId: assignedUserId
   } = req.body;
-  const userId = req.user?.id;
+  const currentUserId = req.user?.id;
 
   if (!id) {
     throw new Error('Lead ID is required');
@@ -294,12 +367,16 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
     where: { id: leadId },
     data: {
       name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
-      website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
+      website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl,
+      ...(assignedUserId !== undefined && { userId: assignedUserId ? parseInt(assignedUserId as string) : null })
+    },
+    include: {
+      user: { select: { id: true, name: true } }
     }
   });
 
   // Track changes
-  if (userId) {
+  if (currentUserId) {
     const changes: any = {};
     if (salesStage && existingLead.salesStage !== salesStage) changes.salesStage = { from: existingLead.salesStage, to: salesStage };
     if (verificationStatus && existingLead.verificationStatus !== verificationStatus) changes.verificationStatus = { from: existingLead.verificationStatus, to: verificationStatus };
@@ -309,7 +386,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
     if (Object.keys(changes).length > 0) {
       await prisma.activityLog.create({
         data: {
-          userId,
+          userId: currentUserId,
           leadId,
           action: 'UPDATED_STATUSES',
           details: 'Updated lead statuses',
@@ -326,7 +403,7 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
     });
     
     for (const admin of admins) {
-      if (admin.id !== userId) {
+      if (admin.id !== currentUserId) {
         const notif = await prisma.notification.create({
           data: {
             userId: admin.id,
@@ -339,6 +416,24 @@ export const updateLead = asyncHandler(async (req: Request, res: Response) => {
         });
         SocketService.sendToUser(admin.id, 'new_notification', notif);
       }
+    }
+  }
+
+  // Check for assignment change notification
+  if (assignedUserId !== undefined && existingLead.userId !== assignedUserId && assignedUserId !== null) {
+    // Notify the newly assigned user
+    if (assignedUserId !== currentUserId) {
+      const notif = await prisma.notification.create({
+        data: {
+          userId: assignedUserId,
+          title: 'New Lead Assigned',
+          message: `Lead "${updatedLead.name}" has been assigned to you by ${(req.user as any)?.name || 'a user'}.`,
+          type: 'LEAD_ASSIGNED',
+          relatedEntityId: updatedLead.id,
+          relatedEntity: 'Lead'
+        }
+      });
+      SocketService.sendToUser(assignedUserId, 'new_notification', notif);
     }
   }
 
