@@ -204,22 +204,23 @@ export const Campaigns: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in relative pb-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 sm:space-y-8 animate-fade-in relative pb-24 sm:pb-10 px-3 sm:px-6 pt-2">
+      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between px-1 sm:px-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
             Campaign Automation
             <div className="flex items-center gap-2">
               <button
                 onClick={handleToggleEngine}
-                className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 font-semibold transition-colors ${isEngineRunning
+                className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border flex items-center gap-1 font-semibold transition-colors ${isEngineRunning
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                   : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                   }`}
                 title="Toggle Master Engine Status"
               >
-                <div className={`h-2 w-2 rounded-full ${isEngineRunning ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
-                {isEngineRunning ? 'ENGINE RUNNING' : 'ENGINE PAUSED'}
+                <div className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${isEngineRunning ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
+                <span className="hidden sm:inline">{isEngineRunning ? 'ENGINE RUNNING' : 'ENGINE PAUSED'}</span>
+                <span className="sm:hidden">{isEngineRunning ? 'RUNNING' : 'PAUSED'}</span>
               </button>
               <button
                 onClick={() => setIsEngineInfoModalOpen(true)}
@@ -237,41 +238,41 @@ export const Campaigns: React.FC = () => {
               </button>
             </div>
           </h1>
-          <p className="text-sm text-[#64748B]">Create, deploy, and monitor outreach campaigns.</p>
+          <p className="hidden sm:block text-sm text-[#64748B] mt-1">Create, deploy, and monitor outreach campaigns.</p>
         </div>
         <button
           onClick={() => navigate('/campaigns/create')}
-          className="btn-primary"
+          className="btn-primary self-end sm:self-auto text-sm px-4 py-2"
         >
-          <Plus className="h-4.5 w-4.5" />
+          <Plus className="h-4 w-4 mr-1.5" />
           Create Campaign
         </button>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-3 px-1 sm:px-0">
         {[
-          { label: 'Active Campaigns', value: `${activeCount} Running` },
-          { label: 'Total Campaigns', value: campaigns.length.toString() },
-          { label: 'Latest Update', value: campaigns.length > 0 ? new Date(campaigns[0].updatedAt).toLocaleDateString() : 'N/A' },
+          { label: 'Active', value: `${activeCount}` },
+          { label: 'Total', value: campaigns.length.toString() },
+          { label: 'Updated', value: campaigns.length > 0 ? new Date(campaigns[0].updatedAt).toLocaleDateString() : 'N/A' },
         ].map((crd, i) => (
-          <div key={i} className="card group">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider group-hover:text-primary transition-colors">{crd.label}</p>
-            <p className="text-2xl font-extrabold text-[#0F172A] mt-1.5">{crd.value}</p>
+          <div key={i} className={`card group p-3 sm:p-5 ${i === 2 ? 'col-span-2 sm:col-span-1' : ''}`}>
+            <p className="text-[10px] sm:text-xs font-bold text-[#64748B] uppercase tracking-wider group-hover:text-primary transition-colors">{crd.label}</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-[#0F172A] mt-1 sm:mt-1.5">{crd.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="card !p-0 overflow-visible">
-        <div className="border-b border-[#E2E8F0] p-4.5 bg-[#F8FAFC] flex items-center justify-between">
+      <div className="card !p-0 overflow-visible mx-1 sm:mx-0">
+        <div className="border-b border-[#E2E8F0] p-3 sm:p-4.5 bg-[#F8FAFC] flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-[#0F172A]">All Campaigns</h3>
-          <div className="relative w-64">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+          <div className="relative w-40 sm:w-64 shrink-0">
+            <Search className="absolute top-1/2 left-2.5 sm:left-3 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
-              placeholder="Search campaigns..."
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input-base !pl-9"
+              className="input-base !pl-8 sm:!pl-9 !py-1.5 sm:!py-2 w-full text-xs sm:text-sm"
             />
           </div>
         </div>
@@ -717,7 +718,22 @@ export const Campaigns: React.FC = () => {
                 <div className="text-sm text-slate-500 border-b border-slate-100 pb-2 mb-3">Date: {new Date(currentReply.receivedAt).toLocaleString()}</div>
 
                 <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed font-sans">
-                  {currentReply.body}
+                  {(() => {
+                    const body = currentReply.body || '';
+                    const wroteRegex = /\nOn\s+.*?\bwrote:/is;
+                    const origMsgRegex = /-{5,}\s*Original Message\s*-{5,}/is;
+                    const fromRegex = /\nFrom:\s+/i;
+                    
+                    let cleanBody = body;
+                    if (wroteRegex.test(cleanBody)) cleanBody = cleanBody.split(wroteRegex)[0];
+                    if (origMsgRegex.test(cleanBody)) cleanBody = cleanBody.split(origMsgRegex)[0];
+                    if (fromRegex.test(cleanBody)) cleanBody = cleanBody.split(fromRegex)[0];
+                    
+                    // Remove trailing lines that just have > or whitespace
+                    cleanBody = cleanBody.replace(/(\n>\s*)+$/s, '');
+                    
+                    return cleanBody.trim() || body.trim();
+                  })()}
                 </div>
               </div>
             </div>

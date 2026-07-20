@@ -144,7 +144,7 @@ const AdminUsers = () => {
         </div>
         <button 
           onClick={openAddModal} 
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-blue-600 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-blue-600 transition-colors self-end sm:self-auto"
         >
           + Add New User
         </button>
@@ -180,8 +180,65 @@ const AdminUsers = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Mobile Card List */}
+        <div className="sm:hidden divide-y divide-[#E2E8F0] w-full">
+          {loading ? (
+            <div className="py-20 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+              <p className="text-[#64748B] font-medium">Loading users...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="py-20 text-center px-4">
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 mx-auto mb-4">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+              <p className="font-bold text-[#0F172A]">No users found</p>
+              <p className="text-xs text-[#64748B] mt-1">Adjust your filters or add a new user.</p>
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div key={user.id} className="p-4 bg-white flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 text-base">{user.name}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 break-all">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      {user.email}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 shrink-0 border border-slate-200">
+                    <Shield className="h-3 w-3 text-slate-500" />
+                    {user.role?.name || 'Unknown'}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => openEditModal(user)} 
+                      className="p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }} 
+                      className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden sm:block overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-[#F8FAFC] text-xs font-bold uppercase text-[#64748B] border-b border-[#E2E8F0]">
               <tr>
