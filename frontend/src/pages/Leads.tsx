@@ -666,6 +666,7 @@ export const Leads: React.FC = () => {
                 <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
                 <option value="CONTACTED">Contacted (Only)</option>
                 <option value="FOLLOW_UP">Follow-up (Only)</option>
+                <option value="OVERDUE">Overdue Follow-Up</option>
                 <option value="ENGAGED">Engaged</option>
                 <option value="QUALIFIED">Qualified</option>
                 <option value="NEGOTIATION">Negotiation</option>

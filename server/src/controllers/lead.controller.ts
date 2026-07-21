@@ -185,6 +185,11 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       case 'INVALID':
         where.verificationStatus = { in: ['Likely Inactive', 'Duplicate'] };
         break;
+      case 'OVERDUE':
+        const startOfDay = new Date(); 
+        startOfDay.setHours(0, 0, 0, 0);
+        where.nextFollowUpAt = { lt: startOfDay };
+        break;
       default:
         where.status = unifiedStatus;
     }

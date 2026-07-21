@@ -142,7 +142,10 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {overdueFollowUpsCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-red-600 animate-pulse whitespace-nowrap">
+            <span 
+              onClick={() => navigate('/leads', { state: { unifiedStatus: 'OVERDUE' } })}
+              className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-red-600 animate-pulse whitespace-nowrap cursor-pointer hover:bg-red-100 transition-colors"
+            >
               ⚠️ {overdueFollowUpsCount} Overdue Follow-Up{overdueFollowUpsCount > 1 ? 's' : ''}
             </span>
           )}

@@ -46,7 +46,9 @@ Do not use HTML for SMS/WhatsApp, use plain text. Do not include markdown format
       response_format: { type: 'json_object' }
     });
 
-    const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+    let responseText = chatCompletion.choices[0]?.message?.content || '{}';
+    // Clean up potential markdown formatting from the LLM
+    responseText = responseText.replace(/^```json\s*/im, '').replace(/```\s*$/im, '').trim();
     const parsedData = JSON.parse(responseText);
 
     res.status(200).json({

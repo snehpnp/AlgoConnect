@@ -4,7 +4,7 @@ import {
   CheckCircle2, Sparkles, ArrowRight, Globe,
   Link as LinkIcon, Briefcase, AlertCircle, Edit2,
   StickyNote, Calendar, Send, Trash2, Bell,
-  MessageSquare, PhoneCall
+  MessageSquare, PhoneCall, Loader2
 } from 'lucide-react';
 import type { Lead } from '../services/leads.service';
 import { leadsService, getUnifiedStatus } from '../services/leads.service';
@@ -181,6 +181,26 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
     }
   };
 
+  const handleClearFollowUp = async () => {
+    if (!lead) return;
+    setIsSavingFollowUp(true);
+    try {
+      const res = await apiClient.put(`/leads/${lead.id}/follow-up`, {
+        nextFollowUpAt: null,
+        followUpNotes: ''
+      });
+      onEdit({ ...lead, ...res.data.data } as any);
+      toast.success('Follow-up cleared!');
+      setShowFollowUpForm(false);
+      setFollowUpDate('');
+      setFollowUpNote('');
+    } catch {
+      toast.error('Failed to clear follow-up');
+    } finally {
+      setIsSavingFollowUp(false);
+    }
+  };
+
   const handleLogCall = async () => {
     if (!lead) return;
     setIsLoggingCall(true);
@@ -336,13 +356,25 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                 </div>
 
                 {!showFollowUpForm ? (
-                  <button
-                    onClick={() => setShowFollowUpForm(true)}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-amber-200 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-50 text-amber-600 rounded-lg py-3 text-sm font-semibold transition-all"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    {(lead as any).nextFollowUpAt ? 'Change Follow-Up Date' : 'Schedule Follow-Up'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowFollowUpForm(true)}
+                      className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-amber-200 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-50 text-amber-600 rounded-lg py-3 text-sm font-semibold transition-all"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      {(lead as any).nextFollowUpAt ? 'Change Follow-Up Date' : 'Schedule Follow-Up'}
+                    </button>
+                    {(lead as any).nextFollowUpAt && (
+                      <button
+                        onClick={handleClearFollowUp}
+                        className="flex-none flex items-center justify-center border-2 border-slate-200 hover:border-red-400 bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-lg px-4 py-3 transition-all"
+                        title="Remove/Close Follow-up"
+                        disabled={isSavingFollowUp}
+                      >
+                        {isSavingFollowUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div>

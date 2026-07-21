@@ -198,12 +198,52 @@ export const TemplateEditor = () => {
         channelType: formData.type,
       });
       if (res.data?.success && res.data?.data) {
-        setFormData((prev) => ({
-          ...prev,
-          subject: res.data.data.subject || prev.subject,
-          content: res.data.data.content || prev.content,
-        }));
-        if (formData.type === 'EMAIL') setShowHtml(true);
+        const generatedHtml = res.data.data.content;
+        
+        setFormData((prev) => {
+          const newData = {
+            ...prev,
+            subject: res.data.data.subject || prev.subject,
+            content: generatedHtml || prev.content,
+          };
+
+          if (prev.type === 'EMAIL' && generatedHtml) {
+            const basicDesign: any = {
+              counters: {
+                u_column: 1,
+                u_row: 1
+              },
+              body: {
+                rows: [
+                  {
+                    cells: [1],
+                    columns: [
+                      {
+                        contents: [
+                          {
+                            type: 'text',
+                            values: {
+                              text: generatedHtml,
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+                values: {}
+              },
+            };
+            newData.designJson = basicDesign;
+            // Also load into the active editor if it exists
+            setTimeout(() => {
+              emailEditorRef.current?.editor?.loadDesign(basicDesign);
+            }, 100);
+          }
+          
+          return newData;
+        });
+
         setAiOpen(false);
         toast.success('Draft generated — review and tweak below');
       }
