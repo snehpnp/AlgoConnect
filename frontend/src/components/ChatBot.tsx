@@ -255,9 +255,9 @@ export const ChatBot: React.FC = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="rounded-full shadow-2xl hover:shadow-3xl transition-all transform hover:-translate-y-2 group w-20 h-20 flex items-center justify-center bg-transparent border-none outline-none"
+          className="transition-all transform hover:-translate-y-2 group w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center bg-transparent border-none outline-none cursor-pointer"
         >
-          <img src="/mascot.png" alt="Chat" className="w-full h-full object-contain drop-shadow-xl group-hover:scale-110 transition-transform" />
+          <img src="/mascot.png" alt="Chat" className="w-full h-full object-contain drop-shadow-2xl group-hover:scale-110 transition-transform" />
         </button>
       )}
     </div>
