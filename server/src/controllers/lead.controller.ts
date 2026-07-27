@@ -138,6 +138,9 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const state = (req.query.state as string) || 'All';
   const city = (req.query.city as string) || 'All';
   const websiteStatus = (req.query.websiteStatus as string) || 'All';
+  const sellsAlgoTrading = (req.query.sellsAlgoTrading as string) || 'All';
+  const exchangeName = (req.query.exchangeName as string) || 'All';
+  const otherListings = (req.query.otherListings as string) || 'All';
   
   const skip = (page - 1) * limit;
   const where: any = {};
@@ -215,6 +218,40 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
     where.AND.push({
       website: { not: null },
       NOT: { website: '' }
+    });
+  }
+  
+  if (sellsAlgoTrading === 'Yes') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({ sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } });
+  } else if (sellsAlgoTrading === 'No') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({
+      OR: [
+        { sellsAlgoTrading: null },
+        { sellsAlgoTrading: '' },
+        { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }
+      ]
+    });
+  }
+
+  if (exchangeName && exchangeName !== 'All') {
+    where.exchangeName = exchangeName;
+  }
+  
+  if (otherListings === 'Yes') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({
+      otherListings: { not: null },
+      NOT: { otherListings: '' }
+    });
+  } else if (otherListings === 'No') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({
+      OR: [
+        { otherListings: null },
+        { otherListings: '' }
+      ]
     });
   }
   
@@ -520,11 +557,23 @@ export const getFilterOptions = asyncHandler(async (req: Request, res: Response)
     orderBy: { type: 'asc' }
   });
 
+  // Fetch distinct exchanges
+  const exchangesObj = await prisma.lead.findMany({
+    where: { 
+      exchangeName: { not: null },
+      NOT: { exchangeName: '' }
+    },
+    select: { exchangeName: true },
+    distinct: ['exchangeName'],
+    orderBy: { exchangeName: 'asc' }
+  });
+
   const states = statesObj.map(s => s.state).filter(Boolean);
   const cities = citiesObj.map(c => c.city).filter(Boolean);
   const types = typesObj.map(t => t.type).filter(Boolean);
+  const exchanges = exchangesObj.map(e => e.exchangeName).filter(Boolean);
 
-  res.status(200).json({ data: { states, cities, types }, message: 'Filter options retrieved' });
+  res.status(200).json({ data: { states, cities, types, exchanges }, message: 'Filter options retrieved' });
 });
 
 import fs from 'fs';

@@ -26,7 +26,8 @@ import {
   LayoutGrid,
   KanbanSquare,
   Save,
-  Bookmark
+  Bookmark,
+  Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
@@ -196,6 +197,7 @@ export const Leads: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showSavedViews, setShowSavedViews] = useState(false);
 
   // Fetch team members for bulk assign
   useEffect(() => {
@@ -244,6 +246,9 @@ export const Leads: React.FC = () => {
   const [stateFilter, setStateFilter] = useState(location.state?.stateFilter || 'All');
   const [cityFilter, setCityFilter] = useState(location.state?.cityFilter || 'All');
   const [websiteStatusFilter, setWebsiteStatusFilter] = useState(location.state?.websiteStatusFilter || 'All');
+  const [algoTradingFilter, setAlgoTradingFilter] = useState(location.state?.algoTradingFilter || 'All');
+  const [exchangeNameFilter, setExchangeNameFilter] = useState(location.state?.exchangeNameFilter || 'All');
+  const [otherListingsFilter, setOtherListingsFilter] = useState(location.state?.otherListingsFilter || 'All');
 
   // Sync state if navigation occurs (e.g. clicking dashboard cards again)
   useEffect(() => {
@@ -253,9 +258,12 @@ export const Leads: React.FC = () => {
       setStateFilter(location.state.stateFilter || 'All');
       setCityFilter(location.state.cityFilter || 'All');
       setWebsiteStatusFilter(location.state.websiteStatusFilter || 'All');
+      setAlgoTradingFilter(location.state.algoTradingFilter || 'All');
+      setExchangeNameFilter(location.state.exchangeNameFilter || 'All');
+      setOtherListingsFilter(location.state.otherListingsFilter || 'All');
     }
   }, [location.state]);
-  const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[] }>({ states: [], cities: [], types: [] });
+  const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[], exchanges: string[] }>({ states: [], cities: [], types: [], exchanges: [] });
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -394,6 +402,9 @@ export const Leads: React.FC = () => {
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
         websiteStatus: websiteStatusFilter === 'All' ? undefined : websiteStatusFilter,
+        sellsAlgoTrading: algoTradingFilter === 'All' ? undefined : algoTradingFilter,
+        exchangeName: exchangeNameFilter === 'All' ? undefined : exchangeNameFilter,
+        otherListings: otherListingsFilter === 'All' ? undefined : otherListingsFilter,
         sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
         order: scoreSort !== 'none' ? scoreSort : undefined
       });
@@ -412,12 +423,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -505,7 +516,7 @@ export const Leads: React.FC = () => {
     if (!name) return;
     const newView = {
       name,
-      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, websiteStatusFilter }
+      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
     };
     const newSavedViews = [...savedViews, newView];
     setSavedViews(newSavedViews);
@@ -519,6 +530,9 @@ export const Leads: React.FC = () => {
     setUnifiedStatusFilter(filters.unifiedStatusFilter || 'All');
     setTypeFilter(filters.typeFilter || 'All');
     setWebsiteStatusFilter(filters.websiteStatusFilter || 'All');
+    setAlgoTradingFilter(filters.algoTradingFilter || 'All');
+    setExchangeNameFilter(filters.exchangeNameFilter || 'All');
+    setOtherListingsFilter(filters.otherListingsFilter || 'All');
   };
 
   const deleteView = (name: string, e: any) => {
@@ -528,7 +542,7 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
-  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All';
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
 
   return (
     <div className="relative flex gap-6 pb-24 sm:pb-20">
@@ -562,6 +576,9 @@ export const Leads: React.FC = () => {
                 if (stateFilter !== 'All') params.set('stateFilter', stateFilter);
                 if (cityFilter !== 'All') params.set('cityFilter', cityFilter);
                 if (typeFilter !== 'All') params.set('typeFilter', typeFilter);
+                if (algoTradingFilter !== 'All') params.set('sellsAlgoTrading', algoTradingFilter);
+                if (exchangeNameFilter !== 'All') params.set('exchangeName', exchangeNameFilter);
+                if (otherListingsFilter !== 'All') params.set('otherListings', otherListingsFilter);
                 if (searchQuery) params.set('search', searchQuery);
                 const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
                 window.open(`${baseUrl}/api/leads/export/csv?${params.toString()}`, '_blank');
@@ -580,7 +597,7 @@ export const Leads: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter Bar */}
+        {/* Filter Bar & Saved Views */}
         <div className="glass-panel rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 mx-1 sm:mx-0">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -593,120 +610,27 @@ export const Leads: React.FC = () => {
                 className="input-base !pl-10 !py-2.5 shadow-sm w-full"
               />
             </div>
+            {savedViews.length > 0 && (
+              <button
+                onClick={() => setShowSavedViews(prev => !prev)}
+                className={`flex items-center justify-center rounded-lg p-2.5 sm:p-2 transition-colors ${showSavedViews ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} relative shrink-0`}
+                title="Toggle Saved Views"
+              >
+                <Bookmark className="h-4 w-4" />
+                <span className="absolute -top-1.5 -right-1.5 sm:-top-1 sm:-right-1 flex h-4 w-4 sm:h-3 sm:w-3 items-center justify-center rounded-full bg-indigo-500 text-[10px] sm:text-[9px] font-bold text-white">
+                  {savedViews.length}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => setShowMobileFilters(prev => !prev)}
-              className={`sm:hidden inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold shrink-0 transition-colors ${hasActiveFilters ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'
+              className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 sm:py-2 text-xs font-bold shrink-0 transition-colors ${showMobileFilters || hasActiveFilters ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'
                 }`}
             >
+              <Filter className="h-3.5 w-3.5" />
               Filters {hasActiveFilters && <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
             </button>
-          </div>
-
-          {hasActiveFilters && (
-            <div className="hidden sm:flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 mt-2">
-              <span className="text-xs font-medium text-slate-500">Active Filters:</span>
-              <button
-                onClick={handleSaveView}
-                className="ml-auto flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
-              >
-                <Save className="w-3.5 h-3.5" />
-                Save this View
-              </button>
-            </div>
-          )}
-
-          <div className={`flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full ${showMobileFilters ? 'flex' : 'hidden sm:flex'}`}>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:flex-1">
-              <select
-                value={stateFilter}
-                onChange={(e) => {
-                  setStateFilter(e.target.value);
-                  setCityFilter('All'); // Reset city when state changes
-                }}
-                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
-              >
-                <option value="All">All States</option>
-                {filterOptions.states.map(state => (
-                  <option key={state} value={state}>{state}</option>
-                ))}
-              </select>
-
-              <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
-              >
-                <option value="All">All Cities</option>
-                {filterOptions.cities.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
-              >
-                <option value="All">All Types</option>
-                <option value="Manual">Manual</option>
-                <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
-                <option value="Sub Broker">Sub Broker</option>
-                <option value="Research Analyst (RA)">Research Analyst (RA)</option>
-              </select>
-
-              <select
-                value={unifiedStatusFilter}
-                onChange={(e) => setUnifiedStatusFilter(e.target.value)}
-                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
-              >
-                <option value="All">All Statuses</option>
-                <option value="IMPORTED">Imported</option>
-                <option value="UNVERIFIED">Unverified</option>
-                <option value="NEW">New (Verified)</option>
-                <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
-                <option value="CONTACTED">Contacted (Only)</option>
-                <option value="FOLLOW_UP">Follow-up (Only)</option>
-                <option value="OVERDUE">Overdue Follow-Up</option>
-                <option value="ENGAGED">Engaged</option>
-                <option value="QUALIFIED">Qualified</option>
-                <option value="NEGOTIATION">Negotiation</option>
-                <option value="WON">Client Won</option>
-                <option value="LOST">Client Lost</option>
-                <option value="DNC">Do Not Contact</option>
-                <option value="INVALID">Invalid/Inactive</option>
-              </select>
-
-              <select
-                value={websiteStatusFilter}
-                onChange={(e) => setWebsiteStatusFilter(e.target.value)}
-                className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
-              >
-                <option value="All">All Websites</option>
-                <option value="HasWebsite">Has Website</option>
-                <option value="NoWebsite">No Website</option>
-              </select>
-
-              <button
-                onClick={fetchLeads}
-                disabled={isLoading}
-                className="btn-secondary !px-3 !py-2 !text-xs !min-h-0 w-full sm:w-auto justify-center"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-
-              {hasActiveFilters && (
-                <button
-                  onClick={handleSaveView}
-                  className="sm:hidden flex items-center justify-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-2 rounded-md transition-colors col-span-2"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  Save this View
-                </button>
-              )}
-            </div>
-
-            <div className="hidden sm:flex items-center rounded-lg bg-slate-100 p-1 shrink-0 self-start">
+            <div className="hidden sm:flex items-center rounded-lg bg-slate-100 p-1 shrink-0">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -723,26 +647,152 @@ export const Leads: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Smart Saved Views */}
-        {savedViews.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide px-1 sm:px-0">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0 flex items-center gap-1"><Bookmark className="w-3 h-3" /> Saved:</span>
-            {savedViews.map((view) => (
-              <div
-                key={view.name}
-                onClick={() => applyView(view.filters)}
-                className="group flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors shrink-0"
-              >
-                <span>{view.name}</span>
-                <button onClick={(e) => deleteView(view.name, e)} className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-red-500 transition-opacity">
-                  <X className="w-3 h-3" />
+          {showMobileFilters && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full mt-2 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:flex-1">
+                <select
+                  value={stateFilter}
+                  onChange={(e) => {
+                    setStateFilter(e.target.value);
+                    setCityFilter('All'); // Reset city when state changes
+                  }}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All States</option>
+                  {filterOptions.states.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All Cities</option>
+                  {filterOptions.cities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All Types</option>
+                  <option value="Manual">Manual</option>
+                  <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
+                  <option value="Sub Broker">Sub Broker</option>
+                  <option value="Research Analyst (RA)">Research Analyst (RA)</option>
+                </select>
+
+                <select
+                  value={unifiedStatusFilter}
+                  onChange={(e) => setUnifiedStatusFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="IMPORTED">Imported</option>
+                  <option value="UNVERIFIED">Unverified</option>
+                  <option value="NEW">New (Verified)</option>
+                  <option value="CONTACTED_OR_FOLLOW_UP">Contacted / Follow-up</option>
+                  <option value="CONTACTED">Contacted (Only)</option>
+                  <option value="FOLLOW_UP">Follow-up (Only)</option>
+                  <option value="OVERDUE">Overdue Follow-Up</option>
+                  <option value="ENGAGED">Engaged</option>
+                  <option value="QUALIFIED">Qualified</option>
+                  <option value="NEGOTIATION">Negotiation</option>
+                  <option value="WON">Client Won</option>
+                  <option value="LOST">Client Lost</option>
+                  <option value="DNC">Do Not Contact</option>
+                  <option value="INVALID">Invalid/Inactive</option>
+                </select>
+
+                <select
+                  value={websiteStatusFilter}
+                  onChange={(e) => setWebsiteStatusFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All Websites</option>
+                  <option value="HasWebsite">Has Website</option>
+                  <option value="NoWebsite">No Website</option>
+                </select>
+
+                <select
+                  value={algoTradingFilter}
+                  onChange={(e) => setAlgoTradingFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All Algo Status</option>
+                  <option value="Yes">Does Algo</option>
+                  <option value="No">No Algo</option>
+                </select>
+
+                <select
+                  value={exchangeNameFilter}
+                  onChange={(e) => setExchangeNameFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">All Exchanges</option>
+                  {filterOptions.exchanges?.map(exchange => (
+                    <option key={exchange} value={exchange}>{exchange}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={otherListingsFilter}
+                  onChange={(e) => setOtherListingsFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
+                >
+                  <option value="All">Other Listings (All)</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+
+                <button
+                  onClick={fetchLeads}
+                  disabled={isLoading}
+                  className="btn-secondary !px-3 !py-2 !text-xs !min-h-0 w-full sm:w-auto justify-center"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
                 </button>
+
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleSaveView}
+                    className="flex items-center justify-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-md transition-colors col-span-2 sm:col-span-1"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save View
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+
+          {savedViews.length > 0 && showSavedViews && (
+            <div className="flex items-center gap-2 overflow-x-auto pt-3 mt-1 border-t border-slate-100 scrollbar-hide">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0 flex items-center gap-1">
+                <Bookmark className="w-3 h-2" /> Saved Views:
+              </span>
+              {savedViews.map((view) => (
+                <div
+                  key={view.name}
+                  onClick={() => applyView(view.filters)}
+                  className="group flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 px-3 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors shrink-0"
+                >
+                  <span>{view.name}</span>
+                  <button onClick={(e) => deleteView(view.name, e)} className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-red-500 transition-opacity">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Leads List */}
         <div className="card !p-0 overflow-hidden">

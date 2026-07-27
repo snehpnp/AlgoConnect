@@ -10,6 +10,8 @@ export interface SegmentRule {
   market?: string;
   websiteStatus?: string;
   algoStatus?: string;
+  exchangeName?: string;
+  otherListings?: string;
 }
 
 export interface Segment {

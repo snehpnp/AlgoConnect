@@ -30,9 +30,11 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
     market: 'All',
     websiteStatus: 'All',
     algoStatus: 'All',
+    exchangeName: 'All',
+    otherListings: 'All',
   });
 
-  const [dbOptions, setDbOptions] = useState<{ states: string[]; cities: string[]; types: string[] }>({ states: [], cities: [], types: [] });
+  const [dbOptions, setDbOptions] = useState<{ states: string[]; cities: string[]; types: string[]; exchanges: string[] }>({ states: [], cities: [], types: [], exchanges: [] });
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
     const fetchOptions = async () => {
       try {
         const res = await leadsService.getFilterOptions();
-        setDbOptions(prev => ({ ...prev, states: res.states, types: res.types }));
+        setDbOptions(prev => ({ ...prev, states: res.states, types: res.types, exchanges: res.exchanges }));
       } catch (err) {
         console.error('Failed to load filter options');
       } finally {
@@ -112,7 +114,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
-      <div className="flex h-full w-full max-w-xl flex-col bg-slate-50 shadow-2xl transition-transform duration-300 transform translate-x-0">
+      <div className="flex h-full w-full max-w-3xl flex-col bg-slate-50 shadow-2xl transition-transform duration-300 transform translate-x-0">
         
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 py-4 shadow-sm z-10">
@@ -172,7 +174,7 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
               <Filter className="h-4 w-4 text-emerald-500" />
               Targeting Rules
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Entity Type</label>
                 <select
@@ -274,6 +276,33 @@ export const SegmentBuilderDrawer = ({ isOpen, onClose, onSave }: SegmentBuilder
                   <option value="All">Any Status</option>
                   <option value="HasAlgo">Sells Algo Trading (Yes)</option>
                   <option value="NoAlgo">No Algo / Unknown</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Exchange</label>
+                <select
+                  value={rules.exchangeName}
+                  onChange={(e) => handleRuleChange('exchangeName', e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white"
+                >
+                  <option value="All">Any Exchange</option>
+                  {dbOptions.exchanges?.map(exchange => (
+                    <option key={exchange} value={exchange}>{exchange}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Other Listings</label>
+                <select
+                  value={rules.otherListings}
+                  onChange={(e) => handleRuleChange('otherListings', e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:bg-white"
+                >
+                  <option value="All">Any</option>
+                  <option value="Yes">Yes (Listed Elsewhere)</option>
+                  <option value="No">No</option>
                 </select>
               </div>
             </div>

@@ -92,7 +92,7 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
@@ -102,8 +102,8 @@ export const leadsService = {
     return response.data;
   },
 
-  getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[] }> => {
-    const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[] } }>('/leads/filters/options', {
+  getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[]; exchanges: string[] }> => {
+    const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[]; exchanges: string[] } }>('/leads/filters/options', {
       params: { state }
     });
     return response.data.data;
