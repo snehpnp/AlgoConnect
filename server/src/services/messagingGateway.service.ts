@@ -1,39 +1,118 @@
 import prisma from '../models/prismaClient';
+import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { SocketService } from './socket.service';
 
 export interface SendMessageOptions {
   leadId: number;
-  campaignId: number;
-  templateId: number;
+  campaignId?: number;
+  templateId?: number;
   channel: 'EMAIL' | 'WHATSAPP' | 'SMS';
   recipient: string;
   content: string;      // plain/HTML body
   subject?: string;     // email subject
   htmlContent?: string; // full rendered HTML (optional, fallback to content)
+  attachments?: any[];  // file attachments array
 }
 
 export const messagingGateway = {
   async sendMessage(options: SendMessageOptions) {
 
-    try {
-      const sentDetails = {
-        recipient: options.recipient,
-        subject: options.subject || null,
-        htmlContent: options.htmlContent || options.content,
-        templateId: options.templateId,
-      };
+    const providerMessageId = `auto_${options.channel.toLowerCase()}_${Date.now()}`;
 
+    try {
+      // 1. Create the MessageSend record first so we have the ID for tracking
       const msg = await prisma.messageSend.create({
         data: {
-          campaignId: options.campaignId,
+          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
           leadId: options.leadId,
           channel: options.channel,
           subject: options.subject || 'N/A',
+          templateId: options.templateId,
           status: 'SENT',
           sentAt: new Date(),
-          providerMessageId: `mock_${options.channel.toLowerCase()}_${Date.now()}`
+          providerMessageId
         }
       });
 
+      // Update Lead engagementStatus if it's currently 'Not Engaged'
+      const lead = await prisma.lead.findUnique({ where: { id: options.leadId } });
+      if (lead && lead.engagementStatus === 'Not Engaged') {
+        await prisma.lead.update({
+          where: { id: options.leadId },
+          data: { engagementStatus: 'Sent' }
+        });
+      }
+
+      let finalHtmlContent = options.htmlContent || options.content;
+
+      // 2. Dispatch real message if channel is EMAIL
+      if (options.channel === 'EMAIL') {
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
+        
+        // Rewrite links for click tracking
+        const hrefRegex = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/gi;
+        let match;
+        let modifiedHtmlContent = finalHtmlContent;
+
+        while ((match = hrefRegex.exec(finalHtmlContent)) !== null) {
+          const originalUrl = match[1];
+          if (originalUrl.startsWith('mailto:') || originalUrl.startsWith('tel:') || originalUrl.startsWith('#')) continue;
+
+          // Create tracking string
+          const trackingUrlId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          
+          await prisma.emailLinkTracking.create({
+            data: {
+              messageSendId: msg.id,
+              originalUrl: originalUrl,
+              trackingUrl: trackingUrlId
+            }
+          });
+          
+          const newUrl = `${backendUrl}/api/track/click/${trackingUrlId}`;
+          modifiedHtmlContent = modifiedHtmlContent.replace(`href="${originalUrl}"`, `href="${newUrl}"`);
+        }
+        finalHtmlContent = modifiedHtmlContent;
+
+        const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
+
+        finalHtmlContent = `<div style="font-family: sans-serif;">${finalHtmlContent}</div>${trackingPixel}`;
+
+        const transporter = await getEmailTransporter();
+        const sender = await getEmailSenderId();
+        await transporter.sendMail({
+          from: sender,
+          to: options.recipient,
+          subject: options.subject,
+          html: finalHtmlContent,
+          messageId: `${providerMessageId}@algoconnect.local`,
+          attachments: options.attachments || []
+        });
+        
+        // Notify user about automated send if triggered by campaign
+        if (options.campaignId && lead && lead.userId) {
+          const notif = await prisma.notification.create({
+            data: {
+              userId: lead.userId,
+              title: 'Automated Email Sent',
+              message: `Email "${options.subject}" was sent to ${lead.name}.`,
+              type: 'EMAIL_SENT',
+              relatedEntityId: msg.id,
+              relatedEntity: 'MessageSend'
+            }
+          });
+          SocketService.sendToUser(lead.userId, 'new_notification', notif);
+        }
+      }
+
+      const sentDetails = {
+        recipient: options.recipient,
+        subject: options.subject || null,
+        htmlContent: finalHtmlContent,
+        templateId: options.templateId,
+      };
+
+      // 3. Log SENT event
       const sentEvent = await prisma.engagementEvent.create({
         data: {
           messageSendId: msg.id,
@@ -42,55 +121,27 @@ export const messagingGateway = {
         }
       });
 
-      setTimeout(async () => {
-        try {
-          await prisma.messageSend.update({
-            where: { id: msg.id },
-            data: { status: 'DELIVERED', deliveredAt: new Date() }
-          });
-          await prisma.engagementEvent.create({
-            data: {
-              messageSendId: msg.id,
-              eventType: 'DELIVERED',
-            }
-          });
-
-          if (Math.random() > 0.7) {
-            await prisma.messageSend.update({
-              where: { id: msg.id },
-              data: { status: 'OPENED', openedAt: new Date() }
-            });
-            await prisma.engagementEvent.create({
-              data: {
-                messageSendId: msg.id,
-                eventType: 'OPENED',
-              }
-            });
-          }
-        } catch (err) {
-          console.error('[MessagingGateway Mock] Failed to simulate engagement:', err);
-        }
-      }, 2000);
-
       return { success: true, messageId: sentEvent.id };
-    } catch (error) {
+
+    } catch (error: any) {
       console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
 
       const msg = await prisma.messageSend.create({
         data: {
-          campaignId: options.campaignId,
+          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
           leadId: options.leadId,
           channel: options.channel,
           subject: options.subject || 'N/A',
+          templateId: options.templateId,
           status: 'FAILED',
-          providerMessageId: `mock-fail-${Date.now()}`
+          providerMessageId: `fail-${Date.now()}`
         }
       });
       await prisma.engagementEvent.create({
         data: {
           messageSendId: msg.id,
           eventType: 'FAILED',
-          metadataJson: { error: 'Failed to dispatch' }
+          metadataJson: { error: error.message || 'Failed to dispatch' }
         }
       });
       return { success: false, error };

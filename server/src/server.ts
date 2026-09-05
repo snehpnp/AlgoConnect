@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import http from 'http';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes';
 import leadRoutes from './routes/lead.routes';
@@ -14,15 +15,26 @@ import templateRoutes from './routes/template.routes';
 import chatRoutes from './routes/chat.routes';
 import webhookRoutes from './routes/webhook.routes';
 import messageRoutes from './routes/message.routes';
+import trackingRoutes from './routes/tracking.routes';
+import aiRoutes from './routes/ai.routes';
+import notificationRoutes from './routes/notification.routes';
+import notesRoutes from './routes/notes.routes';
+import auditRoutes from './routes/audit.routes';
+import uploadRoutes from './routes/upload.routes';
+import path from 'path';
 
 const app = express();
+const httpServer = http.createServer(app);
 const port = process.env.PORT || 7700;
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve uploads as static
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -38,6 +50,12 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/track', trackingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api', notesRoutes); // notes, follow-ups, csv export
+app.use('/api/audit-logs', auditRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -53,8 +71,20 @@ import { errorHandler } from './middlewares/errorHandler';
 app.use(errorHandler);
 
 import { startCampaignRunner } from './services/campaignRunner.service';
+import { pollImapForReplies } from './services/imapListener.service';
+import { SocketService } from './services/socket.service';
+import cron from 'node-cron';
+
+// Initialize Socket.io
+SocketService.initialize(httpServer);
+
 startCampaignRunner();
 
-app.listen(port, () => {
+// Poll for email replies every 5 minutes (Disabled legacy listener, using new IMAP engine in campaignRunner)
+// cron.schedule('*/5 * * * *', () => {
+//   pollImapForReplies();
+// });
+
+httpServer.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../models/prismaClient';
+import { checkIMAPReplies } from './imap.service';
 import { messagingGateway } from './messagingGateway.service';
 
 const BATCH_LIMIT = 50; // Max leads processed per minute per campaign
@@ -16,8 +17,14 @@ export const getEngineState = () => {
 };
 
 export const startCampaignRunner = () => {
-  // Run every 10 minute 
-  cron.schedule('* 10 * * *', async () => {
+  // Run IMAP checker every 15 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    if (!isEngineRunning) return;
+    await checkIMAPReplies();
+  });
+
+  // Run campaign processor every 10 minutes
+  cron.schedule('*/10 9-17 * * *', async () => {
     if (!isEngineRunning) {
       return;
     }
@@ -142,6 +149,17 @@ export const startCampaignRunner = () => {
               .replace(/{{name}}/g, lead.name || '')
               .replace(/{{company}}/g, lead.name || '');
 
+            let attachments = [];
+            if (template.designJson && typeof template.designJson === 'object' && (template.designJson as any).attachments) {
+              attachments = (template.designJson as any).attachments.map((att: any) => {
+                // If url is /uploads/123.jpg, we resolve it to the full path
+                return {
+                  filename: att.filename,
+                  path: require('path').join(process.cwd(), att.url)
+                };
+              });
+            }
+
             // Dispatch
             await messagingGateway.sendMessage({
               campaignId: campaign.id,
@@ -152,6 +170,7 @@ export const startCampaignRunner = () => {
               content: renderedContent,
               subject: renderedSubject,
               htmlContent: renderedContent,
+              attachments
             });
 
             processedCount++;

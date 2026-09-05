@@ -145,7 +145,11 @@ export const getMessageLogs = async (req: Request, res: Response) => {
     }
 
     if (status && status !== 'ALL') {
-      where.eventType = status as string;
+      if (status === 'REPLIED') {
+        where.eventType = { in: ['REPLY', 'REPLIED'] };
+      } else {
+        where.eventType = status as string;
+      }
     }
 
     if (dateFrom || dateTo) {

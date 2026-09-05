@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCampaignLogDetail = exports.sendManualMessage = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignLogs = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignById = exports.getCampaigns = void 0;
+exports.sendManualMessage = exports.getEngineLogs = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignLogs = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignConnectedLeads = exports.getCampaignById = exports.getCampaigns = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const emailService_1 = require("../utils/emailService");
@@ -35,8 +35,70 @@ exports.getCampaignById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     }
     res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
 });
+exports.getCampaignConnectedLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const campaignId = parseInt(id);
+    const campaign = await prismaClient_1.default.campaign.findUnique({
+        where: { id: campaignId },
+        include: {
+            leads: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                    scrapedEmail: true,
+                    scrapedPhone: true,
+                    messageSends: {
+                        where: { campaignId },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                        include: {
+                            events: {
+                                orderBy: { createdAt: 'desc' },
+                                take: 1,
+                            },
+                            replies: {
+                                orderBy: { receivedAt: 'desc' },
+                                take: 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    if (!campaign) {
+        throw new Error('Campaign not found');
+    }
+    const formattedLeads = campaign.leads.map(lead => {
+        const lastMessageSend = lead.messageSends[0];
+        const lastEvent = lastMessageSend?.events[0];
+        const latestReply = lastMessageSend?.replies?.[0];
+        let status = 'PENDING';
+        if (latestReply) {
+            status = 'REPLIED';
+        }
+        else if (lastEvent) {
+            status = lastEvent.eventType;
+        }
+        else if (lastMessageSend) {
+            status = lastMessageSend.status;
+        }
+        return {
+            id: lead.id,
+            name: lead.name,
+            email: lead.email || lead.scrapedEmail,
+            phone: lead.phone || lead.scrapedPhone,
+            status: status,
+            latestReply: latestReply || null,
+            lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
+        };
+    });
+    res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
+});
 exports.createCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { name, type, status, segmentIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
+    const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
     if (!name || !type) {
         throw new Error('Name and type are required');
     }
@@ -82,12 +144,23 @@ exports.createCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
                 where: orClauses.length > 0 ? { OR: orClauses } : {},
                 select: { id: true }
             });
-            if (matchingLeads.length > 0) {
+            const allLeadIds = new Set();
+            matchingLeads.forEach(l => allLeadIds.add(l.id));
+            if (leadIds && Array.isArray(leadIds)) {
+                leadIds.forEach(id => allLeadIds.add(parseInt(id)));
+            }
+            if (allLeadIds.size > 0) {
                 data.leads = {
-                    connect: matchingLeads
+                    connect: Array.from(allLeadIds).map(id => ({ id }))
                 };
             }
         }
+    }
+    else if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
+        // If only leadIds are provided (no segments)
+        data.leads = {
+            connect: leadIds.map(id => ({ id: parseInt(id) }))
+        };
     }
     const newCampaign = await prismaClient_1.default.campaign.create({
         data,
@@ -100,7 +173,7 @@ exports.createCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 });
 exports.updateCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
-    const { name, type, status, segmentIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
+    const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
     const dataToUpdate = { name, type, status, description, channels };
     if (schedule !== undefined)
         dataToUpdate.schedule = schedule ? new Date(schedule) : null;
@@ -140,14 +213,33 @@ exports.updateCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
                     where: orClauses.length > 0 ? { OR: orClauses } : {},
                     select: { id: true }
                 });
+                const allLeadIds = new Set();
+                matchingLeads.forEach(l => allLeadIds.add(l.id));
+                if (leadIds && Array.isArray(leadIds)) {
+                    leadIds.forEach(id => allLeadIds.add(parseInt(id)));
+                }
                 dataToUpdate.leads = {
-                    set: matchingLeads
+                    set: Array.from(allLeadIds).map(id => ({ id }))
                 };
             }
         }
         else {
-            // Clear segments and leads
+            // Clear segments and handle leadIds if provided alone
             dataToUpdate.segments = { set: [] };
+            if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
+                dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id) })) };
+            }
+            else {
+                dataToUpdate.leads = { set: [] };
+            }
+        }
+    }
+    else if (leadIds !== undefined) {
+        // If only leadIds are updated
+        if (Array.isArray(leadIds) && leadIds.length > 0) {
+            dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id) })) };
+        }
+        else {
             dataToUpdate.leads = { set: [] };
         }
     }
@@ -204,9 +296,15 @@ exports.removeLeadFromCampaign = (0, asyncHandler_1.asyncHandler)(async (req, re
 });
 exports.getCampaignStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
+    const campaignId = parseInt(id);
+    const messageSends = await prismaClient_1.default.messageSend.findMany({
+        where: { campaignId },
+        select: { id: true }
+    });
+    const messageSendIds = messageSends.map(ms => ms.id);
     const engagements = await prismaClient_1.default.engagementEvent.groupBy({
         by: ['eventType'],
-        where: { campaignId: parseInt(id) },
+        where: { messageSendId: { in: messageSendIds } },
         _count: {
             eventType: true
         }
@@ -218,12 +316,16 @@ exports.getCampaignLogs = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const [logs, total] = await Promise.all([
+    const [logsRaw, total] = await Promise.all([
         prismaClient_1.default.engagementEvent.findMany({
-            where: { campaignId: parseInt(id) },
+            where: { messageSend: { campaignId: parseInt(id) } },
             include: {
-                lead: {
-                    select: { id: true, name: true, email: true, phone: true }
+                messageSend: {
+                    include: {
+                        lead: {
+                            select: { id: true, name: true, email: true, phone: true }
+                        }
+                    }
                 }
             },
             orderBy: { createdAt: 'desc' },
@@ -231,9 +333,14 @@ exports.getCampaignLogs = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             take: limit,
         }),
         prismaClient_1.default.engagementEvent.count({
-            where: { campaignId: parseInt(id) }
+            where: { messageSend: { campaignId: parseInt(id) } }
         })
     ]);
+    const logs = logsRaw.map(log => ({
+        ...log,
+        lead: log.messageSend?.lead,
+        campaignId: log.messageSend?.campaignId
+    }));
     res.status(200).json({
         data: logs,
         meta: {
@@ -251,7 +358,29 @@ exports.getEngineStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 exports.toggleEngineStatus = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { isRunning } = req.body;
     const newState = (0, campaignRunner_service_1.toggleEngine)(isRunning);
+    await prismaClient_1.default.activityLog.create({
+        data: {
+            userId: req.user?.id,
+            action: newState ? 'ENGINE_STARTED' : 'ENGINE_STOPPED',
+            details: `Campaign Automation Engine was ${newState ? 'started' : 'stopped'} by ${req.user?.name || 'User'}`,
+        }
+    });
     res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});
+exports.getEngineLogs = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const logs = await prismaClient_1.default.activityLog.findMany({
+        where: {
+            action: {
+                in: ['ENGINE_STARTED', 'ENGINE_STOPPED']
+            }
+        },
+        include: {
+            user: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100
+    });
+    res.status(200).json({ data: logs, message: 'Engine logs retrieved successfully' });
 });
 exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
@@ -279,10 +408,16 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         .replace(/{{contact_name}}/g, lead.contactPerson || lead.name || '')
         .replace(/{{company}}/g, lead.name || '');
     let recipient = '';
+    const providerMessageId = `manual-${Date.now()}`;
+    let htmlSent = '';
     if (channel === 'EMAIL') {
         recipient = lead.email || lead.scrapedEmail || lead.email2 || '';
         if (!recipient)
             throw new Error('Lead has no email address');
+        // Generate tracking URL (fallback to localhost for local testing)
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
+        const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
+        htmlSent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>${trackingPixel}`;
         try {
             const transporter = await (0, emailService_1.getEmailTransporter)();
             const sender = await (0, emailService_1.getEmailSenderId)();
@@ -290,17 +425,26 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
                 from: sender,
                 to: recipient,
                 subject,
-                html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+                html: htmlSent,
+                messageId: `${providerMessageId}@algoconnect.local`
             });
         }
         catch (err) {
-            await prismaClient_1.default.engagementEvent.create({
+            const msg = await prismaClient_1.default.messageSend.create({
                 data: {
                     leadId: lead.id,
                     campaignId: parseInt(id),
                     channel,
+                    subject,
+                    status: 'FAILED',
+                    providerMessageId: `manual-failed-${Date.now()}`
+                }
+            });
+            await prismaClient_1.default.engagementEvent.create({
+                data: {
+                    messageSendId: msg.id,
                     eventType: 'FAILED',
-                    details: JSON.stringify({ isManual: true, error: err.message })
+                    metadataJson: { isManual: true, error: err.message }
                 }
             });
             throw new Error(`Failed to send email: ${err.message}`);
@@ -311,50 +455,25 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
         if (!recipient)
             throw new Error(`Lead has no phone number for ${channel}`);
+        htmlSent = content;
         console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
     }
-    const htmlSent = channel === 'EMAIL'
-        ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
-        : content;
-    const event = await prismaClient_1.default.engagementEvent.create({
+    const msg = await prismaClient_1.default.messageSend.create({
         data: {
             leadId: parseInt(leadId),
             campaignId: parseInt(id),
             channel,
+            subject,
+            status: 'SENT',
+            providerMessageId
+        }
+    });
+    await prismaClient_1.default.engagementEvent.create({
+        data: {
+            messageSendId: msg.id,
             eventType: 'SENT',
-            details: JSON.stringify({
-                isManual: true,
-                templateId: templateId || null,
-                recipient,
-                subject,
-                htmlContent: htmlSent,
-                sentAt: new Date().toISOString()
-            })
+            metadataJson: { isManual: true }
         }
     });
-    res.status(200).json({ message: 'Manual message sent successfully', data: event });
-});
-exports.getCampaignLogDetail = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const id = req.params.id;
-    const logId = req.params.logId;
-    const log = await prismaClient_1.default.engagementEvent.findFirst({
-        where: {
-            id: parseInt(logId),
-            campaignId: parseInt(id)
-        },
-        include: {
-            lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
-            campaign: { select: { id: true, name: true } }
-        }
-    });
-    if (!log)
-        throw new Error('Log entry not found');
-    let parsedDetails = {};
-    try {
-        parsedDetails = log.details ? JSON.parse(log.details) : {};
-    }
-    catch {
-        parsedDetails = { raw: log.details };
-    }
-    res.status(200).json({ data: { ...log, parsedDetails } });
+    res.status(200).json({ message: 'Message sent successfully', data: msg });
 });

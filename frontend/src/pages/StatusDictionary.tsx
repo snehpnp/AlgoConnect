@@ -9,38 +9,16 @@ interface StatusDefinition {
 }
 
 const statusDefinitions: StatusDefinition[] = [
-  // Sales Stage
-  { name: 'New', category: 'Sales Stage', englishMeaning: 'Newly added lead, no contact initiated yet.', hindiMeaning: 'नया लीड जोड़ा गया है, अभी तक कोई संपर्क नहीं हुआ है।' },
-  { name: 'Contacted', category: 'Sales Stage', englishMeaning: 'Initial contact has been made with the lead.', hindiMeaning: 'लीड से शुरुआती संपर्क (बातचीत) हो चुकी है।' },
-  { name: 'Qualified', category: 'Sales Stage', englishMeaning: 'Lead matches our target criteria and has potential.', hindiMeaning: 'लीड हमारे क्राइटेरिया से मैच करती है और इसमें पोटेंशियल (संभावना) है।' },
-  { name: 'Follow-up', category: 'Sales Stage', englishMeaning: 'Scheduled for a future check-in or discussion.', hindiMeaning: 'भविष्य में बातचीत या चेक-इन के लिए शेड्यूल किया गया है।' },
-  { name: 'Negotiation', category: 'Sales Stage', englishMeaning: 'Currently discussing terms, pricing, or contract details.', hindiMeaning: 'फिलहाल कीमत या कॉन्ट्रैक्ट की शर्तों पर बातचीत (नेगोशिएशन) चल रही है।' },
-  { name: 'Client Won', category: 'Sales Stage', englishMeaning: 'Successfully converted into a paying client.', hindiMeaning: 'सफलतापूर्वक क्लाइंट में बदल गया है (डील पक्की हो गई है)।' },
-  { name: 'Client Lost', category: 'Sales Stage', englishMeaning: 'Lead decided not to proceed with us.', hindiMeaning: 'लीड ने हमारे साथ आगे न बढ़ने का फैसला किया है।' },
-  { name: 'Do Not Contact', category: 'Sales Stage', englishMeaning: 'Requested not to be contacted again.', hindiMeaning: 'दोबारा संपर्क न करने का अनुरोध किया है।' },
-
-  // Verification
-  { name: 'Imported', category: 'Verification', englishMeaning: 'Data uploaded via CSV/Excel, pending checks.', hindiMeaning: 'डेटा CSV/Excel से अपलोड हुआ है, अभी चेक होना बाकी है।' },
-  { name: 'Enrichment Pending', category: 'Verification', englishMeaning: 'Waiting for additional background data/verification.', hindiMeaning: 'बैकग्राउंड डेटा या वेरिफिकेशन का इंतज़ार किया जा रहा है।' },
-  { name: 'Active', category: 'Verification', englishMeaning: 'Confirmed as a valid and reachable contact.', hindiMeaning: 'यह एक सही और संपर्क करने योग्य लीड कन्फर्म हुई है।' },
-  { name: 'Likely Inactive', category: 'Verification', englishMeaning: 'Contact info might be outdated or unreachable.', hindiMeaning: 'संपर्क जानकारी पुरानी हो सकती है या संपर्क नहीं हो पा रहा है।' },
-  { name: 'Unverified', category: 'Verification', englishMeaning: 'Not yet checked for validity.', hindiMeaning: 'अभी तक इसकी सत्यता (validity) जांची नहीं गई है।' },
-  { name: 'Duplicate', category: 'Verification', englishMeaning: 'Found as a duplicate of an existing lead.', hindiMeaning: 'सिस्टम में पहले से मौजूद लीड की कॉपी (डुप्लीकेट) मिली है।' },
-
-  // Engagement
-  { name: 'Not Engaged', category: 'Engagement', englishMeaning: 'No interactions recorded yet.', hindiMeaning: 'अभी तक कोई इंटरेक्शन (बातचीत/क्लिक) रिकॉर्ड expanded नहीं हुआ है।' },
-  { name: 'Sent', category: 'Engagement', englishMeaning: 'Message/Email has been sent to the lead.', hindiMeaning: 'लीड को मैसेज या ईमेल भेज दिया गया है।' },
-  { name: 'Delivered', category: 'Engagement', englishMeaning: 'Message/Email successfully reached the lead\'s inbox.', hindiMeaning: 'मैसेज/ईमेल सफलतापूर्वक लीड के इनबॉक्स में पहुँच गया है।' },
-  { name: 'Opened', category: 'Engagement', englishMeaning: 'Lead opened the sent communication.', hindiMeaning: 'लीड ने भेजा गया ईमेल/मैसेज खोल कर देखा है।' },
-  { name: 'Clicked', category: 'Engagement', englishMeaning: 'Lead clicked a link within the communication.', hindiMeaning: 'लीड ने ईमेल/मैसेज में दिए गए लिंक पर क्लिक किया है।' },
-  { name: 'Replied', category: 'Engagement', englishMeaning: 'Lead has responded to our communication.', hindiMeaning: 'लीड ने हमारे मैसेज/ईमेल का जवाब (रिप्लाई) दिया है।' },
-  { name: 'Demo Requested', category: 'Engagement', englishMeaning: 'Lead explicitly asked for a product demo.', hindiMeaning: 'लीड ने खुद से प्रोडक्ट डेमो के लिए रिक्वेस्ट की है।' },
-
-  // Consent
-  { name: 'Unknown', category: 'Consent', englishMeaning: 'No explicit consent record found.', hindiMeaning: 'सहमति (Consent) का कोई स्पष्ट रिकॉर्ड नहीं है।' },
-  { name: 'Opted In', category: 'Consent', englishMeaning: 'Lead gave explicit permission to be contacted.', hindiMeaning: 'लीड ने संपर्क करने की साफ़ तौर पर अनुमति दी है (Opt-in)।' },
-  { name: 'Opted Out', category: 'Consent', englishMeaning: 'Lead revoked permission to be contacted.', hindiMeaning: 'लीड ने संपर्क करने की अनुमति वापस ले ली है (Opt-out)।' },
-  { name: 'Implied B2B', category: 'Consent', englishMeaning: 'Business contact where consent is generally implied.', hindiMeaning: 'यह एक B2B कॉन्टैक्ट है जहाँ बिज़नेस पर्पस से संपर्क करना आम बात है।' },
+  { name: 'IMPORTED', category: 'Status', englishMeaning: 'Raw leads uploaded to the system via CSV, pending data checks.', hindiMeaning: 'सिस्टम में नए लीड अपलोड किए गए हैं, अभी उन पर कोई काम शुरू नहीं हुआ है।' },
+  { name: 'UNVERIFIED', category: 'Status', englishMeaning: 'Leads that have not yet been checked for validity.', hindiMeaning: 'अभी तक इसकी सत्यता जांची नहीं गई है।' },
+  { name: 'NEW', category: 'Status', englishMeaning: 'Confirmed as a valid and reachable contact ready for outreach.', hindiMeaning: 'यह एक सही और संपर्क करने योग्य लीड कन्फर्म हुई है।' },
+  { name: 'CONTACTED', category: 'Status', englishMeaning: 'Initial outreach (email or message) has been sent.', hindiMeaning: 'लीड को पहला संदेश या ईमेल भेजा जा चुका है।' },
+  { name: 'ENGAGED', category: 'Status', englishMeaning: 'Lead has interacted with our message (opened, clicked, or replied).', hindiMeaning: 'लीड ने हमारे संदेश को देखा, क्लिक किया या जवाब दिया है।' },
+  { name: 'QUALIFIED', category: 'Status', englishMeaning: 'Lead shows genuine interest and matches our target profile.', hindiMeaning: 'लीड हमारी सर्विस में रुचि दिखा रही है और हमारे क्राइटेरिया पर खरी उतरती है।' },
+  { name: 'NEGOTIATION', category: 'Status', englishMeaning: 'Passed to the sales team for active negotiation.', hindiMeaning: 'सेल्स टीम को सौंप दिया गया है, और अब डील/कीमत पर बातचीत चल रही है।' },
+  { name: 'WON', category: 'Status', englishMeaning: 'Successfully converted into a paying client.', hindiMeaning: 'सफलतापूर्वक क्लाइंट में बदल गया है (डील पक्की हो गई है)।' },
+  { name: 'LOST', category: 'Status', englishMeaning: 'Lead decided not to proceed.', hindiMeaning: 'लीड ने हमारे साथ आगे न बढ़ने का फैसला किया है।' },
+  { name: 'INVALID', category: 'Status', englishMeaning: 'Contact info is outdated, bounced, or unreachable.', hindiMeaning: 'संपर्क जानकारी पुरानी हो सकती है या संपर्क नहीं हो पा रहा है।' },
 ];
 
 export default function StatusDictionary() {
@@ -58,7 +36,7 @@ export default function StatusDictionary() {
   const categories = Array.from(new Set(filteredStatuses.map(s => s.category)));
 
   return (
-    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12">
+    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -79,7 +57,7 @@ export default function StatusDictionary() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button
           onClick={() => setActiveTab('docs')}
           className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'docs'

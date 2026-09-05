@@ -1,7 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --color-primary: #2563EB;
+  --color-primary-light: #60A5FA;
+  --color-primary-dark: #1D4ED8;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  --shadow-glass-hover: 0 12px 40px 0 rgba(31, 38, 135, 0.1);
+  --shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
 }
 
 @layer base {
@@ -14,13 +22,18 @@
   }
 
   body {
-    @apply bg-[#F1F5F9] text-[#0F172A] antialiased;
+    @apply bg-[#F4F7F9] text-[#1E293B] antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
     overflow-x: hidden;
     /* iOS safe areas */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     -webkit-tap-highlight-color: transparent; /* remove tap flash on WebView */
     touch-action: manipulation; /* disable double-tap zoom */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(217,100%,97%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(210,100%,97%,1) 0, transparent 50%);
+    background-attachment: fixed;
   }
 
   /* Global touch target minimum */
@@ -54,39 +67,47 @@
 }
 
 @layer components {
-  /* Unified Cards */
-  .card {
-    @apply rounded-xl border border-[#E2E8F0] bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow duration-300;
+  /* Glassmorphism Base Classes */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-glass;
+  }
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-premium;
   }
 
-  /* Unified Buttons — min touch target 44px */
+  /* Unified Premium Cards */
+  .card {
+    @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-premium rounded-2xl p-5 sm:p-6 transition-all duration-300 hover:shadow-glass-hover hover:-translate-y-0.5 relative overflow-hidden;
+  }
+
+  /* Unified Premium Buttons — min touch target 44px */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 hover:-translate-y-0.5 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-300 disabled:opacity-60 disabled:pointer-events-none min-h-[44px];
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm active:scale-[0.98] transition-all duration-300 disabled:opacity-60 disabled:pointer-events-none min-h-[44px];
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none min-h-[44px];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5 hover:from-rose-400 hover:to-red-500 active:scale-[0.98] transition-all duration-300 disabled:opacity-60 disabled:pointer-events-none min-h-[44px];
   }
 
-  /* Unified Inputs */
+  /* Unified Premium Inputs */
   .input-base {
-    @apply w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 hover:border-slate-300 min-h-[44px];
+    @apply w-full rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-sm px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all duration-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 hover:border-slate-300 min-h-[44px] shadow-sm;
   }
 
   /* Unified Status Badges */
   .badge-success {
-    @apply inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-emerald-700 uppercase;
+    @apply inline-flex items-center rounded-full border border-emerald-200/50 bg-emerald-50/80 backdrop-blur-sm px-3 py-1 text-[11px] font-bold tracking-wider text-emerald-600 uppercase shadow-sm shadow-emerald-100;
   }
   .badge-warning {
-    @apply inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-700 uppercase;
+    @apply inline-flex items-center rounded-full border border-amber-200/50 bg-amber-50/80 backdrop-blur-sm px-3 py-1 text-[11px] font-bold tracking-wider text-amber-600 uppercase shadow-sm shadow-amber-100;
   }
   .badge-danger {
-    @apply inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-red-700 uppercase;
+    @apply inline-flex items-center rounded-full border border-rose-200/50 bg-rose-50/80 backdrop-blur-sm px-3 py-1 text-[11px] font-bold tracking-wider text-rose-600 uppercase shadow-sm shadow-rose-100;
   }
   .badge-neutral {
-    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-slate-700 uppercase;
+    @apply inline-flex items-center rounded-full border border-slate-200/50 bg-slate-50/80 backdrop-blur-sm px-3 py-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase shadow-sm shadow-slate-100;
   }
 
   /* Custom Scrollbar for sidebar/tables */

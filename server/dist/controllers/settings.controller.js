@@ -145,10 +145,15 @@ const getMessageLogs = async (req, res) => {
         const { channel, status, dateFrom, dateTo, page = '1', limit = '50' } = req.query;
         const where = {};
         if (channel && channel !== 'ALL') {
-            where.channel = channel;
+            where.messageSend = { channel: channel };
         }
         if (status && status !== 'ALL') {
-            where.eventType = status;
+            if (status === 'REPLIED') {
+                where.eventType = { in: ['REPLY', 'REPLIED'] };
+            }
+            else {
+                where.eventType = status;
+            }
         }
         if (dateFrom || dateTo) {
             where.createdAt = {};
@@ -162,19 +167,30 @@ const getMessageLogs = async (req, res) => {
         }
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const take = parseInt(limit);
-        const [logs, total] = await Promise.all([
+        const [logsRaw, total] = await Promise.all([
             prisma.engagementEvent.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take,
                 include: {
-                    lead: { select: { id: true, name: true, email: true, phone: true } },
-                    campaign: { select: { id: true, name: true } }
+                    messageSend: {
+                        include: {
+                            lead: { select: { id: true, name: true, email: true, phone: true } },
+                            campaign: { select: { id: true, name: true } }
+                        }
+                    }
                 }
             }),
             prisma.engagementEvent.count({ where })
         ]);
+        const logs = logsRaw.map(log => ({
+            ...log,
+            lead: log.messageSend?.lead,
+            campaign: log.messageSend?.campaign,
+            details: log.metadataJson,
+            channel: log.messageSend?.channel
+        }));
         res.json({
             data: logs,
             total,

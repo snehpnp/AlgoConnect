@@ -181,7 +181,7 @@ export const ImportLeads = () => {
   };
 
   return (
-    <div className="relative flex flex-col gap-6 max-w-6xl mx-auto pb-12">
+    <div className="relative flex flex-col gap-6 max-w-6xl mx-auto pb-12 px-4 sm:px-6">
       <div className="flex flex-col gap-2">
         <button 
           onClick={() => navigate('/leads')}
@@ -269,7 +269,7 @@ export const ImportLeads = () => {
                 <select
                   value={entityType}
                   onChange={(e) => setEntityType(e.target.value)}
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 sm:py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all"
                 >
                   <option value="Research Analyst (RA)">Research Analyst (RA)</option>
                   <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>

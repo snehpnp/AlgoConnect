@@ -5,6 +5,7 @@ export interface MessageTemplate {
   name: string;
   subject?: string;
   content: string;
+  designJson?: any;
   type: string;
   status: string;
   isShared?: boolean;

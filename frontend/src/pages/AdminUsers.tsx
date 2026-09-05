@@ -18,7 +18,7 @@ interface User {
 }
 
 const AdminUsers = () => {
-  const token = localStorage.getItem('algoconnect_token');
+
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,12 +59,10 @@ const AdminUsers = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchUsers();
-      fetchRoles();
-      setLoading(false);
-    }
-  }, [token]);
+    fetchUsers();
+    fetchRoles();
+    setLoading(false);
+  }, []);
 
   const openAddModal = () => {
     setModalMode('ADD');
@@ -132,7 +130,7 @@ const AdminUsers = () => {
   const selectableRoles = roles.filter(role => role.name !== 'System Admin');
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div className="flex flex-col gap-6 pb-12 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -146,7 +144,7 @@ const AdminUsers = () => {
         </div>
         <button 
           onClick={openAddModal} 
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-blue-600 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20 hover:bg-blue-600 transition-colors self-end sm:self-auto"
         >
           + Add New User
         </button>
@@ -182,8 +180,65 @@ const AdminUsers = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Mobile Card List */}
+        <div className="sm:hidden divide-y divide-[#E2E8F0] w-full">
+          {loading ? (
+            <div className="py-20 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+              <p className="text-[#64748B] font-medium">Loading users...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="py-20 text-center px-4">
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 mx-auto mb-4">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+              <p className="font-bold text-[#0F172A]">No users found</p>
+              <p className="text-xs text-[#64748B] mt-1">Adjust your filters or add a new user.</p>
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div key={user.id} className="p-4 bg-white flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 text-base">{user.name}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 break-all">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      {user.email}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 shrink-0 border border-slate-200">
+                    <Shield className="h-3 w-3 text-slate-500" />
+                    {user.role?.name || 'Unknown'}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => openEditModal(user)} 
+                      className="p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => { setUserToDelete(user); setShowDeleteModal(true); }} 
+                      className="p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden sm:block overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-[#F8FAFC] text-xs font-bold uppercase text-[#64748B] border-b border-[#E2E8F0]">
               <tr>
@@ -265,8 +320,8 @@ const AdminUsers = () => {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E2E8F0]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center p-5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <h3 className="font-bold text-[#0F172A] text-lg flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" />
@@ -287,21 +342,21 @@ const AdminUsers = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Full Name</label>
-                  <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="e.g. Jane Doe" />
+                  <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="e.g. Jane Doe" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Email Address</label>
-                  <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="jane@algoconnect.com" />
+                  <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="jane@algoconnect.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">
                     {modalMode === 'ADD' ? 'Password' : 'New Password (Optional)'}
                   </label>
-                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="••••••••" />
+                  <input required={modalMode === 'ADD'} type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:border-primary focus:bg-white transition-colors" placeholder="••••••••" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1.5">Assign Role</label>
-                  <select required value={formData.roleId} onChange={e => setFormData({ ...formData, roleId: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:border-primary focus:bg-white transition-colors cursor-pointer">
+                  <select required value={formData.roleId} onChange={e => setFormData({ ...formData, roleId: e.target.value })} className="w-full px-4 py-3 sm:py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:border-primary focus:bg-white transition-colors cursor-pointer">
                     <option value="" disabled>Select a role...</option>
                     {selectableRoles.map(role => (
                       <option key={role.id} value={role.id}>{role.name}</option>
@@ -325,8 +380,8 @@ const AdminUsers = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border border-[#E2E8F0]">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
             <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-100">
               <Trash2 className="w-6 h-6" />
             </div>

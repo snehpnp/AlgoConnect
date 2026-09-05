@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, BarChart2, Clock, Eye, MousePointer2, AlertCircle, RefreshCw, Send } from 'lucide-react';
+import { X, Mail, BarChart2, Clock, Eye, MousePointer2, AlertCircle, RefreshCw, Send, CornerUpLeft } from 'lucide-react';
 import { apiClient as api } from '../services/apiClient';
 import toast from 'react-hot-toast';
 import { type Campaign } from '../services/campaign.service';
@@ -170,23 +170,47 @@ export const Campaign360Drawer: React.FC<Campaign360DrawerProps> = ({ campaign, 
                   </div>
                   <div className="text-2xl font-bold text-slate-900">{analytics.total}</div>
                 </div>
+                <div className="bg-cyan-50 p-4 rounded-xl border border-cyan-100">
+                  <div className="text-cyan-600 text-sm font-medium flex items-center gap-2 mb-1">
+                    <Mail className="w-4 h-4" /> Delivered
+                  </div>
+                  <div className="text-2xl font-bold text-cyan-700">{analytics.delivered}</div>
+                </div>
                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                   <div className="text-emerald-600 text-sm font-medium flex items-center gap-2 mb-1">
-                    <Eye className="w-4 h-4" /> Open Rate
+                    <Eye className="w-4 h-4" /> Opened
                   </div>
-                  <div className="text-2xl font-bold text-emerald-700">{analytics.openRate.toFixed(1)}%</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-emerald-700">{analytics.opened}</div>
+                    <div className="text-sm font-medium text-emerald-600/70">({analytics.openRate.toFixed(1)}%)</div>
+                  </div>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
                   <div className="text-purple-600 text-sm font-medium flex items-center gap-2 mb-1">
-                    <MousePointer2 className="w-4 h-4" /> Click Rate
+                    <MousePointer2 className="w-4 h-4" /> Clicked
                   </div>
-                  <div className="text-2xl font-bold text-purple-700">{analytics.clickRate.toFixed(1)}%</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-purple-700">{analytics.clicked}</div>
+                    <div className="text-sm font-medium text-purple-600/70">({analytics.clickRate.toFixed(1)}%)</div>
+                  </div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                  <div className="text-green-600 text-sm font-medium flex items-center gap-2 mb-1">
+                    <CornerUpLeft className="w-4 h-4" /> Replied
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-green-700">{analytics.replied}</div>
+                    <div className="text-sm font-medium text-green-600/70">({analytics.replyRate.toFixed(1)}%)</div>
+                  </div>
                 </div>
                 <div className="bg-red-50 p-4 rounded-xl border border-red-100">
                   <div className="text-red-600 text-sm font-medium flex items-center gap-2 mb-1">
-                    <AlertCircle className="w-4 h-4" /> Bounce Rate
+                    <AlertCircle className="w-4 h-4" /> Bounced / Failed
                   </div>
-                  <div className="text-2xl font-bold text-red-700">{analytics.bounceRate.toFixed(1)}%</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-red-700">{analytics.bounced + analytics.failed}</div>
+                    <div className="text-sm font-medium text-red-600/70">({analytics.bounceRate.toFixed(1)}%)</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -207,21 +231,27 @@ export const Campaign360Drawer: React.FC<Campaign360DrawerProps> = ({ campaign, 
 
                     <div className="flex items-center gap-4 text-xs text-slate-500">
                       {msg.sentAt && (
-                        <div className="flex items-center gap-1" title="Sent">
+                        <div className="flex items-center gap-1 text-slate-500" title="Sent">
                           <Clock className="w-3.5 h-3.5" />
-                          {new Date(msg.sentAt).toLocaleTimeString()}
+                          {new Date(msg.sentAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
                       {msg.openedAt && (
                         <div className="flex items-center gap-1 text-emerald-600" title="Opened">
                           <Eye className="w-3.5 h-3.5" />
-                          {new Date(msg.openedAt).toLocaleTimeString()}
+                          {new Date(msg.openedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
                       {msg.clickedAt && (
                         <div className="flex items-center gap-1 text-purple-600" title="Clicked">
                           <MousePointer2 className="w-3.5 h-3.5" />
-                          {new Date(msg.clickedAt).toLocaleTimeString()}
+                          {new Date(msg.clickedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                      {msg.repliedAt && (
+                        <div className="flex items-center gap-1 text-green-600" title="Replied">
+                          <CornerUpLeft className="w-3.5 h-3.5" />
+                          {new Date(msg.repliedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
                     </div>

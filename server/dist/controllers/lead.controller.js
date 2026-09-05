@@ -36,9 +36,55 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processFile = exports.uploadChunk = exports.getFilterOptions = exports.getLeadLogs = exports.deleteLead = exports.updateLead = exports.createLead = exports.getLeads = exports.importLeads = void 0;
+exports.processFile = exports.uploadChunk = exports.getFilterOptions = exports.getLeadLogs = exports.deleteLead = exports.updateLead = exports.getLeadById = exports.createLead = exports.getLeads = exports.importLeads = exports.sendDirectEmail = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
+const messagingGateway_service_1 = require("../services/messagingGateway.service");
+const socket_service_1 = require("../services/socket.service");
+const routing_service_1 = require("../services/routing.service");
+exports.sendDirectEmail = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const { subject, body, templateId, recipientEmail } = req.body;
+    const lead = await prismaClient_1.default.lead.findUnique({
+        where: { id: parseInt(id) }
+    });
+    if (!lead) {
+        res.status(404).json({ message: 'Lead not found' });
+        return;
+    }
+    const targetEmail = recipientEmail || lead.email;
+    if (!targetEmail) {
+        res.status(400).json({ message: 'No email address available to send to' });
+        return;
+    }
+    let finalHtml = body;
+    if (templateId) {
+        const template = await prismaClient_1.default.messageTemplate.findUnique({
+            where: { id: parseInt(templateId) }
+        });
+        if (template && template.content) {
+            // Very basic compilation (replace {{name}})
+            finalHtml = template.content.replace(/{{name}}/gi, lead.name || 'there');
+            if (!subject && template.subject) {
+                req.body.subject = template.subject;
+            }
+        }
+    }
+    const result = await messagingGateway_service_1.messagingGateway.sendMessage({
+        leadId: lead.id,
+        channel: 'EMAIL',
+        recipient: targetEmail,
+        content: finalHtml,
+        htmlContent: finalHtml,
+        subject: req.body.subject || subject || 'Message from AlgoConnect',
+        templateId: templateId ? parseInt(templateId) : undefined
+    });
+    if (!result.success) {
+        res.status(500).json({ message: 'Failed to send email', error: result.error });
+        return;
+    }
+    res.status(200).json({ message: 'Email sent successfully', messageId: result.messageId });
+});
 exports.importLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { leads } = req.body;
     const userId = req.user?.id;
@@ -80,6 +126,22 @@ exports.importLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             }
         });
     }
+    // Auto-route the newly imported leads
+    try {
+        const newLeadRecords = await prismaClient_1.default.lead.findMany({
+            where: {
+                createdAt: { gte: new Date(Date.now() - 10000) }, // Roughly leads just created
+            },
+            select: { id: true },
+            take: createdLeads.count,
+            orderBy: { id: 'desc' }
+        });
+        const newLeadIds = newLeadRecords.map(l => l.id);
+        await routing_service_1.RoutingService.autoAssignLeadsBulk(newLeadIds);
+    }
+    catch (err) {
+        console.error('Auto-routing failed during import:', err);
+    }
     res.status(200).json({ message: 'Leads imported successfully', count: createdLeads.count });
 });
 exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -87,6 +149,7 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const search = req.query.search || '';
     // Status filters
+    const unifiedStatus = req.query.unifiedStatus || 'All';
     const salesStage = req.query.salesStage || 'All';
     const verificationStatus = req.query.verificationStatus || 'All';
     const engagementStatus = req.query.engagementStatus || 'All';
@@ -95,10 +158,63 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const state = req.query.state || 'All';
     const city = req.query.city || 'All';
     const websiteStatus = req.query.websiteStatus || 'All';
+    const sellsAlgoTrading = req.query.sellsAlgoTrading || 'All';
+    const exchangeName = req.query.exchangeName || 'All';
+    const otherListings = req.query.otherListings || 'All';
     const skip = (page - 1) * limit;
     const where = {};
     if (salesStage && salesStage !== 'All')
         where.salesStage = salesStage;
+    if (unifiedStatus && unifiedStatus !== 'All') {
+        switch (unifiedStatus) {
+            case 'NEW':
+                where.salesStage = 'New';
+                break;
+            case 'CONTACTED':
+                where.salesStage = 'Contacted';
+                break;
+            case 'FOLLOW_UP':
+                where.salesStage = 'Follow-up';
+                break;
+            case 'CONTACTED_OR_FOLLOW_UP':
+                where.salesStage = { in: ['Contacted', 'Follow-up'] };
+                break;
+            case 'QUALIFIED':
+                where.salesStage = 'Qualified';
+                break;
+            case 'NEGOTIATION':
+                where.salesStage = 'Negotiation';
+                break;
+            case 'WON':
+                where.salesStage = 'Client Won';
+                break;
+            case 'LOST':
+                where.salesStage = 'Client Lost';
+                break;
+            case 'DNC':
+                where.salesStage = 'Do Not Contact';
+                break;
+            case 'UNVERIFIED':
+                where.verificationStatus = 'Unverified';
+                break;
+            case 'ENGAGED':
+                where.engagementStatus = { not: 'Not Engaged' };
+                break;
+            case 'IMPORTED':
+                where.verificationStatus = 'Imported';
+                break;
+            case 'INVALID':
+                where.verificationStatus = { in: ['Likely Inactive', 'Duplicate'] };
+                break;
+            case 'OVERDUE':
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+                where.nextFollowUpAt = { lt: startOfDay };
+                break;
+            default:
+                where.status = unifiedStatus;
+        }
+    }
     if (verificationStatus && verificationStatus !== 'All')
         where.verificationStatus = verificationStatus;
     if (engagementStatus && engagementStatus !== 'All')
@@ -129,6 +245,43 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             NOT: { website: '' }
         });
     }
+    if (sellsAlgoTrading === 'Yes') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({ sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } });
+    }
+    else if (sellsAlgoTrading === 'No') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({
+            OR: [
+                { sellsAlgoTrading: null },
+                { sellsAlgoTrading: '' },
+                { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }
+            ]
+        });
+    }
+    if (exchangeName && exchangeName !== 'All') {
+        where.exchangeName = exchangeName;
+    }
+    if (otherListings === 'Yes') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({
+            otherListings: { not: null },
+            NOT: { otherListings: '' }
+        });
+    }
+    else if (otherListings === 'No') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({
+            OR: [
+                { otherListings: null },
+                { otherListings: '' }
+            ]
+        });
+    }
     if (search) {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
@@ -152,6 +305,9 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             orderBy: { [sortField]: sortOrder },
             skip,
             take: limit,
+            include: {
+                user: { select: { id: true, name: true } }
+            }
         }),
         prismaClient_1.default.lead.count({ where })
     ]);
@@ -167,7 +323,7 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     });
 });
 exports.createLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type, website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl } = req.body;
+    const { name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type, website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl } = req.body;
     const userId = req.user?.id;
     if (!name) {
         throw new Error('Lead name is required');
@@ -177,6 +333,7 @@ exports.createLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             name, email, email2, phone, phone2, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName,
             source: source || 'MANUAL',
             type: type || 'Manual',
+            status: status || 'IMPORTED',
             salesStage: salesStage || 'New',
             verificationStatus: verificationStatus || 'Unverified',
             engagementStatus: engagementStatus || 'Not Engaged',
@@ -194,12 +351,51 @@ exports.createLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             }
         });
     }
+    // Notify system admins about the new lead
+    const admins = await prismaClient_1.default.user.findMany({
+        where: { role: { name: 'System Admin' } }
+    });
+    for (const admin of admins) {
+        if (admin.id !== userId) { // Don't notify the person who created it if they are an admin
+            const notif = await prismaClient_1.default.notification.create({
+                data: {
+                    userId: admin.id,
+                    title: 'New Lead Created',
+                    message: `Lead "${newLead.name}" was just created by ${req.user?.name || 'a user'}.`,
+                    type: 'LEAD_CREATED',
+                    relatedEntityId: newLead.id,
+                    relatedEntity: 'Lead'
+                }
+            });
+            socket_service_1.SocketService.sendToUser(admin.id, 'new_notification', notif);
+        }
+    }
+    // Auto-route the new lead
+    try {
+        await routing_service_1.RoutingService.autoAssignLead(newLead.id);
+    }
+    catch (err) {
+        console.error('Auto-routing failed for new lead:', err);
+    }
     res.status(201).json({ message: 'Lead created successfully', data: newLead });
+});
+exports.getLeadById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const lead = await prismaClient_1.default.lead.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+            user: { select: { id: true, name: true } }
+        }
+    });
+    if (!lead) {
+        throw new Error('Lead not found');
+    }
+    res.status(200).json({ message: 'Lead fetched successfully', data: lead });
 });
 exports.updateLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
-    const { name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type, website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl } = req.body;
-    const userId = req.user?.id;
+    const { name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type, website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl, userId: assignedUserId } = req.body;
+    const currentUserId = req.user?.id;
     if (!id) {
         throw new Error('Lead ID is required');
     }
@@ -211,12 +407,16 @@ exports.updateLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const updatedLead = await prismaClient_1.default.lead.update({
         where: { id: leadId },
         data: {
-            name, email, email2, phone, phone2, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
-            website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl
+            name, email, email2, phone, phone2, status, salesStage, verificationStatus, engagementStatus, consentStatus, registrationNo, contactPerson, address, city, state, pincode, fax, validity, exchangeName, tradeName, source, type,
+            website, linkedin, twitter, facebook, servicesSummary, productsOffered, sellsAlgoTrading, brokerPartner, companySizeEstimate, enrichmentNotes, logoUrl,
+            ...(assignedUserId !== undefined && { userId: assignedUserId ? parseInt(assignedUserId) : null })
+        },
+        include: {
+            user: { select: { id: true, name: true } }
         }
     });
     // Track changes
-    if (userId) {
+    if (currentUserId) {
         const changes = {};
         if (salesStage && existingLead.salesStage !== salesStage)
             changes.salesStage = { from: existingLead.salesStage, to: salesStage };
@@ -229,13 +429,51 @@ exports.updateLead = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         if (Object.keys(changes).length > 0) {
             await prismaClient_1.default.activityLog.create({
                 data: {
-                    userId,
+                    userId: currentUserId,
                     leadId,
                     action: 'UPDATED_STATUSES',
                     details: 'Updated lead statuses',
                     changes: JSON.stringify(changes)
                 }
             });
+        }
+    }
+    // Check for status change notification (notify admins when status changes)
+    if (status && existingLead.status !== status) {
+        const admins = await prismaClient_1.default.user.findMany({
+            where: { role: { name: 'System Admin' } }
+        });
+        for (const admin of admins) {
+            if (admin.id !== currentUserId) {
+                const notif = await prismaClient_1.default.notification.create({
+                    data: {
+                        userId: admin.id,
+                        title: 'Lead Status Changed',
+                        message: `Status for "${updatedLead.name}" was changed to ${status} by ${req.user?.name || 'a user'}.`,
+                        type: 'STATUS_CHANGED',
+                        relatedEntityId: updatedLead.id,
+                        relatedEntity: 'Lead'
+                    }
+                });
+                socket_service_1.SocketService.sendToUser(admin.id, 'new_notification', notif);
+            }
+        }
+    }
+    // Check for assignment change notification
+    if (assignedUserId !== undefined && existingLead.userId !== assignedUserId && assignedUserId !== null) {
+        // Notify the newly assigned user
+        if (assignedUserId !== currentUserId) {
+            const notif = await prismaClient_1.default.notification.create({
+                data: {
+                    userId: assignedUserId,
+                    title: 'New Lead Assigned',
+                    message: `Lead "${updatedLead.name}" has been assigned to you by ${req.user?.name || 'a user'}.`,
+                    type: 'LEAD_ASSIGNED',
+                    relatedEntityId: updatedLead.id,
+                    relatedEntity: 'Lead'
+                }
+            });
+            socket_service_1.SocketService.sendToUser(assignedUserId, 'new_notification', notif);
         }
     }
     res.status(200).json({ message: 'Lead updated successfully', data: updatedLead });
@@ -303,10 +541,21 @@ exports.getFilterOptions = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
         distinct: ['type'],
         orderBy: { type: 'asc' }
     });
+    // Fetch distinct exchanges
+    const exchangesObj = await prismaClient_1.default.lead.findMany({
+        where: {
+            exchangeName: { not: null },
+            NOT: { exchangeName: '' }
+        },
+        select: { exchangeName: true },
+        distinct: ['exchangeName'],
+        orderBy: { exchangeName: 'asc' }
+    });
     const states = statesObj.map(s => s.state).filter(Boolean);
     const cities = citiesObj.map(c => c.city).filter(Boolean);
     const types = typesObj.map(t => t.type).filter(Boolean);
-    res.status(200).json({ data: { states, cities, types }, message: 'Filter options retrieved' });
+    const exchanges = exchangesObj.map(e => e.exchangeName).filter(Boolean);
+    res.status(200).json({ data: { states, cities, types, exchanges }, message: 'Filter options retrieved' });
 });
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));

@@ -10,6 +10,8 @@ export interface SegmentRule {
   market?: string;
   websiteStatus?: string;
   algoStatus?: string;
+  exchangeName?: string;
+  otherListings?: string;
 }
 
 export interface Segment {
@@ -31,9 +33,9 @@ export const segmentService = {
     return response.data.data;
   },
 
-  getSegmentLeads: async (id: number): Promise<any[]> => {
+  getSegmentLeads: async (id: number): Promise<{ leads: any[]; total: number }> => {
     const response = await apiClient.get(`/segments/${id}/leads`);
-    return response.data.data;
+    return { leads: response.data.data, total: response.data.total };
   },
 
   previewSegment: async (rules: SegmentRule): Promise<{ count: number; leads: any[] }> => {

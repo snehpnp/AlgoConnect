@@ -22,9 +22,11 @@ const router = (0, express_1.Router)();
 // All lead routes require a valid JWT token
 router.get('/', auth_middleware_1.authenticate, lead_controller_1.getLeads);
 router.post('/', auth_middleware_1.authenticate, lead_controller_1.createLead);
+router.get('/:id', auth_middleware_1.authenticate, lead_controller_1.getLeadById);
 router.put('/:id', auth_middleware_1.authenticate, lead_controller_1.updateLead);
 router.delete('/:id', auth_middleware_1.authenticate, lead_controller_1.deleteLead);
 router.post('/import', auth_middleware_1.authenticate, lead_controller_1.importLeads);
+router.post('/:id/send-email', auth_middleware_1.authenticate, lead_controller_1.sendDirectEmail);
 // Chunked File Upload endpoints
 const lead_controller_2 = require("../controllers/lead.controller");
 router.get('/filters/options', auth_middleware_1.authenticate, lead_controller_2.getFilterOptions);

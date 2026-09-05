@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { SocketService } from './socket.service';
 
 const prisma = new PrismaClient();
 
@@ -100,6 +101,57 @@ export class EmailTrackingService {
           details: `Email subject: "${messageSend.subject || 'Unknown'}" was ${eventType.toLowerCase()}.`,
         }
       });
+
+      // 6. Update Lead engagementStatus
+      let newLeadStatus = '';
+      if (eventType === 'OPENED') newLeadStatus = 'Opened';
+      else if (eventType === 'CLICKED') newLeadStatus = 'Clicked';
+      else if (eventType === 'REPLIED') newLeadStatus = 'Replied';
+      
+      if (newLeadStatus) {
+        const lead = await tx.lead.findUnique({ where: { id: messageSend.leadId } });
+        // Only upgrade status (Replied > Clicked > Opened > Sent)
+        const statusHierarchy: Record<string, number> = {
+          'Not Engaged': 0, 'Sent': 1, 'Delivered': 2, 'Opened': 3, 'Clicked': 4, 'Demo Requested': 5, 'Replied': 6
+        };
+        const currentRank = statusHierarchy[lead?.engagementStatus || 'Not Engaged'] || 0;
+        const newRank = statusHierarchy[newLeadStatus] || 0;
+
+        if (newRank > currentRank) {
+          const updatePayload: any = { engagementStatus: newLeadStatus };
+          
+          // Auto Status Progression: if lead replies, upgrade CRM salesStage
+          if (eventType === 'REPLIED' && ['New', 'Contacted', 'Follow-up'].includes(lead?.salesStage || 'New')) {
+            updatePayload.salesStage = 'Qualified';
+          }
+          
+          await tx.lead.update({
+            where: { id: messageSend.leadId },
+            data: updatePayload
+          });
+        }
+      }
+
+      // 7. Real-time Notification
+      if (['OPENED', 'CLICKED', 'REPLIED'].includes(eventType) && messageSend.lead.userId) {
+        let title = '';
+        if (eventType === 'OPENED') title = 'Email Opened';
+        if (eventType === 'CLICKED') title = 'Email Clicked';
+        if (eventType === 'REPLIED') title = 'Email Replied';
+        
+        const notif = await tx.notification.create({
+          data: {
+            userId: messageSend.lead.userId,
+            title,
+            message: `${messageSend.lead.name} ${eventType.toLowerCase()} the email "${messageSend.subject}".`,
+            type: `EMAIL_${eventType}`,
+            relatedEntityId: messageSend.leadId,
+            relatedEntity: 'Lead'
+          }
+        });
+        
+        SocketService.sendToUser(messageSend.lead.userId, 'new_notification', notif);
+      }
 
       return event;
     });

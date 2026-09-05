@@ -23,7 +23,7 @@ exports.getTemplateById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     res.status(200).json({ data: template, message: 'Template retrieved successfully' });
 });
 exports.createTemplate = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { name, content, type, status, isShared } = req.body;
+    const { name, content, type, status, isShared, designJson } = req.body;
     if (!name || !content || !type) {
         throw new Error('Name, content, and type are required');
     }
@@ -31,6 +31,7 @@ exports.createTemplate = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         data: {
             name,
             content,
+            designJson: designJson || null,
             type,
             status: status || 'PENDING',
             isShared: isShared || false
@@ -40,12 +41,13 @@ exports.createTemplate = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
 });
 exports.updateTemplate = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
-    const { name, content, type, status, isShared } = req.body;
+    const { name, content, type, status, isShared, designJson } = req.body;
     const template = await prismaClient_1.default.messageTemplate.update({
         where: { id: parseInt(id) },
         data: {
             name,
             content,
+            ...(designJson !== undefined && { designJson }),
             type,
             status,
             isShared

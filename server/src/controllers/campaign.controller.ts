@@ -34,6 +34,73 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
 });
 
+export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const campaignId = parseInt(id as string);
+
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: {
+      leads: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          scrapedEmail: true,
+          scrapedPhone: true,
+          messageSends: {
+            where: { campaignId },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: {
+              events: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+              replies: {
+                orderBy: { receivedAt: 'desc' },
+                take: 1
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!campaign) {
+    throw new Error('Campaign not found');
+  }
+
+  const formattedLeads = campaign.leads.map(lead => {
+    const lastMessageSend = lead.messageSends[0];
+    const lastEvent = lastMessageSend?.events[0];
+    const latestReply = lastMessageSend?.replies?.[0];
+    
+    let status = 'PENDING';
+    if (latestReply) {
+       status = 'REPLIED';
+    } else if (lastEvent) {
+       status = lastEvent.eventType;
+    } else if (lastMessageSend) {
+       status = lastMessageSend.status;
+    }
+
+    return {
+      id: lead.id,
+      name: lead.name,
+      email: lead.email || lead.scrapedEmail,
+      phone: lead.phone || lead.scrapedPhone,
+      status: status,
+      latestReply: latestReply || null,
+      lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
+    };
+  });
+
+  res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
+});
+
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
   const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
 
@@ -322,10 +389,35 @@ export const getEngineStatus = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: { isRunning: getEngineState() } });
 });
 
-export const toggleEngineStatus = asyncHandler(async (req: Request, res: Response) => {
+export const toggleEngineStatus = asyncHandler(async (req: any, res: Response) => {
   const { isRunning } = req.body;
   const newState = toggleEngine(isRunning);
+  
+  await prisma.activityLog.create({
+    data: {
+      userId: req.user?.id,
+      action: newState ? 'ENGINE_STARTED' : 'ENGINE_STOPPED',
+      details: `Campaign Automation Engine was ${newState ? 'started' : 'stopped'} by ${req.user?.name || 'User'}`,
+    }
+  });
+
   res.status(200).json({ data: { isRunning: newState }, message: newState ? 'Engine started' : 'Engine stopped' });
+});
+
+export const getEngineLogs = asyncHandler(async (req: Request, res: Response) => {
+  const logs = await prisma.activityLog.findMany({
+    where: {
+      action: {
+        in: ['ENGINE_STARTED', 'ENGINE_STOPPED']
+      }
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100
+  });
+  res.status(200).json({ data: logs, message: 'Engine logs retrieved successfully' });
 });
 
 export const sendManualMessage = asyncHandler(async (req: Request, res: Response) => {
@@ -360,9 +452,18 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     .replace(/{{company}}/g, lead.name || '');
 
   let recipient = '';
+  const providerMessageId = `manual-${Date.now()}`;
+  let htmlSent = '';
+
   if (channel === 'EMAIL') {
     recipient = lead.email || lead.scrapedEmail || lead.email2 || '';
     if (!recipient) throw new Error('Lead has no email address');
+
+    // Generate tracking URL (fallback to localhost for local testing)
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
+    const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
+    
+    htmlSent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>${trackingPixel}`;
 
     try {
       const transporter = await getEmailTransporter();
@@ -371,7 +472,8 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
         from: sender,
         to: recipient,
         subject,
-        html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
+        html: htmlSent,
+        messageId: `${providerMessageId}@algoconnect.local`
       });
     } catch (err: any) {
       const msg = await prisma.messageSend.create({
@@ -397,12 +499,9 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     // For SMS/Whatsapp, ensure phone exists
     recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
     if (!recipient) throw new Error(`Lead has no phone number for ${channel}`);
+    htmlSent = content;
     console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
   }
-
-  const htmlSent = channel === 'EMAIL'
-    ? `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>`
-    : content;
 
   const msg = await prisma.messageSend.create({
     data: {
@@ -411,59 +510,17 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
       channel,
       subject,
       status: 'SENT',
-      providerMessageId: `manual-${Date.now()}`,
-      sentAt: new Date()
+      providerMessageId
     }
   });
 
-  const event = await prisma.engagementEvent.create({
+  await prisma.engagementEvent.create({
     data: {
       messageSendId: msg.id,
       eventType: 'SENT',
-      metadataJson: {
-        isManual: true,
-        templateId: templateId || null,
-        recipient,
-        htmlContent: htmlSent,
-      }
+      metadataJson: { isManual: true }
     }
   });
 
-  res.status(200).json({ message: 'Manual message sent successfully', data: event });
-});
-
-export const getCampaignLogDetail = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id as string;
-  const logId = req.params.logId as string;
-  const log = await prisma.engagementEvent.findFirst({
-    where: {
-      id: parseInt(logId),
-      messageSend: { campaignId: parseInt(id) }
-    },
-    include: {
-      messageSend: {
-        include: {
-          lead: { select: { id: true, name: true, email: true, phone: true, scrapedEmail: true } },
-          campaign: { select: { id: true, name: true } }
-        }
-      }
-    }
-  });
-  if (!log) throw new Error('Log entry not found');
-
-  const mappedLog = {
-    ...log,
-    lead: log.messageSend?.lead,
-    campaign: log.messageSend?.campaign,
-    details: log.metadataJson ? JSON.stringify(log.metadataJson) : '{}'
-  };
-
-  let parsedDetails: any = {};
-  try {
-    parsedDetails = mappedLog.details ? JSON.parse(mappedLog.details as string) : {};
-  } catch (e) {
-    parsedDetails = { raw: mappedLog.details };
-  }
-
-  res.status(200).json({ data: { log: mappedLog, details: parsedDetails } });
+  res.status(200).json({ message: 'Message sent successfully', data: msg });
 });

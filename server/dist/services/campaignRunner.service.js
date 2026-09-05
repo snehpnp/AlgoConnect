@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startCampaignRunner = exports.getEngineState = exports.toggleEngine = void 0;
 const node_cron_1 = __importDefault(require("node-cron"));
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
+const imap_service_1 = require("./imap.service");
 const messagingGateway_service_1 = require("./messagingGateway.service");
 const BATCH_LIMIT = 50; // Max leads processed per minute per campaign
 let isEngineRunning = true;
@@ -19,8 +20,14 @@ const getEngineState = () => {
 };
 exports.getEngineState = getEngineState;
 const startCampaignRunner = () => {
-    // Run every 10 minute 
-    node_cron_1.default.schedule('* 10 * * *', async () => {
+    // Run IMAP checker every 15 minutes
+    node_cron_1.default.schedule('*/5 * * * *', async () => {
+        if (!isEngineRunning)
+            return;
+        await (0, imap_service_1.checkIMAPReplies)();
+    });
+    // Run campaign processor every 10 minutes
+    node_cron_1.default.schedule('*/10 9-17 * * *', async () => {
         if (!isEngineRunning) {
             return;
         }
@@ -52,12 +59,11 @@ const startCampaignRunner = () => {
                     // Check each channel
                     for (const channel of channels) {
                         // Check if already sent in this campaign
-                        const existingSend = await prismaClient_1.default.engagementEvent.findFirst({
+                        const existingSend = await prismaClient_1.default.messageSend.findFirst({
                             where: {
                                 campaignId: campaign.id,
                                 leadId: lead.id,
                                 channel: channel,
-                                eventType: 'SENT'
                             }
                         });
                         if (existingSend) {
@@ -69,13 +75,21 @@ const startCampaignRunner = () => {
                         });
                         if (consent && consent.status === 'OPT_OUT') {
                             // Log that it was skipped due to consent
-                            await prismaClient_1.default.engagementEvent.create({
+                            const msg = await prismaClient_1.default.messageSend.create({
                                 data: {
                                     campaignId: campaign.id,
                                     leadId: lead.id,
                                     channel: channel,
+                                    subject: 'Skipped - Opt Out',
+                                    status: 'FAILED',
+                                    providerMessageId: `skip-optout-${Date.now()}`
+                                }
+                            });
+                            await prismaClient_1.default.engagementEvent.create({
+                                data: {
+                                    messageSendId: msg.id,
                                     eventType: 'FAILED',
-                                    details: 'SKIPPED_OPT_OUT',
+                                    metadataJson: { error: 'SKIPPED_OPT_OUT' },
                                 }
                             });
                             continue;
@@ -97,13 +111,21 @@ const startCampaignRunner = () => {
                         }
                         if (!template || !recipient) {
                             // Missing template or contact info
-                            await prismaClient_1.default.engagementEvent.create({
+                            const msg = await prismaClient_1.default.messageSend.create({
                                 data: {
                                     campaignId: campaign.id,
                                     leadId: lead.id,
                                     channel: channel,
+                                    subject: 'Skipped - Missing Info',
+                                    status: 'FAILED',
+                                    providerMessageId: `skip-missing-${Date.now()}`
+                                }
+                            });
+                            await prismaClient_1.default.engagementEvent.create({
+                                data: {
+                                    messageSendId: msg.id,
                                     eventType: 'FAILED',
-                                    details: 'SKIPPED_MISSING_INFO',
+                                    metadataJson: { error: 'SKIPPED_MISSING_INFO' },
                                 }
                             });
                             continue;
@@ -116,6 +138,16 @@ const startCampaignRunner = () => {
                         const renderedSubject = (template.subject || '')
                             .replace(/{{name}}/g, lead.name || '')
                             .replace(/{{company}}/g, lead.name || '');
+                        let attachments = [];
+                        if (template.designJson && typeof template.designJson === 'object' && template.designJson.attachments) {
+                            attachments = template.designJson.attachments.map((att) => {
+                                // If url is /uploads/123.jpg, we resolve it to the full path
+                                return {
+                                    filename: att.filename,
+                                    path: require('path').join(process.cwd(), att.url)
+                                };
+                            });
+                        }
                         // Dispatch
                         await messagingGateway_service_1.messagingGateway.sendMessage({
                             campaignId: campaign.id,
@@ -126,6 +158,7 @@ const startCampaignRunner = () => {
                             content: renderedContent,
                             subject: renderedSubject,
                             htmlContent: renderedContent,
+                            attachments
                         });
                         processedCount++;
                     }

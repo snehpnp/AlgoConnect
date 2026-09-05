@@ -25,8 +25,15 @@ export interface Lead {
   exchangeName?: string | null;
   tradeName?: string | null;
   userId: number | null;
+  user?: { id: number; name: string } | null;
+  leadScore?: number;
   createdAt: string;
   updatedAt: string;
+
+  // Follow-Up fields
+  nextFollowUpAt?: string | null;
+  followUpNotes?: string | null;
+  lastContactedAt?: string | null;
   
   // Enrichment fields
   isEnriched?: boolean;
@@ -43,6 +50,10 @@ export interface Lead {
   logoUrl?: string | null;
   otherListings?: string | null;
 }
+
+export const getUnifiedStatus = (lead: Lead): string => {
+  return lead.status || 'UNVERIFIED';
+};
 
 export interface GetLeadsResponse {
   message: string;
@@ -81,13 +92,18 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
 
-  getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[] }> => {
-    const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[] } }>('/leads/filters/options', {
+  getLeadById: async (id: number): Promise<{ message: string; data: Lead }> => {
+    const response = await apiClient.get<{ message: string; data: Lead }>(`/leads/${id}`);
+    return response.data;
+  },
+
+  getFilterOptions: async (state?: string): Promise<{ states: string[]; cities: string[]; types: string[]; exchanges: string[] }> => {
+    const response = await apiClient.get<{ message: string; data: { states: string[]; cities: string[]; types: string[]; exchanges: string[] } }>('/leads/filters/options', {
       params: { state }
     });
     return response.data.data;
@@ -129,5 +145,10 @@ export const leadsService = {
   getLeadLogs: async (id: number): Promise<any[]> => {
     const response = await apiClient.get<{ message: string; data: any[] }>(`/leads/${id}/logs`);
     return response.data.data;
-  }
+  },
+
+  sendDirectEmail: async (id: number, data: { subject?: string; body: string; templateId?: number; recipientEmail?: string }) => {
+    const response = await apiClient.post(`/leads/${id}/send-email`, data);
+    return response.data;
+  },
 };

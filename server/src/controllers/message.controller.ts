@@ -127,3 +127,20 @@ export const getLeadMessages = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getLeadEmailReplies = async (req: Request, res: Response) => {
+  try {
+    const { leadId } = req.params;
+    const replies = await prisma.emailReply.findMany({
+      where: { leadId: Number(leadId) },
+      include: {
+        messageSend: { select: { subject: true, campaign: { select: { name: true } } } }
+      },
+      orderBy: { receivedAt: 'desc' }
+    });
+    res.status(200).json({ data: replies });
+  } catch (error) {
+    console.error('Error fetching lead email replies:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

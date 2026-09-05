@@ -1,10 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Megaphone, Plus, Search, MoreVertical, Edit2, Trash2, Users, X, Loader2, Info, Settings, Mail, List } from 'lucide-react';
 import { campaignService, type Campaign } from '../services/campaign.service';
 import { leadsService, type Lead } from '../services/leads.service';
-import { segmentService, type Segment } from '../services/segment.service';
-import { getTemplates, type MessageTemplate } from '../services/template.service';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -16,8 +13,6 @@ export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isEngineRunning, setIsEngineRunning] = useState(true);
@@ -25,10 +20,23 @@ export const Campaigns: React.FC = () => {
   const [infoLanguage, setInfoLanguage] = useState<'en' | 'hi'>('hi');
 
   // Modals state
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false);
-  const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
   
+  // Engine Logs state
+  const [isEngineLogsModalOpen, setIsEngineLogsModalOpen] = useState(false);
+  const [engineLogs, setEngineLogs] = useState<any[]>([]);
+  const [engineLogsLoading, setEngineLogsLoading] = useState(false);
+  const [currentCampaign, setCurrentCampaign] = useState<Partial<Campaign>>({});
+
+  // Connected Leads Modal
+  const [isConnectedLeadsModalOpen, setIsConnectedLeadsModalOpen] = useState(false);
+  const [connectedLeads, setConnectedLeads] = useState<any[]>([]);
+  const [connectedLeadsLoading, setConnectedLeadsLoading] = useState(false);
+
+  // Reply Modal
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [currentReply, setCurrentReply] = useState<any>(null);
+
   // Drawer state
   const [selectedCampaignForDrawer, setSelectedCampaignForDrawer] = useState<Campaign | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -65,15 +73,11 @@ export const Campaigns: React.FC = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const [campRes, segRes, engineRes, tplRes] = await Promise.all([
+      const [campRes, engineRes] = await Promise.all([
         campaignService.getCampaigns(),
-        segmentService.getSegments(),
-        campaignService.getEngineStatus(),
-        getTemplates()
+        campaignService.getEngineStatus()
       ]);
       setCampaigns(campRes.data || []);
-      setSegments(segRes || []);
-      setTemplates(tplRes.data || []);
       setIsEngineRunning(engineRes.data?.isRunning ?? true);
     } catch (error) {
       toast.error('Failed to load campaigns and segments');
@@ -85,38 +89,6 @@ export const Campaigns: React.FC = () => {
   useEffect(() => {
     fetchCampaigns();
   }, []);
-
-  const handleSaveCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentCampaign.name || !currentCampaign.type) {
-      toast.error('Name and Type are required');
-      return;
-    }
-    
-    // Auto-fill the correct template ID based on type
-    let finalCampaignData = { ...currentCampaign };
-    if (finalCampaignData.type === 'EMAIL') {
-      finalCampaignData.channels = ['EMAIL'];
-    } else if (finalCampaignData.type === 'SMS') {
-      finalCampaignData.channels = ['SMS'];
-    } else if (finalCampaignData.type === 'WHATSAPP') {
-      finalCampaignData.channels = ['WHATSAPP'];
-    }
-
-    try {
-      if (currentCampaign.id) {
-        await campaignService.updateCampaign(currentCampaign.id, finalCampaignData);
-        toast.success('Campaign updated successfully');
-      } else {
-        await campaignService.createCampaign(finalCampaignData);
-        toast.success('Campaign created successfully');
-      }
-      setIsFormOpen(false);
-      fetchCampaigns();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save campaign');
-    }
-  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this campaign?')) return;
@@ -161,23 +133,34 @@ export const Campaigns: React.FC = () => {
   };
 
   const openManageLeads = async (campaign: Campaign) => {
-    setCurrentCampaign(campaign);
     setOpenMenuId(null);
     setIsLeadsModalOpen(true);
-    setSelectedLeadIds(new Set());
     setModalSearch('');
     setModalSalesStage('');
+
+    // Fetch full campaign details to get already connected leads
+    try {
+      setLeadsLoading(true);
+      const campRes = await campaignService.getCampaignById(campaign.id);
+      setCurrentCampaign(campRes.data);
+      const existingLeadIds = campRes.data.leads?.map((l: any) => l.id) || [];
+      setSelectedLeadIds(new Set(existingLeadIds));
+    } catch (error) {
+      toast.error('Failed to load campaign details');
+      setSelectedLeadIds(new Set());
+    }
+
     await fetchModalLeads();
   };
 
   // Debounced search for Modal
   useEffect(() => {
-    if (!isLeadsModalOpen && !isFormOpen) return;
+    if (!isLeadsModalOpen) return;
     const delayDebounceFn = setTimeout(() => {
       fetchModalLeads(modalSearch, modalSalesStage);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [modalSearch, modalSalesStage, isLeadsModalOpen, isFormOpen]);
+  }, [modalSearch, modalSalesStage, isLeadsModalOpen]);
 
   const handleAddLeads = async () => {
     if (!currentCampaign.id || selectedLeadIds.size === 0) return;
@@ -213,23 +196,51 @@ export const Campaigns: React.FC = () => {
     }
   };
 
+  const openEngineLogsModal = async () => {
+    setIsEngineLogsModalOpen(true);
+    setEngineLogsLoading(true);
+    try {
+      const res = await campaignService.getEngineLogs();
+      setEngineLogs(res.data || []);
+    } catch (err) {
+      toast.error('Failed to load engine logs');
+    } finally {
+      setEngineLogsLoading(false);
+    }
+  };
+
+  const openConnectedLeadsModal = async (campaign: Campaign) => {
+    setCurrentCampaign(campaign);
+    setIsConnectedLeadsModalOpen(true);
+    setConnectedLeadsLoading(true);
+    try {
+      const res = await campaignService.getCampaignConnectedLeads(campaign.id);
+      setConnectedLeads(res.data || []);
+    } catch (err) {
+      toast.error('Failed to load connected leads');
+    } finally {
+      setConnectedLeadsLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in relative pb-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 sm:space-y-8 animate-fade-in relative pb-24 sm:pb-10 px-3 sm:px-6 pt-2">
+      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between px-1 sm:px-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-3">
             Campaign Automation
             <div className="flex items-center gap-2">
               <button
                 onClick={handleToggleEngine}
-                className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 font-semibold transition-colors ${isEngineRunning
+                className={`text-[10px] sm:text-xs px-2 py-1 rounded-full border flex items-center gap-1 font-semibold transition-colors ${isEngineRunning
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                   : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                   }`}
                 title="Toggle Master Engine Status"
               >
-                <div className={`h-2 w-2 rounded-full ${isEngineRunning ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
-                {isEngineRunning ? 'ENGINE RUNNING' : 'ENGINE PAUSED'}
+                <div className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${isEngineRunning ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
+                <span className="hidden sm:inline">{isEngineRunning ? 'ENGINE RUNNING' : 'ENGINE PAUSED'}</span>
+                <span className="sm:hidden">{isEngineRunning ? 'RUNNING' : 'PAUSED'}</span>
               </button>
               <button
                 onClick={() => setIsEngineInfoModalOpen(true)}
@@ -238,48 +249,147 @@ export const Campaigns: React.FC = () => {
               >
                 <Info className="h-4 w-4" />
               </button>
+              <button
+                onClick={openEngineLogsModal}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                title="View Engine Logs"
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
           </h1>
-          <p className="text-sm text-[#64748B]">Create, deploy, and monitor outreach campaigns.</p>
+          <p className="hidden sm:block text-sm text-[#64748B] mt-1">Create, deploy, and monitor outreach campaigns.</p>
         </div>
         <button
-          onClick={() => { setCurrentCampaign({ type: 'EMAIL', status: 'DRAFT' }); setIsFormOpen(true); }}
-          className="btn-primary"
+          onClick={() => navigate('/campaigns/create')}
+          className="btn-primary self-end sm:self-auto text-sm px-4 py-2"
         >
-          <Plus className="h-4.5 w-4.5" />
+          <Plus className="h-4 w-4 mr-1.5" />
           Create Campaign
         </button>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-3 px-1 sm:px-0">
         {[
-          { label: 'Active Campaigns', value: `${activeCount} Running` },
-          { label: 'Total Campaigns', value: campaigns.length.toString() },
-          { label: 'Latest Update', value: campaigns.length > 0 ? new Date(campaigns[0].updatedAt).toLocaleDateString() : 'N/A' },
+          { label: 'Active', value: `${activeCount}` },
+          { label: 'Total', value: campaigns.length.toString() },
+          { label: 'Updated', value: campaigns.length > 0 ? new Date(campaigns[0].updatedAt).toLocaleDateString() : 'N/A' },
         ].map((crd, i) => (
-          <div key={i} className="card group">
-            <p className="text-xs font-bold text-[#64748B] uppercase tracking-wider group-hover:text-primary transition-colors">{crd.label}</p>
-            <p className="text-2xl font-extrabold text-[#0F172A] mt-1.5">{crd.value}</p>
+          <div key={i} className={`card group p-3 sm:p-5 ${i === 2 ? 'col-span-2 sm:col-span-1' : ''}`}>
+            <p className="text-[10px] sm:text-xs font-bold text-[#64748B] uppercase tracking-wider group-hover:text-primary transition-colors">{crd.label}</p>
+            <p className="text-xl sm:text-2xl font-extrabold text-[#0F172A] mt-1 sm:mt-1.5">{crd.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="card !p-0 overflow-hidden">
-        <div className="border-b border-[#E2E8F0] p-4.5 bg-[#F8FAFC] flex items-center justify-between">
+      <div className="card !p-0 overflow-visible mx-1 sm:mx-0">
+        <div className="border-b border-[#E2E8F0] p-3 sm:p-4.5 bg-[#F8FAFC] flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-[#0F172A]">All Campaigns</h3>
-          <div className="relative w-64">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+          <div className="relative w-40 sm:w-64 shrink-0">
+            <Search className="absolute top-1/2 left-2.5 sm:left-3 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-[#64748B]" />
             <input
               type="text"
-              placeholder="Search campaigns..."
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input-base !pl-9"
+              className="input-base !pl-8 sm:!pl-9 !py-1.5 sm:!py-2 w-full text-xs sm:text-sm"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[300px] w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Mobile View (Cards) */}
+        <div className="md:hidden flex flex-col p-3 gap-3 bg-slate-50/50 min-h-[300px] pb-32">
+          {loading ? (
+            <div className="py-8 text-center text-sm font-medium text-[#64748B]">Loading campaigns...</div>
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="py-8 text-center text-sm font-medium text-[#64748B]">No campaigns found.</div>
+          ) : (
+            filteredCampaigns.map((camp) => (
+              <div 
+                key={camp.id} 
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative flex flex-col gap-3"
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div 
+                    className="flex gap-3 items-center min-w-0 cursor-pointer"
+                    onClick={() => {
+                      setSelectedCampaignForDrawer(camp);
+                      setIsDrawerOpen(true);
+                    }}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Megaphone className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-900 text-[15px] truncate">{camp.name}</h3>
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{camp.type}</p>
+                    </div>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuId(openMenuId === camp.id ? null : camp.id);
+                      }}
+                      className="p-2 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                    
+                    {openMenuId === camp.id && (
+                      <div className="absolute right-0 top-10 z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                        {isAdmin && (
+                          <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
+                            <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                            {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
+                        <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <Users className="h-4 w-4" /> Add Leads
+                        </button>
+                        <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <Edit2 className="h-4 w-4" /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
+                          <Trash2 className="h-4 w-4" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col justify-center">
+                    <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Target Segment</p>
+                    <p className="text-xs font-bold text-slate-700 truncate">
+                      {camp.segments && camp.segments.length > 0 ? camp.segments.map(s => s.name).join(', ') : 'Manual'}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col justify-center items-start">
+                     <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                     <span className={`badge-${camp.status === 'ACTIVE' ? 'success' : 'neutral'} text-[10px] px-2 py-0.5 shadow-sm`}>
+                       {camp.status}
+                     </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-1 pt-3 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-500">Connected Leads</span>
+                  <button
+                    onClick={() => openConnectedLeadsModal(camp)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors shadow-sm"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    {camp._count?.leads || 0}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View (Table) */}
+        <div className="hidden md:block overflow-x-auto min-h-[300px] w-full pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full text-left" style={{ minWidth: '700px' }}>
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-white">
@@ -300,7 +410,7 @@ export const Campaigns: React.FC = () => {
                 filteredCampaigns.map((camp) => (
                   <tr key={camp.id} className="group hover:bg-[#F8FAFC] transition-colors relative">
                     <td className="py-4 px-6">
-                      <div 
+                      <div
                         className="flex items-center gap-3 cursor-pointer group-hover:text-primary transition-colors"
                         onClick={() => {
                           setSelectedCampaignForDrawer(camp);
@@ -331,10 +441,13 @@ export const Campaigns: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                      <button
+                        onClick={() => openConnectedLeadsModal(camp)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
                         <Users className="w-3.5 h-3.5" />
                         {camp._count?.leads || 0}
-                      </span>
+                      </button>
                     </td>
                     <td className="py-4 px-6 text-right relative">
                       <button
@@ -368,12 +481,8 @@ export const Campaigns: React.FC = () => {
                         <MoreVertical className="h-4 w-4" />
                       </button>
 
-                      {openMenuId === camp.id && createPortal(
-                        <div
-                          ref={menuRef}
-                          style={{ top: menuPos.top, right: menuPos.right }}
-                          className="fixed z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden"
-                        >
+                      {openMenuId === camp.id && (
+                        <div className="absolute right-8 top-10 z-50 w-48 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
                           {isAdmin && (
                             <button onClick={() => toggleCampaignStatus(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border-b border-slate-100">
                               <div className={`h-2 w-2 rounded-full ${camp.status === 'ACTIVE' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
@@ -383,7 +492,7 @@ export const Campaigns: React.FC = () => {
                           <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
                           </button>
-                          <button onClick={() => { setCurrentCampaign({ ...camp, segmentIds: camp.segments?.map(s => s.id) || [], leadIds: camp.leads?.map(l => l.id) || [] }); setIsFormOpen(true); setOpenMenuId(null); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
                           <button onClick={() => handleDelete(camp.id)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-slate-100">
@@ -400,134 +509,6 @@ export const Campaigns: React.FC = () => {
           </table>
         </div>
       </div>
-
-      {/* Add/Edit Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto border border-[#E2E8F0] bg-white rounded-xl shadow-2xl p-6">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-4 mb-4">
-              <h2 className="text-lg font-bold text-[#0F172A]">{currentCampaign.id ? 'Edit Campaign' : 'Create Campaign'}</h2>
-              <button onClick={() => setIsFormOpen(false)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F8FAFC]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveCampaign} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Campaign Name</label>
-                <input type="text" required value={currentCampaign.name || ''} onChange={(e) => setCurrentCampaign({ ...currentCampaign, name: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
-                <select value={currentCampaign.type || 'EMAIL'} onChange={(e) => setCurrentCampaign({ ...currentCampaign, type: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
-                  <option value="EMAIL">Email</option>
-                  <option value="SMS">SMS</option>
-                  <option value="WHATSAPP">WhatsApp</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Target Segments</label>
-                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
-                  {segments.map(seg => (
-                    <label key={seg.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(currentCampaign.segmentIds || []).includes(seg.id)}
-                        onChange={(e) => {
-                          const currentIds = currentCampaign.segmentIds || [];
-                          if (e.target.checked) {
-                            setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
-                          } else {
-                            setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter((id: number) => id !== seg.id) });
-                          }
-                        }}
-                      />
-                      {seg.name}
-                    </label>
-                  ))}
-                  {segments.length === 0 && <span className="text-xs text-slate-500">No segments available</span>}
-                </div>
-              </div>
-              
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Direct Leads (Optional)</label>
-                <div className="relative mb-2">
-                  <Search className="absolute top-1/2 left-3 h-3 w-3 -translate-y-1/2 text-[#64748B]" />
-                  <input
-                    type="text"
-                    placeholder="Search leads..."
-                    value={modalSearch}
-                    onChange={(e) => setModalSearch(e.target.value)}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] pl-8 pr-3 py-1.5 text-xs outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 max-h-40 overflow-y-auto">
-                  {leadsLoading ? (
-                    <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
-                  ) : availableLeads.map(lead => (
-                    <label key={lead.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={(currentCampaign.leadIds || []).includes(lead.id)}
-                        onChange={(e) => {
-                          const currentIds = currentCampaign.leadIds || [];
-                          if (e.target.checked) {
-                            setCurrentCampaign({ ...currentCampaign, leadIds: [...currentIds, lead.id] });
-                          } else {
-                            setCurrentCampaign({ ...currentCampaign, leadIds: currentIds.filter((id: number) => id !== lead.id) });
-                          }
-                        }}
-                      />
-                      <span className="truncate">{lead.name} {lead.email ? `(${lead.email})` : ''}</span>
-                    </label>
-                  ))}
-                  {!leadsLoading && availableLeads.length === 0 && <span className="text-xs text-slate-500">No leads found</span>}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Status</label>
-                <select value={currentCampaign.status || 'DRAFT'} onChange={(e) => setCurrentCampaign({ ...currentCampaign, status: e.target.value })} className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary">
-                  <option value="DRAFT">Draft</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Message Template</label>
-                <select 
-                  value={
-                    currentCampaign.type === 'EMAIL' ? (currentCampaign.emailTemplateId || '') :
-                    currentCampaign.type === 'SMS' ? (currentCampaign.smsTemplateId || '') :
-                    (currentCampaign.whatsappTemplateId || '')
-                  } 
-                  onChange={(e) => {
-                    const id = e.target.value ? parseInt(e.target.value) : null;
-                    if (currentCampaign.type === 'EMAIL') {
-                      setCurrentCampaign({ ...currentCampaign, emailTemplateId: id });
-                    } else if (currentCampaign.type === 'SMS') {
-                      setCurrentCampaign({ ...currentCampaign, smsTemplateId: id });
-                    } else {
-                      setCurrentCampaign({ ...currentCampaign, whatsappTemplateId: id });
-                    }
-                  }} 
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm outline-none focus:border-primary"
-                >
-                  <option value="">Select a template...</option>
-                  {templates.filter(t => t.type === currentCampaign.type).map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Select the content template to send to the leads.</p>
-              </div>
-              <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0]">
-                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-lg border px-4 py-2 text-sm font-semibold">Cancel</button>
-                <button type="submit" className="rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-white">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Connect Leads Modal */}
       {isLeadsModalOpen && (
@@ -676,14 +657,200 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
       )}
-      <Campaign360Drawer
-        campaign={selectedCampaignForDrawer}
-        isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setSelectedCampaignForDrawer(null);
-        }}
-      />
+
+      {/* Connected Leads Modal */}
+      {isConnectedLeadsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
+                <p className="text-sm text-slate-500 mt-1">{currentCampaign?.name}</p>
+              </div>
+              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              {connectedLeadsLoading ? (
+                <div className="py-12 flex justify-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : connectedLeads.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-2 mb-2">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {connectedLeads.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="py-4 px-6 font-semibold text-slate-800">{lead.name}</td>
+                          <td className="py-4 px-6 text-sm text-slate-600">
+                            <div className="font-medium">{lead.email || 'No email'}</div>
+                            <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                                lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                                  lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                                    lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                      lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                                        'bg-slate-100 text-slate-700'
+                              }`}>
+                              {lead.status}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-sm font-medium text-slate-500">
+                            {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            {lead.status === 'REPLIED' && lead.latestReply && (
+                              <button
+                                onClick={() => {
+                                  setCurrentReply(lead.latestReply);
+                                  setReplyModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
+                              >
+                                <Mail className="w-4 h-4" />
+                                View Reply
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Reply Modal */}
+      {replyModalOpen && currentReply && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-emerald-500" />
+                Reply from Client
+              </h2>
+              <button onClick={() => setReplyModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto bg-slate-50">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
+                <div className="text-sm text-slate-500 mb-1">From: <span className="font-medium text-slate-800">{currentReply.fromEmail}</span></div>
+                <div className="text-sm text-slate-500 mb-3">Subject: <span className="font-medium text-slate-800">{currentReply.subject || 'No Subject'}</span></div>
+                <div className="text-sm text-slate-500 border-b border-slate-100 pb-2 mb-3">Date: {new Date(currentReply.receivedAt).toLocaleString()}</div>
+
+                <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed font-sans">
+                  {(() => {
+                    const body = currentReply.body || '';
+                    const wroteRegex = /\nOn\s+.*?\bwrote:/is;
+                    const origMsgRegex = /-{5,}\s*Original Message\s*-{5,}/is;
+                    const fromRegex = /\nFrom:\s+/i;
+                    
+                    let cleanBody = body;
+                    if (wroteRegex.test(cleanBody)) cleanBody = cleanBody.split(wroteRegex)[0];
+                    if (origMsgRegex.test(cleanBody)) cleanBody = cleanBody.split(origMsgRegex)[0];
+                    if (fromRegex.test(cleanBody)) cleanBody = cleanBody.split(fromRegex)[0];
+                    
+                    // Remove trailing lines that just have > or whitespace
+                    cleanBody = cleanBody.replace(/(\n>\s*)+$/s, '');
+                    
+                    return cleanBody.trim() || body.trim();
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedCampaignForDrawer && (
+        <Campaign360Drawer
+          campaign={selectedCampaignForDrawer}
+          isOpen={isDrawerOpen}
+          onClose={() => {
+            setIsDrawerOpen(false);
+            setSelectedCampaignForDrawer(null);
+          }}
+        />
+      )}
+
+      {/* Engine Logs Modal */}
+      {isEngineLogsModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col animate-scale-up">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <List className="w-5 h-5 text-primary" />
+                Campaign Engine Logs
+              </h2>
+              <button onClick={() => setIsEngineLogsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto bg-slate-50 flex-1">
+              {engineLogsLoading ? (
+                <div className="py-12 flex justify-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : engineLogs.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-medium">No engine logs available.</div>
+              ) : (
+                <div className="space-y-4">
+                  {engineLogs.map((log) => (
+                    <div key={log.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-start gap-4">
+                      <div className={`p-2 rounded-full ${log.action === 'ENGINE_STARTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                         <List className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-bold text-slate-800 text-sm">{log.action === 'ENGINE_STARTED' ? 'Engine Started' : 'Engine Stopped'}</h4>
+                          <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm text-slate-600">{log.details}</p>
+                        {log.user && (
+                          <div className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
+                            <span className="font-medium text-slate-700">{log.user.name}</span>
+                            <span className="text-slate-400">({log.user.email})</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-5 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setIsEngineLogsModalOpen(false)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
