@@ -4,7 +4,7 @@ import { campaignService, type Campaign } from '../services/campaign.service';
 import { segmentService, type Segment } from '../services/segment.service';
 import { getTemplates, type MessageTemplate } from '../services/template.service';
 import { leadsService, type Lead } from '../services/leads.service';
-import { ArrowLeft, Save, Search, Loader2, Users, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, Search, Loader2, Users, User, CheckCircle2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const CampaignEditor = () => {
@@ -205,56 +205,69 @@ export const CampaignEditor = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Segments */}
-                  <div className="flex flex-col h-[350px]">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Segments</label>
+                  <div className="flex flex-col h-[400px] border border-[#E2E8F0] rounded-xl bg-white overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-slate-50/50">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" /> Target Segments
+                      </label>
                       {(currentCampaign.segmentIds?.length || 0) > 0 && (
                         <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
                           {currentCampaign.segmentIds?.length} Selected
                         </span>
                       )}
                     </div>
-                    <div className="flex-1 flex flex-col gap-2 rounded-xl border border-[#E2E8F0] bg-slate-50 p-3 overflow-y-auto custom-scrollbar shadow-inner">
+
+                    {/* Selected Chips Area */}
+                    {(currentCampaign.segmentIds?.length || 0) > 0 && (
+                      <div className="flex flex-wrap gap-1.5 p-3 border-b border-slate-100 bg-slate-50/30 max-h-[80px] overflow-y-auto custom-scrollbar">
+                        {currentCampaign.segmentIds?.map(id => {
+                          const seg = segments.find(s => s.id === id);
+                          if (!seg) return null;
+                          return (
+                            <div key={`sel-seg-${id}`} className="flex items-center gap-1 bg-white border border-primary/20 shadow-sm text-primary rounded-md px-2 py-1 text-xs font-medium">
+                              <span className="truncate max-w-[120px]">{seg.name}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setCurrentCampaign({ ...currentCampaign, segmentIds: currentCampaign.segmentIds?.filter(sId => sId !== id) })}
+                                className="hover:bg-primary/10 rounded-full p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                       {segments.map(seg => {
                         const isSelected = (currentCampaign.segmentIds || []).includes(seg.id);
                         return (
-                          <label 
+                          <div 
                             key={seg.id} 
-                            className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 border ${
-                              isSelected 
-                                ? 'bg-primary/5 border-primary/30 shadow-sm' 
-                                : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
-                            }`}
+                            onClick={() => {
+                              const currentIds = currentCampaign.segmentIds || [];
+                              if (!isSelected) {
+                                setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
+                              } else {
+                                setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter((id: number) => id !== seg.id) });
+                              }
+                            }}
+                            className={`flex items-center justify-between p-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 hover:bg-slate-50 ${isSelected ? 'bg-primary/[0.02]' : ''}`}
                           >
-                            <div className="mt-0.5 relative flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                className="peer appearance-none w-4 h-4 rounded border border-gray-300 checked:bg-primary checked:border-primary transition-colors cursor-pointer"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const currentIds = currentCampaign.segmentIds || [];
-                                  if (e.target.checked) {
-                                    setCurrentCampaign({ ...currentCampaign, segmentIds: [...currentIds, seg.id] });
-                                  } else {
-                                    setCurrentCampaign({ ...currentCampaign, segmentIds: currentIds.filter((id: number) => id !== seg.id) });
-                                  }
-                                }}
-                              />
-                              <CheckCircle2 className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} strokeWidth={3} />
+                            <div className="flex-1 min-w-0 pr-4">
+                              <div className={`text-sm font-medium truncate transition-colors ${isSelected ? 'text-primary' : 'text-slate-700'}`}>{seg.name}</div>
                             </div>
-                            <div className="flex-1 min-w-0 flex items-center gap-2">
-                              <div className={`p-1.5 rounded-md ${isSelected ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
-                                <Users className="w-4 h-4" />
-                              </div>
-                              <div className="truncate">
-                                <div className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : 'text-slate-700'}`}>{seg.name}</div>
+                            <div className="shrink-0 flex items-center justify-center">
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 bg-white'}`}>
+                                <CheckCircle2 className={`w-3.5 h-3.5 text-white transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} strokeWidth={3} />
                               </div>
                             </div>
-                          </label>
+                          </div>
                         );
                       })}
                       {segments.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 py-8">
                           <Users className="w-8 h-8 opacity-20" />
                           <span className="text-xs">No segments available</span>
                         </div>
@@ -263,31 +276,55 @@ export const CampaignEditor = () => {
                   </div>
 
                   {/* Direct Leads */}
-                  <div className="flex flex-col h-[350px]">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Direct Leads</label>
+                  <div className="flex flex-col h-[400px] border border-[#E2E8F0] rounded-xl bg-white overflow-hidden shadow-sm">
+                    <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-slate-50/50">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <User className="w-4 h-4 text-primary" /> Direct Leads
+                      </label>
                       {(currentCampaign.leadIds?.length || 0) > 0 && (
                         <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
                           {currentCampaign.leadIds?.length} Selected
                         </span>
                       )}
                     </div>
-                    <div className="relative mb-2 shrink-0 flex gap-2">
-                      <div className="relative flex-1">
-                        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    {/* Selected Chips Area */}
+                    {(currentCampaign.leadIds?.length || 0) > 0 && (
+                      <div className="flex flex-wrap gap-1.5 p-3 border-b border-slate-100 bg-slate-50/30 max-h-[80px] overflow-y-auto custom-scrollbar">
+                        {currentCampaign.leadIds?.map(id => {
+                          const lead = availableLeads.find(l => l.id === id);
+                          return (
+                            <div key={`sel-lead-${id}`} className="flex items-center gap-1 bg-white border border-primary/20 shadow-sm text-primary rounded-md px-2 py-1 text-xs font-medium">
+                              <span className="truncate max-w-[120px]">{lead ? lead.name : `Lead #${id}`}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setCurrentCampaign({ ...currentCampaign, leadIds: currentCampaign.leadIds?.filter(lId => lId !== id) })}
+                                className="hover:bg-primary/10 rounded-full p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="p-2 border-b border-slate-100 bg-white shrink-0 flex flex-col gap-2">
+                      <div className="relative">
+                        <Search className="absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                           type="text"
                           autoComplete="off"
                           placeholder="Search specific leads..."
                           value={modalSearch}
                           onChange={(e) => setModalSearch(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-all placeholder:text-slate-400"
+                          className="w-full rounded-md border border-slate-200 bg-slate-50/50 pl-8 pr-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400"
                         />
                       </div>
                       <select 
                         value={leadTypeFilter}
                         onChange={(e) => setLeadTypeFilter(e.target.value)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-slate-700"
+                        className="w-full rounded-md border border-slate-200 bg-slate-50/50 px-2 py-1.5 text-[13px] outline-none focus:border-primary focus:ring-1 focus:ring-primary text-slate-700"
                       >
                         <option value="">All Types</option>
                         <option value="Manual">Manual</option>
@@ -296,7 +333,8 @@ export const CampaignEditor = () => {
                         <option value="Portfolio Manager (PM)">Portfolio Manager (PM)</option>
                       </select>
                     </div>
-                    <div className="flex-1 flex flex-col gap-2 rounded-xl border border-[#E2E8F0] bg-slate-50 p-3 overflow-y-auto custom-scrollbar shadow-inner">
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
                       {leadsLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
@@ -304,44 +342,32 @@ export const CampaignEditor = () => {
                       ) : availableLeads.map(lead => {
                         const isSelected = (currentCampaign.leadIds || []).includes(lead.id);
                         return (
-                          <label 
+                          <div 
                             key={lead.id} 
-                            className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 border ${
-                              isSelected 
-                                ? 'bg-primary/5 border-primary/30 shadow-sm' 
-                                : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
-                            }`}
+                            onClick={() => {
+                              const currentIds = currentCampaign.leadIds || [];
+                              if (!isSelected) {
+                                setCurrentCampaign({ ...currentCampaign, leadIds: [...currentIds, lead.id] });
+                              } else {
+                                setCurrentCampaign({ ...currentCampaign, leadIds: currentIds.filter((id: number) => id !== lead.id) });
+                              }
+                            }}
+                            className={`flex items-center justify-between p-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 hover:bg-slate-50 ${isSelected ? 'bg-primary/[0.02]' : ''}`}
                           >
-                            <div className="mt-0.5 relative flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                className="peer appearance-none w-4 h-4 rounded border border-gray-300 checked:bg-primary checked:border-primary transition-colors cursor-pointer"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const currentIds = currentCampaign.leadIds || [];
-                                  if (e.target.checked) {
-                                    setCurrentCampaign({ ...currentCampaign, leadIds: [...currentIds, lead.id] });
-                                  } else {
-                                    setCurrentCampaign({ ...currentCampaign, leadIds: currentIds.filter((id: number) => id !== lead.id) });
-                                  }
-                                }}
-                              />
-                              <CheckCircle2 className={`absolute w-3.5 h-3.5 text-white pointer-events-none transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} strokeWidth={3} />
+                            <div className="flex-1 min-w-0 pr-4">
+                              <div className={`text-sm font-medium truncate transition-colors ${isSelected ? 'text-primary' : 'text-slate-700'}`}>{lead.name}</div>
+                              {lead.email && <div className="text-[11px] text-slate-400 truncate mt-0.5">{lead.email}</div>}
                             </div>
-                            <div className="flex-1 min-w-0 flex items-center gap-3">
-                              <div className={`p-1.5 rounded-full shrink-0 ${isSelected ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
-                                <User className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className={`text-sm font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{lead.name}</div>
-                                {lead.email && <div className="text-[11px] text-slate-500 truncate mt-0.5">{lead.email}</div>}
+                            <div className="shrink-0 flex items-center justify-center">
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 bg-white'}`}>
+                                <CheckCircle2 className={`w-3.5 h-3.5 text-white transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} strokeWidth={3} />
                               </div>
                             </div>
-                          </label>
+                          </div>
                         );
                       })}
                       {!leadsLoading && availableLeads.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 py-8">
                           <Search className="w-8 h-8 opacity-20" />
                           <span className="text-xs">No leads found</span>
                         </div>
