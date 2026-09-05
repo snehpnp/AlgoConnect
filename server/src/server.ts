@@ -21,6 +21,7 @@ import notificationRoutes from './routes/notification.routes';
 import notesRoutes from './routes/notes.routes';
 import auditRoutes from './routes/audit.routes';
 import uploadRoutes from './routes/upload.routes';
+import whatsappRoutes from './routes/whatsapp.routes';
 import path from 'path';
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api', notesRoutes); // notes, follow-ups, csv export
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -73,12 +75,14 @@ app.use(errorHandler);
 import { startCampaignRunner } from './services/campaignRunner.service';
 import { pollImapForReplies } from './services/imapListener.service';
 import { SocketService } from './services/socket.service';
+import { whatsappService } from './services/whatsapp.service';
 import cron from 'node-cron';
 
 // Initialize Socket.io
 SocketService.initialize(httpServer);
 
 startCampaignRunner();
+whatsappService.initialize();
 
 // Poll for email replies every 5 minutes (Disabled legacy listener, using new IMAP engine in campaignRunner)
 // cron.schedule('*/5 * * * *', () => {

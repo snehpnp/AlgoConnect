@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { settingsService, type IntegrationSetting, type MessageLog } from '../services/settings.service';
+import { whatsappService, type WhatsAppStatus } from '../services/whatsapp.service';
 
 export const IntegrationSettings = () => {
   const [settings, setSettings] = useState<Record<string, Partial<IntegrationSetting>>>({
@@ -14,6 +15,10 @@ export const IntegrationSettings = () => {
   const [testingType, setTestingType] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [activeTab, setActiveTab] = useState<'EMAIL' | 'SMS' | 'WHATSAPP'>('EMAIL');
+
+  // WhatsApp State
+  const [waStatus, setWaStatus] = useState<WhatsAppStatus>({ connected: false, qrCode: null });
+  const [waLoading, setWaLoading] = useState(false);
 
   // Message Logs State
   const [logs, setLogs] = useState<MessageLog[]>([]);
@@ -32,7 +37,26 @@ export const IntegrationSettings = () => {
   useEffect(() => {
     fetchSettings();
     fetchLogs();
+    fetchWaStatus();
+    
+    // Poll for QR code or connection status
+    const interval = setInterval(() => {
+      fetchWaStatus();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchWaStatus = async () => {
+    try {
+      if (!waStatus.qrCode && !waStatus.connected) setWaLoading(true);
+      const res = await whatsappService.getStatus();
+      setWaStatus(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setWaLoading(false);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -301,29 +325,53 @@ export const IntegrationSettings = () => {
 
           {activeTab === 'WHATSAPP' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4 sm:mb-6">WhatsApp API Setup</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Access Token</label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input type="password" value={settings.WHATSAPP.apiKey || ''} onChange={(e) => handleChange('WHATSAPP', 'apiKey', e.target.value)} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary" placeholder="EAA..." />
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4 sm:mb-6">WhatsApp Web Link</h2>
+              
+              <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 min-h-[300px]">
+                {waLoading && !waStatus.qrCode && !waStatus.connected ? (
+                  <div className="flex flex-col items-center gap-2 text-slate-500">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <span className="text-sm">Checking status...</span>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Phone Number ID</label>
-                  <input type="text" value={settings.WHATSAPP.senderId || ''} onChange={(e) => handleChange('WHATSAPP', 'senderId', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary" placeholder="e.g. 102345678912345" />
-                </div>
-              </div>
-              <div className="mt-6 flex items-center gap-3 pt-4 border-t border-slate-100">
-                <button onClick={() => handleTest('WHATSAPP')} disabled={testingType === 'WHATSAPP' || !settings.WHATSAPP.apiKey} className="flex-1 inline-flex justify-center items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-50 min-h-[44px]">
-                  {testingType === 'WHATSAPP' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                  Test
-                </button>
-                <button onClick={() => handleSave('WHATSAPP')} disabled={savingType === 'WHATSAPP'} className="flex-1 inline-flex justify-center items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-blue-600 disabled:opacity-50 min-h-[44px]">
-                  {savingType === 'WHATSAPP' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save
-                </button>
+                ) : waStatus.connected ? (
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg">WhatsApp Connected</h3>
+                      <p className="text-sm text-slate-500 mt-1 max-w-sm">Your system is now ready to send automated WhatsApp messages directly from your linked account.</p>
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        setWaLoading(true);
+                        await whatsappService.logout();
+                        await fetchWaStatus();
+                      }}
+                      className="mt-4 px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-sm rounded-lg transition-colors border border-red-200"
+                    >
+                      Disconnect WhatsApp
+                    </button>
+                  </div>
+                ) : waStatus.qrCode ? (
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="p-4 bg-white rounded-xl shadow-sm border border-slate-200 inline-block">
+                      <img src={waStatus.qrCode} alt="WhatsApp QR Code" className="w-56 h-56" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">Scan to Link Device</h3>
+                      <p className="text-sm text-slate-500 mt-1 max-w-sm">
+                        Open WhatsApp on your phone &gt; Settings &gt; Linked Devices &gt; Link a Device, and point your camera at this QR code.
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-2 font-medium">QR code updates automatically</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-slate-500 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                    <span className="text-sm font-medium">Starting WhatsApp engine...<br/>Please wait a few moments.</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -363,12 +411,13 @@ export const IntegrationSettings = () => {
                 )}
                 {activeTab === 'WHATSAPP' && (
                   <div className="text-sm text-slate-600 space-y-3">
-                    <p>To use the official <strong>Meta WhatsApp Cloud API</strong>:</p>
+                    <p>To use <strong>WhatsApp Web</strong> automation:</p>
                     <ol className="list-decimal pl-4 space-y-2">
-                      <li>Go to developers.facebook.com and create an App.</li>
-                      <li>Add the WhatsApp product.</li>
-                      <li>In the API Setup tab, copy the <strong>Temporary Access Token</strong> (or generate a permanent System User token).</li>
-                      <li>Copy the <strong>Phone Number ID</strong> (not the actual phone number string).</li>
+                      <li>Open WhatsApp on your primary phone.</li>
+                      <li>Go to <strong>Settings</strong> and tap on <strong>Linked Devices</strong>.</li>
+                      <li>Tap <strong>Link a Device</strong>.</li>
+                      <li>Point your phone's camera at the QR code shown on the left.</li>
+                      <li>Once connected, the system will send campaign messages using your WhatsApp account. Replies will automatically be saved to the respective Lead.</li>
                     </ol>
                   </div>
                 )}

@@ -13,3 +13,6 @@ algoconnect.dump
 ./algoconnect.dump
 /algoconnect.dump
 
+.wwebjs_cache
+.wwebjs_auth
+whatsapp-auth

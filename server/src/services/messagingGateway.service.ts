@@ -103,6 +103,23 @@ export const messagingGateway = {
           });
           SocketService.sendToUser(lead.userId, 'new_notification', notif);
         }
+      } else if (options.channel === 'WHATSAPP') {
+        const { whatsappService } = require('./whatsapp.service');
+        const response = await whatsappService.sendMessage(options.recipient, options.content);
+        
+        if (options.campaignId && lead && lead.userId) {
+          const notif = await prisma.notification.create({
+            data: {
+              userId: lead.userId,
+              title: 'Automated WhatsApp Sent',
+              message: `WhatsApp message was sent to ${lead.name}.`,
+              type: 'SYSTEM',
+              relatedEntityId: msg.id,
+              relatedEntity: 'MessageSend'
+            }
+          });
+          SocketService.sendToUser(lead.userId, 'new_notification', notif);
+        }
       }
 
       const sentDetails = {
