@@ -8,7 +8,7 @@ import psycopg2
 import psycopg2.extras
 from bs4 import BeautifulSoup
 
-# python scripts/lead_enrichment3.py
+# python scripts/lead_enrichment1.py
 
 # --- Configuration ---
 DB_URL = "postgresql://postgres:123456@localhost:5432/algoconnect"
