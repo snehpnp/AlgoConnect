@@ -7,7 +7,6 @@ const handleEmailWebhook = async (req, res) => {
         // 1. In a real system, verify the webhook signature here based on ESP (e.g. SendGrid, SES)
         // const signature = req.headers['x-provider-signature'];
         // verifySignature(signature, req.rawBody);
-        console.log("Enter")
         const events = Array.isArray(req.body) ? req.body : [req.body];
         for (const event of events) {
             // Map ESP specific event structure to our internal eventType

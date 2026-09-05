@@ -5,9 +5,9 @@ import {
   createTemplate,
   updateTemplate
 } from '../services/template.service';
-import { ArrowLeft, Save, Sparkles, Code2, Eye, Mail, MessageSquare, Loader2, ChevronDown } from 'lucide-react';
-import EmailEditor from 'react-email-editor';
-import type { EditorRef } from 'react-email-editor';
+import { ArrowLeft, Save, Sparkles, Code2, Eye, Mail, MessageSquare, Loader2, ChevronDown, Paperclip, X, UploadCloud } from 'lucide-react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { apiClient } from '../services/apiClient';
 import toast from 'react-hot-toast';
 
@@ -109,8 +109,6 @@ export const TemplateEditor = () => {
 
   const [formData, setFormData] = useState<TemplateFormData>(EMPTY_FORM);
 
-  const emailEditorRef = useRef<EditorRef>(null);
-
   useEffect(() => {
     if (id) fetchTemplate(parseInt(id, 10));
   }, [id]);
@@ -138,12 +136,6 @@ export const TemplateEditor = () => {
     }
   };
 
-  const onEditorLoad = () => {
-    if (formData.designJson) {
-      emailEditorRef.current?.editor?.loadDesign(formData.designJson);
-    }
-  };
-
   const persist = useCallback(
     async (payload: TemplateFormData) => {
       setSaving(true);
@@ -167,22 +159,63 @@ export const TemplateEditor = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Email + visual builder: pull the latest HTML/design out of Unlayer first.
-    if (formData.type === 'EMAIL' && !showHtml) {
-      if (!emailEditorRef.current?.editor) {
-        toast.error('Editor is still loading, please wait.');
-        return;
-      }
-      setSaving(true);
-      emailEditorRef.current.editor.exportHtml(async (data) => {
-        const { design, html } = data;
-        await persist({ ...formData, content: html, designJson: design });
-      });
-      return; // async export continues in the callback above
-    }
-
     await persist(formData);
+  };
+
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    const fd = new FormData();
+    fd.append('file', file);
+    
+    try {
+      setUploadingFile(true);
+      const res = await apiClient.post('/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (res.data?.success && res.data?.data) {
+        const newAttachment = res.data.data;
+        setFormData(prev => {
+          const currentDesign = prev.designJson || {};
+          const currentAttachments = currentDesign.attachments || [];
+          return {
+            ...prev,
+            designJson: {
+              ...currentDesign,
+              attachments: [...currentAttachments, newAttachment]
+            }
+          };
+        });
+        toast.success('File attached');
+      }
+    } catch (err) {
+      console.error('Upload error', err);
+      toast.error('Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      e.target.value = ''; // reset input
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setFormData(prev => {
+      const currentDesign = prev.designJson || {};
+      const currentAttachments = currentDesign.attachments || [];
+      const newAttachments = [...currentAttachments];
+      newAttachments.splice(index, 1);
+      
+      return {
+        ...prev,
+        designJson: {
+          ...currentDesign,
+          attachments: newAttachments
+        }
+      };
+    });
   };
 
   const handleGenerateAI = async () => {
@@ -208,37 +241,7 @@ export const TemplateEditor = () => {
           };
 
           if (prev.type === 'EMAIL' && generatedHtml) {
-            const basicDesign: any = {
-              counters: {
-                u_column: 1,
-                u_row: 1
-              },
-              body: {
-                rows: [
-                  {
-                    cells: [1],
-                    columns: [
-                      {
-                        contents: [
-                          {
-                            type: 'text',
-                            values: {
-                              text: generatedHtml,
-                            },
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-                values: {}
-              },
-            };
-            newData.designJson = basicDesign;
-            // Also load into the active editor if it exists
-            setTimeout(() => {
-              emailEditorRef.current?.editor?.loadDesign(basicDesign);
-            }, 100);
+            // No visual builder design logic needed anymore.
           }
           
           return newData;
@@ -473,12 +476,12 @@ export const TemplateEditor = () => {
                 {showHtml ? (
                   <>
                     <Eye className="h-4 w-4" />
-                    Switch to visual builder
+                    Switch to normal email
                   </>
                 ) : (
                   <>
                     <Code2 className="h-4 w-4" />
-                    Switch to raw HTML
+                    Switch to HTML template
                   </>
                 )}
               </button>
@@ -536,15 +539,106 @@ export const TemplateEditor = () => {
                       spellCheck={false}
                     />
                   )}
+                  {/* Attachments Section for EMAIL */}
+                  <div className="border-t border-slate-200 p-4 bg-white mt-auto">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Paperclip className="w-4 h-4" />
+                        Attachments
+                      </h3>
+                      <div>
+                        <input
+                          type="file"
+                          id="attachment-upload-html"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                        />
+                        <label
+                          htmlFor="attachment-upload-html"
+                          className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                        >
+                          {uploadingFile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+                          {uploadingFile ? 'Uploading...' : 'Add file'}
+                        </label>
+                      </div>
+                    </div>
+                    {formData.designJson?.attachments?.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {formData.designJson.attachments.map((att: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 rounded-md px-3 py-2">
+                            <span className="text-xs text-slate-600 truncate mr-2" title={att.filename}>
+                              {att.filename}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No attachments added yet.</p>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="h-full w-full flex-1">
-                  <EmailEditor
-                    ref={emailEditorRef}
-                    onLoad={onEditorLoad}
-                    minHeight="100%"
-                    options={{ displayMode: 'email' }}
-                  />
+                <div className="flex h-full w-full flex-1 flex-col">
+                  <div className="flex-1 p-4 pb-0 flex flex-col">
+                    <ReactQuill 
+                      theme="snow" 
+                      value={formData.content} 
+                      onChange={(val) => setFormData({ ...formData, content: val })} 
+                      className="flex-1 bg-white"
+                      style={{ minHeight: '300px', display: 'flex', flexDirection: 'column' }}
+                    />
+                  </div>
+                  {/* Attachments Section for EMAIL */}
+                  <div className="border-t border-slate-100 p-4 bg-slate-50 mt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Paperclip className="w-4 h-4" />
+                        Attachments
+                      </h3>
+                      <div>
+                        <input
+                          type="file"
+                          id="attachment-upload"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                        />
+                        <label
+                          htmlFor="attachment-upload"
+                          className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                        >
+                          {uploadingFile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+                          {uploadingFile ? 'Uploading...' : 'Add file'}
+                        </label>
+                      </div>
+                    </div>
+                    {formData.designJson?.attachments?.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {formData.designJson.attachments.map((att: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 rounded-md px-3 py-2">
+                            <span className="text-xs text-slate-600 truncate mr-2" title={att.filename}>
+                              {att.filename}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic">No attachments added yet.</p>
+                    )}
+                  </div>
                 </div>
               )
             ) : (

@@ -20,6 +20,8 @@ import aiRoutes from './routes/ai.routes';
 import notificationRoutes from './routes/notification.routes';
 import notesRoutes from './routes/notes.routes';
 import auditRoutes from './routes/audit.routes';
+import uploadRoutes from './routes/upload.routes';
+import path from 'path';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -30,6 +32,9 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve uploads as static
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -48,6 +53,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/track', trackingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api', notesRoutes); // notes, follow-ups, csv export
 app.use('/api/audit-logs', auditRoutes);
 

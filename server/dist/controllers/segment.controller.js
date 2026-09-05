@@ -58,6 +58,19 @@ exports.previewSegment = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             whereClause.AND = [];
         whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
     }
+    if (rules.exchangeName && rules.exchangeName !== 'All') {
+        whereClause.exchangeName = rules.exchangeName;
+    }
+    if (rules.otherListings === 'Yes') {
+        if (!whereClause.AND)
+            whereClause.AND = [];
+        whereClause.AND.push({ otherListings: { not: null }, NOT: { otherListings: '' } });
+    }
+    else if (rules.otherListings === 'No') {
+        if (!whereClause.AND)
+            whereClause.AND = [];
+        whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
+    }
     const [count, leads] = await Promise.all([
         prismaClient_1.default.lead.count({ where: whereClause }),
         prismaClient_1.default.lead.findMany({ where: whereClause, take: 50, orderBy: { createdAt: 'desc' } })
@@ -108,6 +121,19 @@ exports.getSegmentLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         if (!whereClause.AND)
             whereClause.AND = [];
         whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
+    }
+    if (rules.exchangeName && rules.exchangeName !== 'All') {
+        whereClause.exchangeName = rules.exchangeName;
+    }
+    if (rules.otherListings === 'Yes') {
+        if (!whereClause.AND)
+            whereClause.AND = [];
+        whereClause.AND.push({ otherListings: { not: null }, NOT: { otherListings: '' } });
+    }
+    else if (rules.otherListings === 'No') {
+        if (!whereClause.AND)
+            whereClause.AND = [];
+        whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
     }
     const leads = await prismaClient_1.default.lead.findMany({
         where: whereClause,

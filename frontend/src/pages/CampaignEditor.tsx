@@ -26,6 +26,7 @@ export const CampaignEditor = () => {
   const [loading, setLoading] = useState(true);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
+  const [leadTypeFilter, setLeadTypeFilter] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,6 +65,7 @@ export const CampaignEditor = () => {
       try {
         const params: any = { limit: 100 };
         if (modalSearch) params.search = modalSearch;
+        if (leadTypeFilter) params.type = leadTypeFilter;
         const res = await leadsService.getLeads(params);
         setAvailableLeads(res.data);
       } catch (error) {
@@ -78,7 +80,7 @@ export const CampaignEditor = () => {
       fetchLeads();
     }, 500);
     return () => clearTimeout(timer);
-  }, [modalSearch]);
+  }, [modalSearch, leadTypeFilter]);
 
   const handleSaveCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,16 +272,29 @@ export const CampaignEditor = () => {
                         </span>
                       )}
                     </div>
-                    <div className="relative mb-2 shrink-0">
-                      <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        autoComplete="off"
-                        placeholder="Search specific leads..."
-                        value={modalSearch}
-                        onChange={(e) => setModalSearch(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-all placeholder:text-slate-400"
-                      />
+                    <div className="relative mb-2 shrink-0 flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Search specific leads..."
+                          value={modalSearch}
+                          onChange={(e) => setModalSearch(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-all placeholder:text-slate-400"
+                        />
+                      </div>
+                      <select 
+                        value={leadTypeFilter}
+                        onChange={(e) => setLeadTypeFilter(e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm text-slate-700"
+                      >
+                        <option value="">All Types</option>
+                        <option value="Manual">Manual</option>
+                        <option value="Research Analyst (RA)">Research Analyst (RA)</option>
+                        <option value="Investment Advisor (IA)">Investment Advisor (IA)</option>
+                        <option value="Portfolio Manager (PM)">Portfolio Manager (PM)</option>
+                      </select>
                     </div>
                     <div className="flex-1 flex flex-col gap-2 rounded-xl border border-[#E2E8F0] bg-slate-50 p-3 overflow-y-auto custom-scrollbar shadow-inner">
                       {leadsLoading ? (

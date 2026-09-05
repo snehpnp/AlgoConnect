@@ -132,11 +132,16 @@ export const getSegmentLeads = asyncHandler(async (req: Request, res: Response) 
     whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
   }
   
-  const leads = await prisma.lead.findMany({
-    where: whereClause,
-    take: 50, // preview limit
-    orderBy: { createdAt: 'desc' }
-  });
+  const [leads, totalCount] = await Promise.all([
+    prisma.lead.findMany({
+      where: whereClause,
+      take: 50, // preview limit
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.lead.count({
+      where: whereClause
+    })
+  ]);
 
-  res.status(200).json({ data: leads, message: 'Segment leads retrieved' });
+  res.status(200).json({ data: leads, total: totalCount, message: 'Segment leads retrieved' });
 });

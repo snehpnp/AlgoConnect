@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLeadMessages = exports.simulateSend = exports.getEmailAnalytics = exports.getMessageDetails = exports.getCampaignMessages = void 0;
+exports.getLeadEmailReplies = exports.getLeadMessages = exports.simulateSend = exports.getEmailAnalytics = exports.getMessageDetails = exports.getCampaignMessages = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 const getCampaignMessages = async (req, res) => {
@@ -127,3 +127,21 @@ const getLeadMessages = async (req, res) => {
     }
 };
 exports.getLeadMessages = getLeadMessages;
+const getLeadEmailReplies = async (req, res) => {
+    try {
+        const { leadId } = req.params;
+        const replies = await prisma.emailReply.findMany({
+            where: { leadId: Number(leadId) },
+            include: {
+                messageSend: { select: { subject: true, campaign: { select: { name: true } } } }
+            },
+            orderBy: { receivedAt: 'desc' }
+        });
+        res.status(200).json({ data: replies });
+    }
+    catch (error) {
+        console.error('Error fetching lead email replies:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+exports.getLeadEmailReplies = getLeadEmailReplies;

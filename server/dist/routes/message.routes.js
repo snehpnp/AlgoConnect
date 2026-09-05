@@ -8,6 +8,7 @@ router.use(auth_middleware_1.authenticate);
 router.get('/analytics/email', message_controller_1.getEmailAnalytics);
 router.get('/campaigns/:id/messages', message_controller_1.getCampaignMessages);
 router.post('/campaigns/:id/send', message_controller_1.simulateSend);
+router.get('/leads/:leadId/email-replies', message_controller_1.getLeadEmailReplies);
 router.get('/leads/:leadId', message_controller_1.getLeadMessages);
 router.get('/:id', message_controller_1.getMessageDetails);
 exports.default = router;

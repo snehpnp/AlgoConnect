@@ -149,6 +149,17 @@ export const startCampaignRunner = () => {
               .replace(/{{name}}/g, lead.name || '')
               .replace(/{{company}}/g, lead.name || '');
 
+            let attachments = [];
+            if (template.designJson && typeof template.designJson === 'object' && (template.designJson as any).attachments) {
+              attachments = (template.designJson as any).attachments.map((att: any) => {
+                // If url is /uploads/123.jpg, we resolve it to the full path
+                return {
+                  filename: att.filename,
+                  path: require('path').join(process.cwd(), att.url)
+                };
+              });
+            }
+
             // Dispatch
             await messagingGateway.sendMessage({
               campaignId: campaign.id,
@@ -159,6 +170,7 @@ export const startCampaignRunner = () => {
               content: renderedContent,
               subject: renderedSubject,
               htmlContent: renderedContent,
+              attachments
             });
 
             processedCount++;

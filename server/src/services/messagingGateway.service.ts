@@ -11,6 +11,7 @@ export interface SendMessageOptions {
   content: string;      // plain/HTML body
   subject?: string;     // email subject
   htmlContent?: string; // full rendered HTML (optional, fallback to content)
+  attachments?: any[];  // file attachments array
 }
 
 export const messagingGateway = {
@@ -84,7 +85,8 @@ export const messagingGateway = {
           to: options.recipient,
           subject: options.subject,
           html: finalHtmlContent,
-          messageId: `${providerMessageId}@algoconnect.local`
+          messageId: `${providerMessageId}@algoconnect.local`,
+          attachments: options.attachments || []
         });
         
         // Notify user about automated send if triggered by campaign

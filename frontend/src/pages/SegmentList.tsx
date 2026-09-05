@@ -15,6 +15,7 @@ export const SegmentList = () => {
 
   const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
   const [previewLeads, setPreviewLeads] = useState<any[]>([]);
+  const [previewTotal, setPreviewTotal] = useState<number>(0);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   const fetchSegments = async () => {
@@ -49,8 +50,9 @@ export const SegmentList = () => {
     setIsPreviewLoading(true);
     setPreviewLeads([]);
     try {
-      const leads = await segmentService.getSegmentLeads(segment.id);
+      const { leads, total } = await segmentService.getSegmentLeads(segment.id);
       setPreviewLeads(leads);
+      setPreviewTotal(total);
     } catch (err) {
       toast.error('Failed to load segment leads');
     } finally {
@@ -182,7 +184,9 @@ export const SegmentList = () => {
             <div className="flex items-start sm:items-center justify-between border-b border-[#E2E8F0] p-4 sm:p-6 sticky top-0 bg-white z-10 rounded-t-xl">
               <div className="pr-4">
                 <h3 className="text-base sm:text-lg font-bold text-[#0F172A]">Previewing Leads in "{previewSegment.name}"</h3>
-                <p className="text-[11px] sm:text-xs text-[#64748B] mt-0.5 sm:mt-1">Showing top 50 matches for this segment's targeting rules.</p>
+                <p className="text-[11px] sm:text-xs text-[#64748B] mt-0.5 sm:mt-1">
+                  Showing top {previewLeads.length} of {previewTotal} matches for this segment's targeting rules.
+                </p>
               </div>
               <button
                 onClick={() => setPreviewSegment(null)}
@@ -211,7 +215,9 @@ export const SegmentList = () => {
                     {previewLeads.map((lead, idx) => (
                       <div key={idx} className="p-4 bg-white flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="font-bold text-sm text-slate-800 break-words">{lead.name}</p>
+                          <p className="font-bold text-sm text-slate-800 break-words">
+                            <span className="text-slate-400 mr-1">#{idx + 1}.</span>{lead.name}
+                          </p>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 shrink-0">
                             {lead.type || 'Manual'}
                           </span>
@@ -230,6 +236,7 @@ export const SegmentList = () => {
                     <table className="w-full text-left whitespace-nowrap text-sm" style={{ minWidth: '600px' }}>
                       <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                         <tr>
+                          <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase tracking-wider w-16">No.</th>
                           <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase tracking-wider">Entity Name</th>
                           <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase tracking-wider">Type</th>
                           <th className="py-3 px-4 text-xs font-bold text-[#64748B] uppercase tracking-wider">Email</th>
@@ -240,6 +247,7 @@ export const SegmentList = () => {
                       <tbody className="divide-y divide-[#E2E8F0]">
                         {previewLeads.map((lead, idx) => (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-3 px-4 text-slate-500 font-medium">{idx + 1}</td>
                             <td className="py-3 px-4 font-bold text-slate-800">{lead.name}</td>
                             <td className="py-3 px-4 text-slate-600 text-xs font-medium">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">

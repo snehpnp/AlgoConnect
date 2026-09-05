@@ -148,7 +148,12 @@ const getMessageLogs = async (req, res) => {
             where.messageSend = { channel: channel };
         }
         if (status && status !== 'ALL') {
-            where.eventType = status;
+            if (status === 'REPLIED') {
+                where.eventType = { in: ['REPLY', 'REPLIED'] };
+            }
+            else {
+                where.eventType = status;
+            }
         }
         if (dateFrom || dateTo) {
             where.createdAt = {};
