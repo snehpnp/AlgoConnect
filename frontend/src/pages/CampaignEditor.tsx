@@ -356,7 +356,12 @@ export const CampaignEditor = () => {
                           >
                             <div className="flex-1 min-w-0 pr-4">
                               <div className={`text-sm font-medium truncate transition-colors ${isSelected ? 'text-primary' : 'text-slate-700'}`}>{lead.name}</div>
-                              {lead.email && <div className="text-[11px] text-slate-400 truncate mt-0.5">{lead.email}</div>}
+                              {currentCampaign.type === 'EMAIL'
+                                ? lead.email && <div className="text-[11px] text-slate-400 truncate mt-0.5">📧 {lead.email}</div>
+                                : lead.phone
+                                  ? <div className={`text-[11px] truncate mt-0.5 font-medium ${isSelected ? 'text-primary/70' : 'text-slate-500'}`}>📞 {lead.phone}</div>
+                                  : <div className="text-[11px] text-red-400 truncate mt-0.5">⚠️ No phone number</div>
+                              }
                             </div>
                             <div className="shrink-0 flex items-center justify-center">
                               <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary' : 'border-slate-300 bg-white'}`}>

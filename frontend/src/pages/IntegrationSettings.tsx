@@ -46,6 +46,13 @@ export const IntegrationSettings = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Sync log filter with active tab and fetch
+  useEffect(() => {
+    setFilterChannel(activeTab);
+    setLogsPage(1);
+    fetchLogs(1, activeTab);
+  }, [activeTab]);
+
   const fetchWaStatus = async () => {
     try {
       if (!waStatus.qrCode && !waStatus.connected) setWaLoading(true);
@@ -76,11 +83,11 @@ export const IntegrationSettings = () => {
     }
   };
 
-  const fetchLogs = useCallback(async (page = 1) => {
+  const fetchLogs = useCallback(async (page = 1, overrideChannel?: string) => {
     try {
       setLogsLoading(true);
       const res = await settingsService.getMessageLogs({
-        channel: filterChannel,
+        channel: overrideChannel || filterChannel,
         status: filterStatus,
         dateFrom: filterDateFrom || undefined,
         dateTo: filterDateTo || undefined,
@@ -334,13 +341,30 @@ export const IntegrationSettings = () => {
                     <span className="text-sm">Checking status...</span>
                   </div>
                 ) : waStatus.connected ? (
-                  <div className="flex flex-col items-center gap-4 text-center">
-                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-8 h-8" />
+                  <div className="flex flex-col items-center gap-6 text-center w-full max-w-md mx-auto">
+                    <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center shadow-inner relative">
+                      <div className="absolute inset-0 border-4 border-white rounded-full"></div>
+                      <CheckCircle2 className="w-10 h-10" strokeWidth={2.5} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg">WhatsApp Connected</h3>
-                      <p className="text-sm text-slate-500 mt-1 max-w-sm">Your system is now ready to send automated WhatsApp messages directly from your linked account.</p>
+                      <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">WhatsApp Connected</h3>
+                      <p className="text-sm text-slate-500 mt-2 leading-relaxed">Your system is now ready to send automated WhatsApp messages directly from your linked account.</p>
+                      
+                      {waStatus.account && (
+                        <div className="mt-6 w-full p-4 bg-gradient-to-br from-emerald-50 to-white border border-emerald-200/60 rounded-xl shadow-[0_2px_10px_-4px_rgba(16,185,129,0.2)] text-left relative overflow-hidden group">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-150"></div>
+                          <div className="flex items-center gap-4 relative z-10">
+                            <div className="shrink-0 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-emerald-100 text-emerald-500">
+                              <MessageSquare className="w-5 h-5 fill-emerald-50" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] text-emerald-600/80 uppercase tracking-widest font-bold mb-0.5">Linked Account</p>
+                              <p className="text-base font-bold text-slate-800 leading-tight truncate">{waStatus.account.name || waStatus.account.pushname || 'WhatsApp Account'}</p>
+                              <p className="text-sm text-slate-600 font-medium font-mono mt-0.5 truncate">+{waStatus.account.number}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <button 
                       onClick={async () => {
@@ -348,9 +372,9 @@ export const IntegrationSettings = () => {
                         await whatsappService.logout();
                         await fetchWaStatus();
                       }}
-                      className="mt-4 px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-sm rounded-lg transition-colors border border-red-200"
+                      className="mt-2 w-full max-w-xs px-5 py-3 bg-white text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 font-bold text-sm rounded-xl transition-all duration-200 border border-slate-200 shadow-sm flex items-center justify-center gap-2"
                     >
-                      Disconnect WhatsApp
+                      <XCircle className="w-4 h-4" /> Disconnect WhatsApp
                     </button>
                   </div>
                 ) : waStatus.qrCode ? (
@@ -455,7 +479,12 @@ export const IntegrationSettings = () => {
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Channel</label>
               <select
                 value={filterChannel}
-                onChange={(e) => setFilterChannel(e.target.value)}
+                onChange={(e) => {
+                  setFilterChannel(e.target.value);
+                  if (['EMAIL', 'SMS', 'WHATSAPP'].includes(e.target.value)) {
+                    setActiveTab(e.target.value as any);
+                  }
+                }}
                 className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               >
                 <option value="ALL">All Channels</option>

@@ -147,8 +147,13 @@ export const leadsService = {
     return response.data.data;
   },
 
-  sendDirectEmail: async (id: number, data: { subject?: string; body: string; templateId?: number; recipientEmail?: string }) => {
-    const response = await apiClient.post(`/leads/${id}/send-email`, data);
-    return response.data;
+  sendDirectMessage: async (id: number, data: { channel?: string, subject?: string, body: string, templateId?: number, recipientEmail?: string }) => {
+    const res = await apiClient.post(`/leads/${id}/send-message`, data);
+    return res.data;
+  },
+
+  getLeadMessages: async (id: number) => {
+    const res = await apiClient.get(`/leads/${id}/messages`);
+    return res.data;
   },
 };

@@ -76,7 +76,20 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
   const formattedLeads = campaign.leads.map(lead => {
     const lastMessageSend = lead.messageSends[0];
     const lastEvent = lastMessageSend?.events[0];
-    const latestReply = lastMessageSend?.replies?.[0];
+    // latestReply is from EmailReply for emails
+    let latestReply: any = lastMessageSend?.replies?.[0] || null;
+    
+    // For WhatsApp, the reply is an EngagementEvent with eventType = 'REPLY'
+    if (lastEvent?.eventType === 'REPLY' && lastEvent?.metadataJson) {
+      const meta = lastEvent.metadataJson as any;
+      if (meta.text) {
+        latestReply = {
+          subject: 'WhatsApp Reply',
+          body: meta.text,
+          receivedAt: lastEvent.createdAt
+        };
+      }
+    }
     
     let status = 'PENDING';
     if (latestReply) {

@@ -5,9 +5,9 @@ import { messagingGateway } from '../services/messagingGateway.service';
 import { SocketService } from '../services/socket.service';
 import { RoutingService } from '../services/routing.service';
 
-export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) => {
+export const sendDirectMessage = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { subject, body, templateId, recipientEmail } = req.body;
+  const { channel = 'EMAIL', subject, body, templateId, recipientEmail } = req.body;
 
   const lead = await prisma.lead.findUnique({
     where: { id: parseInt(id as string) }
@@ -18,14 +18,23 @@ export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) 
     return;
   }
 
-  const targetEmail = recipientEmail || lead.email;
-
-  if (!targetEmail) {
-    res.status(400).json({ message: 'No email address available to send to' });
-    return;
+  let targetRecipient = '';
+  if (channel === 'EMAIL') {
+    targetRecipient = recipientEmail || lead.email || (lead as any).scrapedEmail;
+    if (!targetRecipient) {
+      res.status(400).json({ message: 'No email address available to send to' });
+      return;
+    }
+  } else if (channel === 'WHATSAPP' || channel === 'SMS') {
+    targetRecipient = lead.phone || lead.phone2 || (lead as any).scrapedPhone;
+    if (!targetRecipient) {
+      res.status(400).json({ message: 'No phone number available to send to' });
+      return;
+    }
   }
 
-  let finalHtml = body;
+  let finalContent = body;
+  let finalSubject = subject;
   
   if (templateId) {
     const template = await prisma.messageTemplate.findUnique({
@@ -33,30 +42,44 @@ export const sendDirectEmail = asyncHandler(async (req: Request, res: Response) 
     });
     
     if (template && template.content) {
-      // Very basic compilation (replace {{name}})
-      finalHtml = template.content.replace(/{{name}}/gi, lead.name || 'there');
-      if (!subject && template.subject) {
-        req.body.subject = template.subject;
+      finalContent = template.content.replace(/{{name}}/gi, lead.name || 'there');
+      if (!finalSubject && template.subject) {
+        finalSubject = template.subject;
       }
     }
   }
 
   const result = await messagingGateway.sendMessage({
     leadId: lead.id,
-    channel: 'EMAIL',
-    recipient: targetEmail,
-    content: finalHtml,
-    htmlContent: finalHtml,
-    subject: req.body.subject || subject || 'Message from AlgoConnect',
+    channel: channel as 'EMAIL' | 'SMS' | 'WHATSAPP',
+    recipient: targetRecipient,
+    content: finalContent,
+    htmlContent: finalContent,
+    subject: finalSubject || 'Message from AlgoConnect',
     templateId: templateId ? parseInt(templateId) : undefined
   });
 
   if (!result.success) {
-    res.status(500).json({ message: 'Failed to send email', error: result.error });
+    res.status(500).json({ message: `Failed to send ${channel}`, error: result.error });
     return;
   }
 
-  res.status(200).json({ message: 'Email sent successfully', messageId: result.messageId });
+  res.status(200).json({ message: `${channel} sent successfully`, messageId: result.messageId });
+});
+
+export const getLeadMessageHistory = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  const messages = await prisma.messageSend.findMany({
+    where: { leadId: parseInt(id as string) },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      events: { orderBy: { createdAt: 'desc' } },
+      replies: { orderBy: { receivedAt: 'desc' } }
+    }
+  });
+
+  res.status(200).json({ data: messages, message: 'Message history retrieved successfully' });
 });
 
 export const importLeads = asyncHandler(async (req: Request, res: Response) => {

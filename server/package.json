@@ -69,7 +69,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node dist/server.js",
-    "dev": "nodemon src/server.ts",
+    "dev": "nodemon --ignore whatsapp-auth/ src/server.ts",
     "build": "tsc",
     "db:sync": "node scripts/sync-db.js"
   },

@@ -26,11 +26,20 @@ export const messagingGateway = {
           ...(options.campaignId ? { campaignId: options.campaignId } : {}),
           leadId: options.leadId,
           channel: options.channel,
-          subject: options.subject || 'N/A',
+          subject: options.subject || null,
           templateId: options.templateId,
           status: 'SENT',
           sentAt: new Date(),
           providerMessageId
+        }
+      });
+
+      // Save the actual content sent so it can be viewed in history
+      await prisma.engagementEvent.create({
+        data: {
+          messageSendId: msg.id,
+          eventType: 'SENT',
+          metadataJson: { text: options.content }
         }
       });
 

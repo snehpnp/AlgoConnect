@@ -3,6 +3,7 @@ import { apiClient } from './apiClient';
 export interface WhatsAppStatus {
   connected: boolean;
   qrCode: string | null;
+  account?: { name: string; number: string; pushname: string } | null;
 }
 
 export const whatsappService = {

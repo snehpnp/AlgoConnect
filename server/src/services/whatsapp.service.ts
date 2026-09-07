@@ -6,21 +6,15 @@ class WhatsAppService {
   private client: Client;
   private qrCodeDataUrl: string | null = null;
   private isConnected: boolean = false;
+  private accountInfo: { name: string; number: string; pushname: string } | null = null;
 
   constructor() {
     this.client = new Client({
-      authStrategy: new LocalAuth({
-        dataPath: './whatsapp-auth'
-      }),
-
+      authStrategy: new LocalAuth({ dataPath: './whatsapp-auth' }),
       puppeteer: {
         headless: true,
         executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-        ],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       },
     });
 
@@ -37,10 +31,21 @@ class WhatsAppService {
       }
     });
 
-    this.client.on('ready', () => {
-      console.log('[WhatsApp] Client is ready!');
+    this.client.on('ready', async () => {
+      console.log('[WhatsApp] Client is ready and connected!');
       this.isConnected = true;
       this.qrCodeDataUrl = null;
+      try {
+        const info = this.client.info;
+        this.accountInfo = {
+          name: info?.pushname || 'Unknown',
+          number: info?.wid?.user || '',
+          pushname: info?.pushname || ''
+        };
+        console.log(`[WhatsApp] Account: ${this.accountInfo.name} (+${this.accountInfo.number})`);
+      } catch (e) {
+        this.accountInfo = null;
+      }
     });
 
     this.client.on('authenticated', () => {
@@ -54,45 +59,37 @@ class WhatsAppService {
     });
 
     this.client.on('disconnected', (reason) => {
-      console.log('[WhatsApp] Client was disconnected', reason);
+      console.log('[WhatsApp] Client disconnected:', reason);
       this.isConnected = false;
       this.qrCodeDataUrl = null;
+      this.accountInfo = null;
     });
 
-    this.client.on('message', async (message) => {
+    // Only message_create, filter out sent messages
+    this.client.on('message_create', async (message) => {
+      if (message.fromMe) return;
       await this.handleIncomingMessage(message);
     });
   }
 
-  public async initialize() {
-    console.log('[WhatsApp] Initializing client...');
-
-    try {
-      await this.client.initialize();
-    } catch (error) {
-      console.error('[WhatsApp] Failed to initialize client:', error);
-      this.isConnected = false;
-      throw error;
-    }
+  // Non-blocking initialize — server won't crash if WhatsApp fails
+  public initialize() {
+    console.log('[WhatsApp] Starting client initialization...');
+    this.client.initialize().catch((err) => {
+      console.error('[WhatsApp] Initialization error (non-fatal):', err?.message || err);
+    });
   }
 
   public getStatus() {
-    return {
-      connected: this.isConnected,
-      qrCode: this.qrCodeDataUrl,
-    };
+    return { connected: this.isConnected, qrCode: this.qrCodeDataUrl, account: this.accountInfo };
   }
 
   public async logout() {
     try {
-      if (this.isConnected) {
-        await this.client.logout();
-      }
-
+      if (this.isConnected) await this.client.logout();
       this.isConnected = false;
       this.qrCodeDataUrl = null;
-
-      await this.client.initialize();
+      this.client.initialize().catch(() => {});
     } catch (error) {
       console.error('[WhatsApp] Logout failed:', error);
       throw error;
@@ -100,83 +97,136 @@ class WhatsAppService {
   }
 
   public async sendMessage(phoneNumber: string, text: string) {
-    if (!this.isConnected) {
-      throw new Error('WhatsApp client is not connected');
-    }
+    if (!this.isConnected) throw new Error('WhatsApp client is not connected');
 
-    const formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
-
-    let finalNumber = formattedNumber;
-
-    if (finalNumber.length === 10) {
-      finalNumber = '91' + finalNumber;
-    }
-
-    const chatId = `${finalNumber}@c.us`;
+    let num = phoneNumber.replace(/\D/g, '');
+    if (num.length === 10) num = '91' + num;
+    const chatId = `${num}@c.us`;
 
     try {
-      const response = await this.client.sendMessage(chatId, text);
-
-      return response;
+      return await this.client.sendMessage(chatId, text);
     } catch (error) {
-      console.error(
-        `[WhatsApp] Failed to send message to ${phoneNumber}`,
-        error
-      );
-
+      console.error(`[WhatsApp] Failed to send to ${phoneNumber}:`, error);
       throw error;
     }
   }
 
+  private extractPhone(message: any): string {
+    const fromId: string = message.from || '';
+
+    // Standard format: 919876543210@c.us
+    if (fromId.includes('@c.us')) {
+      return fromId.split('@')[0].replace(/\D/g, '');
+    }
+
+    // @lid format — try multiple contact fields
+    if (fromId.includes('@lid')) {
+      try {
+        // message._data.notifyName is sometimes available
+        // Try getting from id.user directly
+        if (message.id?.remote?.includes('@c.us')) {
+          return message.id.remote.split('@')[0].replace(/\D/g, '');
+        }
+        // Try author field (for group-like scenarios)
+        if (message.author?.includes('@c.us')) {
+          return message.author.split('@')[0].replace(/\D/g, '');
+        }
+      } catch (_) {}
+    }
+
+    // Fallback: strip non-digits from whatever we have
+    return fromId.split('@')[0].replace(/\D/g, '');
+  }
+
   private async handleIncomingMessage(message: any) {
     try {
-      if (message.isGroupMsg) {
+      const fromId: string = message.from || '';
+
+      // Skip groups, status, broadcasts
+      if (fromId.includes('@g.us')) return;
+      if (fromId === 'status@broadcast') return;
+      if (!message.body) return;
+
+      const text: string = message.body;
+
+      // Try to get real phone number
+      let digitsOnly = this.extractPhone(message);
+
+      // If still @lid format, try getContact() as last resort
+      if (fromId.includes('@lid') && (digitsOnly.length > 13 || digitsOnly.length < 10)) {
+        try {
+          const contact = await message.getContact();
+          // Try contact.id.user (more reliable than contact.number)
+          const contactUser = contact?.id?.user || contact?.number || '';
+          const resolved = contactUser.replace(/\D/g, '');
+          if (resolved && resolved.length >= 10 && resolved.length <= 13) {
+            digitsOnly = resolved;
+          }
+          console.log(`[WhatsApp] getContact resolved: ${resolved}, pushname: ${contact?.pushname}`);
+        } catch (e) {
+          console.error('[WhatsApp] getContact failed:', e);
+        }
+      }
+
+      if (!digitsOnly || digitsOnly.length < 10) {
+        console.log(`[WhatsApp] Could not get valid phone from message. from=${fromId}`);
         return;
       }
 
-      const from = message.from;
-      const text = message.body;
-      const phoneNumber = from.split('@')[0];
+      // Last 10 digits for matching
+      const last10 = digitsOnly.slice(-10);
+      console.log(`[WhatsApp] Incoming reply: "${text}" | phone digits: ${digitsOnly} | last10: ${last10}`);
 
-      console.log(
-        `[WhatsApp] Received message from ${phoneNumber}: ${text}`
-      );
+      // Dedup check using message ID
+      const providerMsgId = message.id?.id || `wa-in-${Date.now()}-${Math.random()}`;
+      const existing = await prisma.messageSend.findUnique({ where: { providerMessageId: providerMsgId } });
+      if (existing) {
+        console.log(`[WhatsApp] Already saved message ${providerMsgId}, skipping.`);
+        return;
+      }
 
-      const leads = await prisma.lead.findMany({
-        where: {
-          OR: [
-            {
-              phone: {
-                contains: phoneNumber,
-              },
-            },
-            {
-              phone: {
-                contains: phoneNumber.substring(2),
-              },
-            },
-          ],
-        },
+      // Fetch all leads with phone and match using JS includes
+      const allLeads = await prisma.lead.findMany({
+        select: { id: true, phone: true, phone2: true, name: true },
+        where: { NOT: { phone: null } },
       });
 
-      if (leads.length === 0) {
-        console.log(
-          `[WhatsApp] No lead found matching phone ${phoneNumber}`
-        );
+      const matchedLead = allLeads.find((l) => {
+        const p1 = (l.phone || '').replace(/\D/g, '');
+        const p2 = (l.phone2 || '').replace(/\D/g, '');
+        const p1last10 = p1.slice(-10);
+        const p2last10 = p2.slice(-10);
+        // Exact last-10 match only (safer than two-way includes to avoid false positives)
+        return p1last10 === last10 || (p2 && p2last10 === last10);
+      });
 
+      if (!matchedLead) {
+        console.log(`[WhatsApp] No lead matched last10=${last10}. Leads checked: ${allLeads.length}`);
         return;
       }
 
-      const lead = leads[0];
+      console.log(`[WhatsApp] ✅ Matched lead: "${matchedLead.name}" (id=${matchedLead.id})`);
 
+      // Find the most recent campaign this lead was part of via WHATSAPP
+      const lastCampaignMessage = await prisma.messageSend.findFirst({
+        where: {
+          leadId: matchedLead.id,
+          channel: 'WHATSAPP',
+          campaignId: { not: null }
+        },
+        orderBy: { sentAt: 'desc' }
+      });
+      const campaignId = lastCampaignMessage?.campaignId || null;
+
+      // Save to DB
       const msgRecord = await prisma.messageSend.create({
         data: {
-          leadId: lead.id,
+          leadId: matchedLead.id,
+          campaignId: campaignId,
           channel: 'WHATSAPP',
           subject: 'Incoming WhatsApp Reply',
           status: 'DELIVERED',
-          providerMessageId:
-            message.id.id || `wa-in-${Date.now()}`,
+          providerMessageId: providerMsgId,
           sentAt: new Date(),
         },
       });
@@ -185,30 +235,18 @@ class WhatsAppService {
         data: {
           messageSendId: msgRecord.id,
           eventType: 'REPLY',
-          metadataJson: {
-            text,
-            rawMessage: message,
-          },
+          metadataJson: { text },
         },
       });
 
       await prisma.lead.update({
-        where: {
-          id: lead.id,
-        },
-        data: {
-          engagementStatus: 'Replied',
-        },
+        where: { id: matchedLead.id },
+        data: { engagementStatus: 'Replied' },
       });
 
-      console.log(
-        `[WhatsApp] Logged reply for lead ${lead.id}`
-      );
+      console.log(`[WhatsApp] ✅ Reply saved for lead "${matchedLead.name}" (id=${matchedLead.id})`);
     } catch (error) {
-      console.error(
-        '[WhatsApp] Error handling incoming message:',
-        error
-      );
+      console.error('[WhatsApp] Error handling incoming message:', error);
     }
   }
 }

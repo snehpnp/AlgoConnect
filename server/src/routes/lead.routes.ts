@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { importLeads, getLeads, getLeadById, createLead, updateLead, deleteLead, getLeadLogs, sendDirectEmail } from '../controllers/lead.controller';
+import { importLeads, getLeads, getLeadById, createLead, updateLead, deleteLead, getLeadLogs, sendDirectMessage, getLeadMessageHistory } from '../controllers/lead.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import multer from 'multer';
 import path from 'path';
@@ -26,7 +26,8 @@ router.get('/:id', authenticate, getLeadById);
 router.put('/:id', authenticate, updateLead);
 router.delete('/:id', authenticate, deleteLead);
 router.post('/import', authenticate, importLeads);
-router.post('/:id/send-email', authenticate, sendDirectEmail);
+router.post('/:id/send-message', authenticate, sendDirectMessage);
+router.get('/:id/messages', authenticate, getLeadMessageHistory);
 
 // Chunked File Upload endpoints
 import { uploadChunk, processFile, getFilterOptions } from '../controllers/lead.controller';

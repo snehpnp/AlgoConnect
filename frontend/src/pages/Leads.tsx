@@ -199,6 +199,8 @@ export const Leads: React.FC = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSavedViews, setShowSavedViews] = useState(false);
 
+
+
   // Fetch team members for bulk assign
   useEffect(() => {
     usersService.getUsers().then((res: any) => {
@@ -1350,65 +1352,70 @@ export const Leads: React.FC = () => {
       {/* Add/Edit Form Modal */}
       {isFormOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/40 sm:p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 sm:p-4 backdrop-blur-md animate-fade-in"
           onClick={() => setIsFormOpen(false)}
         >
           <div
-            className="w-full sm:w-[95vw] sm:max-w-3xl glass-panel rounded-t-2xl sm:rounded-2xl shadow-premium p-4 sm:p-6 relative max-h-[94vh] sm:max-h-[92vh] overflow-y-auto custom-scrollbar"
+            className="w-full sm:w-[95vw] sm:max-w-4xl bg-slate-50 rounded-t-3xl sm:rounded-3xl shadow-2xl relative max-h-[94vh] sm:max-h-[92vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-200/50 pb-3 sm:pb-4 mb-4 sm:mb-5 sticky top-0 bg-white/95 backdrop-blur -mt-4 sm:mt-0 pt-4 sm:pt-0 -mx-4 sm:mx-0 px-4 sm:px-0 z-10">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-                {formData.id ? 'Edit Lead' : 'Add New Lead'}
-              </h2>
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 pt-5 px-6 sm:px-8 bg-white z-10 shrink-0">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
+                  {formData.id ? 'Edit Lead' : 'Add New Lead'}
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5 font-medium">Please fill in the details below.</p>
+              </div>
               <button
                 onClick={() => setIsFormOpen(false)}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors border border-transparent hover:border-slate-200"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveLead} className="space-y-5 sm:space-y-6">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8">
+              <form onSubmit={handleSaveLead} className="space-y-8">
               {/* Basic Details */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-primary" /> Basic Details
                 </h3>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Name *</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Name *</label>
                   <input
                     type="text"
                     required
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     placeholder="Enter full name"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
                     <input
                       type="email"
                       pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                       title="Enter a valid email address"
                       value={formData.email || ''}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. john@example.com"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Email 2</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email 2</label>
                     <input
                       type="email"
                       pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                       title="Enter a valid email address"
                       value={formData.email2 || ''}
                       onChange={(e) => setFormData({ ...formData, email2: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Secondary email"
                     />
                   </div>
@@ -1416,26 +1423,26 @@ export const Leads: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone</label>
                     <input
                       type="tel"
                       pattern="^\+?[0-9\s\-\(\)]{7,15}$"
                       title="Enter a valid phone number (min 7 digits)"
                       value={formData.phone || ''}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. +91 9876543210"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Phone 2</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone 2</label>
                     <input
                       type="tel"
                       pattern="^\+?[0-9\s\-\(\)]{7,15}$"
                       title="Enter a valid phone number (min 7 digits)"
                       value={formData.phone2 || ''}
                       onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Secondary phone"
                     />
                   </div>
@@ -1443,24 +1450,24 @@ export const Leads: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Contact Person</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Person</label>
                     <input
                       type="text"
                       value={formData.contactPerson || ''}
                       onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Name of contact person"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Website</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Website</label>
                     <input
                       type="url"
                       pattern="https?://.+"
                       title="Include http:// or https://"
                       value={formData.website || ''}
                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="https://example.com"
                     />
                   </div>
@@ -1468,17 +1475,18 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Status & Segmentation */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" /> Status & Segment
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sales Stage</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sales Stage</label>
                     <select
                       value={formData.salesStage || 'New'}
                       onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     >
                       {SALES_STAGES.map(stage => (
                         <option key={stage} value={stage}>{stage}</option>
@@ -1486,11 +1494,11 @@ export const Leads: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Verification</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Verification</label>
                     <select
                       value={formData.verificationStatus || 'Unverified'}
                       onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     >
                       <option value="Imported">Imported</option>
                       <option value="Enrichment Pending">Enrichment Pending</option>
@@ -1504,11 +1512,11 @@ export const Leads: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Engagement</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Engagement</label>
                     <select
                       value={formData.engagementStatus || 'Not Engaged'}
                       onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     >
                       <option value="Not Engaged">Not Engaged</option>
                       <option value="Sent">Sent</option>
@@ -1520,11 +1528,11 @@ export const Leads: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Consent</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Consent</label>
                     <select
                       value={formData.consentStatus || 'Unknown'}
                       onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     >
                       <option value="Unknown">Unknown</option>
                       <option value="Opted In">Opted In</option>
@@ -1536,11 +1544,11 @@ export const Leads: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Type</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Type</label>
                     <select
                       value={formData.type || 'Manual'}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     >
                       <option value="Manual">Manual</option>
                       <option value="IA">IA</option>
@@ -1549,12 +1557,12 @@ export const Leads: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Source</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Source</label>
                     <input
                       type="text"
                       value={formData.source || ''}
                       onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. Website Signup"
                     />
                   </div>
@@ -1562,52 +1570,53 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Company & Registration */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" /> Company & Registration
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Registration No</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Registration No</label>
                     <input
                       type="text"
                       pattern="^[A-Za-z0-9\s\-]{3,25}$"
                       title="Enter a valid registration number"
                       value={formData.registrationNo || ''}
                       onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. REG12345"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Validity</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Validity</label>
                     <input
                       type="text"
                       value={formData.validity || ''}
                       onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. 2025-12-31"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Trade Name</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Trade Name</label>
                     <input
                       type="text"
                       value={formData.tradeName || ''}
                       onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. AlgoTech Solutions"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Exchange Name</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Exchange Name</label>
                     <input
                       type="text"
                       value={formData.exchangeName || ''}
                       onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. NSE, BSE"
                     />
                   </div>
@@ -1615,64 +1624,65 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Location */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" /> Location
                 </h3>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Address</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Address</label>
                   <input
                     type="text"
                     value={formData.address || ''}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                     placeholder="Full street address"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">City</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">City</label>
                     <input
                       type="text"
                       value={formData.city || ''}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="City"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">State</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">State</label>
                     <input
                       type="text"
                       value={formData.state || ''}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="State"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Pincode</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Pincode</label>
                     <input
                       type="text"
                       pattern="^[0-9A-Za-z\s\-]{3,10}$"
                       title="Enter a valid pincode/zipcode"
                       value={formData.pincode || ''}
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Pincode"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Fax</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Fax</label>
                     <input
                       type="tel"
                       pattern="^\+?[0-9\s\-\(\)]{7,15}$"
                       title="Enter a valid fax number"
                       value={formData.fax || ''}
                       onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Fax number"
                     />
                   </div>
@@ -1680,156 +1690,159 @@ export const Leads: React.FC = () => {
               </div>
 
               {/* Socials */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Link className="h-4 w-4 text-primary" /> Social Links
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">LinkedIn</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">LinkedIn</label>
                     <input
                       type="url"
                       pattern="https?://.+"
                       title="Include http:// or https://"
                       value={formData.linkedin || ''}
                       onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="https://linkedin.com/in/..."
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Twitter</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Twitter</label>
                     <input
                       type="url"
                       pattern="https?://.+"
                       title="Include http:// or https://"
                       value={formData.twitter || ''}
                       onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="https://twitter.com/..."
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Facebook</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Facebook</label>
                     <input
                       type="url"
                       pattern="https?://.+"
                       title="Include http:// or https://"
                       value={formData.facebook || ''}
                       onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="https://facebook.com/..."
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Other Listings / URLs</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Other Listings / URLs</label>
                   <textarea
                     value={formData.otherListings || ''}
                     onChange={(e) => setFormData({ ...formData, otherListings: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
                     placeholder="Enter multiple URLs (e.g. separated by commas or lines) of platforms you work with..."
                   />
                 </div>
               </div>
 
               {/* Enrichment Data */}
-              <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
+              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
                 <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-primary" /> Enrichment Data
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Sells Algo Trading?</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</label>
                     <input
                       type="text"
                       value={formData.sellsAlgoTrading || ''}
                       onChange={(e) => setFormData({ ...formData, sellsAlgoTrading: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="Yes / No"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Broker Partner</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Broker Partner</label>
                     <input
                       type="text"
                       value={formData.brokerPartner || ''}
                       onChange={(e) => setFormData({ ...formData, brokerPartner: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. Zerodha, AngelOne"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Company Size</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Company Size</label>
                     <input
                       type="text"
                       value={formData.companySizeEstimate || ''}
                       onChange={(e) => setFormData({ ...formData, companySizeEstimate: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="e.g. 10-50 employees"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Logo URL</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Logo URL</label>
                     <input
                       type="url"
                       pattern="https?://.+"
                       title="Include http:// or https://"
                       value={formData.logoUrl || ''}
                       onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                      className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
                       placeholder="https://example.com/logo.png"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Products Offered</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Products Offered</label>
                   <textarea
                     value={formData.productsOffered || ''}
                     onChange={(e) => setFormData({ ...formData, productsOffered: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
                     placeholder="List of products..."
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Services Summary</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Services Summary</label>
                   <textarea
                     value={formData.servicesSummary || ''}
                     onChange={(e) => setFormData({ ...formData, servicesSummary: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
                     placeholder="Brief description of services..."
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-[#0F172A]">Enrichment Notes</label>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Enrichment Notes</label>
                   <textarea
                     value={formData.enrichmentNotes || ''}
                     onChange={(e) => setFormData({ ...formData, enrichmentNotes: e.target.value })}
-                    className="w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm min-h-[60px]"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
                     placeholder="Additional notes from enrichment..."
                   />
                 </div>
               </div>
 
-              <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 sticky bottom-0 bg-white py-3 border-t border-[#E2E8F0] mt-6 -mx-4 sm:mx-0 px-4 sm:px-0">
+              <div className="flex items-center justify-end gap-3 pt-6 mt-4 border-t border-slate-200/60 sticky bottom-0 bg-slate-50 py-4 px-6 sm:px-8 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 z-10 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="rounded-lg border border-[#E2E8F0] bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+                  className="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-600 disabled:opacity-50"
+                  className="btn-primary !px-8 !py-2.5 text-sm font-bold shadow-md hover:shadow-lg rounded-xl"
                 >
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Lead'}
+                  {isSubmitting ? 'Saving...' : 'Save Lead'}
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
