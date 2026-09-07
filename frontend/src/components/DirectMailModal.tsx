@@ -42,16 +42,18 @@ function buildChatThread(history: any[], channel: 'EMAIL' | 'SMS' | 'WHATSAPP'):
       return null;
     }, null);
 
-    // Outbound (sent) bubble
-    bubbles.push({
-      id: `sent-${msg.id}`,
-      direction: 'OUTBOUND',
-      channel: msg.channel,
-      subject: msg.channel === 'EMAIL' ? msg.subject : undefined,
-      text: msg.content || sentEventText || 'Message Sent',
-      status: msg.status,
-      timestamp: msg.createdAt,
-    });
+    // Outbound (sent) bubble - only if it wasn't a dummy message created for an incoming reply
+    if (msg.status !== 'RECEIVED') {
+      bubbles.push({
+        id: `sent-${msg.id}`,
+        direction: 'OUTBOUND',
+        channel: msg.channel,
+        subject: msg.channel === 'EMAIL' ? msg.subject : undefined,
+        text: msg.content || sentEventText || 'Message Sent',
+        status: msg.status,
+        timestamp: msg.createdAt,
+      });
+    }
 
     // Inbound replies — WhatsApp/SMS store them in events, Email stores them in replies[]
     if (channel === 'WHATSAPP' || channel === 'SMS') {
