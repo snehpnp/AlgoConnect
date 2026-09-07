@@ -8,20 +8,20 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  avatar       String?       @db.Text
+  id                  Int            @id @default(autoincrement())
+  email               String         @unique
+  password            String
+  name                String
+  roleId              Int
+  role                Role           @relation(fields: [roleId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  avatar              String?        @db.Text
   passwordResetToken  String?
   passwordResetExpiry DateTime?
-  leads        Lead[]
-  activityLogs ActivityLog[]
-  notifications Notification[]
+  leads               Lead[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
 }
 
 model Role {
@@ -38,54 +38,54 @@ model Permission {
 }
 
 model Lead {
-  id              Int      @id @default(autoincrement())
-  name            String
-  email           String?
-  email2          String?
-  phone           String?
-  phone2          String?
-  source          String?
-  type               String   @default("Manual")
-  status             String   @default("IMPORTED") // Single unified status
-  salesStage         String   @default("New")
-  verificationStatus String   @default("Unverified")
-  engagementStatus   String   @default("Not Engaged")
-  consentStatus      String   @default("Unknown")
-  registrationNo  String?
-  contactPerson   String?
-  address         String?
-  city            String?
-  state           String?
-  pincode         String?
-  fax             String?
-  validity        String?
-  exchangeName    String?
-  tradeName       String?
-  
-  isEnriched          Boolean  @default(false)
-  hasOwnWebsite       Boolean  @default(true)
-  leadScore           Int      @default(0)
+  id                 Int     @id @default(autoincrement())
+  name               String
+  email              String?
+  email2             String?
+  phone              String?
+  phone2             String?
+  source             String?
+  type               String  @default("Manual")
+  status             String  @default("IMPORTED") // Single unified status
+  salesStage         String  @default("New")
+  verificationStatus String  @default("Unverified")
+  engagementStatus   String  @default("Not Engaged")
+  consentStatus      String  @default("Unknown")
+  registrationNo     String?
+  contactPerson      String?
+  address            String?
+  city               String?
+  state              String?
+  pincode            String?
+  fax                String?
+  validity           String?
+  exchangeName       String?
+  tradeName          String?
+
+  isEnriched          Boolean @default(false)
+  hasOwnWebsite       Boolean @default(true)
+  leadScore           Int     @default(0)
   website             String?
   directoryUrl        String?
   linkedin            String?
   twitter             String?
   facebook            String?
-  servicesSummary     String?  @db.Text
-  productsOffered     String?  @db.Text
+  servicesSummary     String? @db.Text
+  productsOffered     String? @db.Text
   sellsAlgoTrading    String?
   brokerPartner       String?
   companySizeEstimate String?
-  enrichmentNotes     String?  @db.Text
+  enrichmentNotes     String? @db.Text
   logoUrl             String?
   scrapedEmail        String?
   scrapedPhone        String?
-  otherListings       String?  @db.Text
+  otherListings       String? @db.Text
 
   userId          Int?
   user            User?         @relation(fields: [userId], references: [id])
-  nextFollowUpAt  DateTime?     // Scheduled follow-up date
+  nextFollowUpAt  DateTime? // Scheduled follow-up date
   followUpNotes   String?       @db.Text // Quick note for the next follow-up
-  lastContactedAt DateTime?     // Auto-updated when a call/email is logged
+  lastContactedAt DateTime? // Auto-updated when a call/email is logged
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   activityLogs    ActivityLog[]
@@ -107,40 +107,40 @@ model Note {
 }
 
 model Campaign {
-  id        Int      @id @default(autoincrement())
-  name      String
+  id          Int       @id @default(autoincrement())
+  name        String
   description String?
-  type      String   // EMAIL, SMS, WHATSAPP
-  channels  Json?    // e.g., ["EMAIL", "WHATSAPP"]
-  status    String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
-  schedule  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  leads     Lead[]
-  segments  Segment[] @relation("CampaignSegments")
-  
-  emailTemplateId Int?
-  emailTemplate   MessageTemplate? @relation("CampaignEmailTemplate", fields: [emailTemplateId], references: [id])
+  type        String // EMAIL, SMS, WHATSAPP
+  channels    Json? // e.g., ["EMAIL", "WHATSAPP"]
+  status      String    @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
+  schedule    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  leads       Lead[]
+  segments    Segment[] @relation("CampaignSegments")
+
+  emailTemplateId    Int?
+  emailTemplate      MessageTemplate?     @relation("CampaignEmailTemplate", fields: [emailTemplateId], references: [id])
   whatsappTemplateId Int?
-  whatsappTemplate   MessageTemplate? @relation("CampaignWhatsappTemplate", fields: [whatsappTemplateId], references: [id])
-  smsTemplateId Int?
-  smsTemplate   MessageTemplate? @relation("CampaignSmsTemplate", fields: [smsTemplateId], references: [id])
-  automations CampaignAutomation[]
-  messageSends    MessageSend[]
+  whatsappTemplate   MessageTemplate?     @relation("CampaignWhatsappTemplate", fields: [whatsappTemplateId], references: [id])
+  smsTemplateId      Int?
+  smsTemplate        MessageTemplate?     @relation("CampaignSmsTemplate", fields: [smsTemplateId], references: [id])
+  automations        CampaignAutomation[]
+  messageSends       MessageSend[]
 }
 
 model MessageTemplate {
-  id        Int      @id @default(autoincrement())
-  name      String
-  subject   String?
-  content   String   @db.Text
+  id         Int      @id @default(autoincrement())
+  name       String
+  subject    String?
+  content    String   @db.Text
   designJson Json?
-  type      String   // EMAIL, SMS, WHATSAPP
-  status    String   @default("PENDING") // PENDING, APPROVED
-  isShared  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  type       String // EMAIL, SMS, WHATSAPP
+  status     String   @default("PENDING") // PENDING, APPROVED
+  isShared   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   campaignsEmail    Campaign[] @relation("CampaignEmailTemplate")
   campaignsWhatsapp Campaign[] @relation("CampaignWhatsappTemplate")
   campaignsSms      Campaign[] @relation("CampaignSmsTemplate")
@@ -150,8 +150,8 @@ model Consent {
   id        Int      @id @default(autoincrement())
   leadId    Int
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  channel   String   // EMAIL, SMS, WHATSAPP
-  status    String   // OPT_IN, OPT_OUT
+  channel   String // EMAIL, SMS, WHATSAPP
+  status    String // OPT_IN, OPT_OUT
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -164,7 +164,7 @@ model ActivityLog {
   lead      Lead?    @relation(fields: [leadId], references: [id])
   action    String
   details   String?
-  changes   String?  // JSON string or summary of old vs new values
+  changes   String? // JSON string or summary of old vs new values
   createdAt DateTime @default(now())
 }
 
@@ -172,105 +172,105 @@ model Segment {
   id          Int        @id @default(autoincrement())
   name        String
   description String?
-  rules       Json       // Stores conditions like { "region": "Maharashtra", "leadScore": { "gt": 80 } }
+  rules       Json // Stores conditions like { "region": "Maharashtra", "leadScore": { "gt": 80 } }
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   campaigns   Campaign[] @relation("CampaignSegments")
 }
 
 model IntegrationSetting {
-  id          Int      @id @default(autoincrement())
-  type        String   @unique // 'EMAIL', 'SMS', 'WHATSAPP'
-  provider    String   // 'SMTP', 'TWILIO', 'META', etc.
-  apiKey      String?
-  apiSecret   String?
-  senderId    String?
-  host        String?
-  port        Int?
-  secure      Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  type      String   @unique // 'EMAIL', 'SMS', 'WHATSAPP'
+  provider  String // 'SMTP', 'TWILIO', 'META', etc.
+  apiKey    String?
+  apiSecret String?
+  senderId  String?
+  host      String?
+  port      Int?
+  secure    Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CampaignAutomation {
-  id          Int      @id @default(autoincrement())
-  name        String
-  campaignId  Int
-  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  trigger     String   // e.g., 'Email Opened'
-  waitTime    Int?     // wait time in hours/days (can be implemented as minutes for simplicity)
-  condition   String?  // e.g., 'Opened'
-  action      String   // e.g., 'Send WhatsApp'
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  trigger    String // e.g., 'Email Opened'
+  waitTime   Int? // wait time in hours/days (can be implemented as minutes for simplicity)
+  condition  String? // e.g., 'Opened'
+  action     String // e.g., 'Send WhatsApp'
+  status     String   @default("ACTIVE")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model MessageSend {
-  id                  Int      @id @default(autoincrement())
-  campaignId          Int?
-  campaign            Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  leadId              Int
-  lead                Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  channel             String   @default("EMAIL")
-  provider            String?
-  providerMessageId   String?  @unique
-  subject             String?
-  templateId          Int?
-  status              String   @default("QUEUED") // QUEUED, SENT, DELIVERED, OPENED, CLICKED, REPLIED, FAILED, BOUNCED
-  sentAt              DateTime?
-  deliveredAt         DateTime?
-  openedAt            DateTime?
-  clickedAt           DateTime?
-  repliedAt           DateTime?
-  failedAt            DateTime?
-  bouncedAt           DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  events              EngagementEvent[]
-  replies             EmailReply[]
-  linkTrackings       EmailLinkTracking[]
+  id                Int       @id @default(autoincrement())
+  campaignId        Int?
+  campaign          Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId            Int
+  lead              Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  channel           String    @default("EMAIL")
+  provider          String?
+  providerMessageId String?   @unique
+  subject           String?
+  templateId        Int?
+  status            String    @default("QUEUED") // QUEUED, SENT, DELIVERED, OPENED, CLICKED, REPLIED, FAILED, BOUNCED
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  repliedAt         DateTime?
+  failedAt          DateTime?
+  bouncedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  events        EngagementEvent[]
+  replies       EmailReply[]
+  linkTrackings EmailLinkTracking[]
 }
 
 model EngagementEvent {
-  id              Int      @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   messageSendId   Int
   messageSend     MessageSend @relation(fields: [messageSendId], references: [id], onDelete: Cascade)
-  eventType       String   // OPENED, CLICKED, DELIVERED, BOUNCED, SPAM, UNSUBSCRIBED
-  eventTime       DateTime @default(now())
+  eventType       String // OPENED, CLICKED, DELIVERED, BOUNCED, SPAM, UNSUBSCRIBED
+  eventTime       DateTime    @default(now())
   metadataJson    Json?
   providerPayload Json?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime    @default(now())
 }
 
 model EmailReply {
-  id                  Int      @id @default(autoincrement())
-  messageSendId       Int
-  messageSend         MessageSend @relation(fields: [messageSendId], references: [id], onDelete: Cascade)
-  leadId              Int
-  lead                Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  fromEmail           String
-  subject             String?
-  body                String   @db.Text
-  attachments         Json?
-  receivedAt          DateTime @default(now())
-  providerMessageId   String?  @unique
+  id                Int         @id @default(autoincrement())
+  messageSendId     Int
+  messageSend       MessageSend @relation(fields: [messageSendId], references: [id], onDelete: Cascade)
+  leadId            Int
+  lead              Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromEmail         String
+  subject           String?
+  body              String      @db.Text
+  attachments       Json?
+  receivedAt        DateTime    @default(now())
+  providerMessageId String?     @unique
 }
 
 model EmailLinkTracking {
-  id              Int      @id @default(autoincrement())
-  messageSendId   Int
-  messageSend     MessageSend @relation(fields: [messageSendId], references: [id], onDelete: Cascade)
-  originalUrl     String   @db.Text
-  trackingUrl     String   @unique
-  clicked         Boolean  @default(false)
-  clickedAt       DateTime?
-  ipAddress       String?
-  device          String?
-  browser         String?
-  country         String?
+  id            Int         @id @default(autoincrement())
+  messageSendId Int
+  messageSend   MessageSend @relation(fields: [messageSendId], references: [id], onDelete: Cascade)
+  originalUrl   String      @db.Text
+  trackingUrl   String      @unique
+  clicked       Boolean     @default(false)
+  clickedAt     DateTime?
+  ipAddress     String?
+  device        String?
+  browser       String?
+  country       String?
 }
 
 model Notification {
@@ -279,10 +279,10 @@ model Notification {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title           String
   message         String
-  type            String   // e.g., 'EMAIL_OPENED', 'LEAD_CREATED', 'EMAIL_REPLIED', 'STATUS_CHANGED'
+  type            String // e.g., 'EMAIL_OPENED', 'LEAD_CREATED', 'EMAIL_REPLIED', 'STATUS_CHANGED'
   isRead          Boolean  @default(false)
-  relatedEntityId Int?     // e.g., leadId, messageSendId
-  relatedEntity   String?  // e.g., 'Lead', 'MessageSend'
+  relatedEntityId Int? // e.g., leadId, messageSendId
+  relatedEntity   String? // e.g., 'Lead', 'MessageSend'
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

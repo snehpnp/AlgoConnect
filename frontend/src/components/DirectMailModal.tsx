@@ -5,6 +5,7 @@ import type { MessageTemplate } from '../services/template.service';
 import { leadsService } from '../services/leads.service';
 import type { Lead } from '../services/leads.service';
 import toast from 'react-hot-toast';
+import { useNotifications } from '../context/NotificationContext';
 
 interface DirectMailModalProps {
   isOpen: boolean;
@@ -209,6 +210,7 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
 
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const { socket } = useNotifications();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -254,6 +256,22 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
       setHistoryLoading(false);
     }
   };
+
+  // Real-time chat history updates
+  useEffect(() => {
+    if (!socket || !lead || !isOpen) return;
+
+    const handleNewReply = (data: any) => {
+      if (data.leadId === lead.id) {
+        fetchHistory();
+      }
+    };
+
+    socket.on('new_reply', handleNewReply);
+    return () => {
+      socket.off('new_reply', handleNewReply);
+    };
+  }, [socket, lead, isOpen]);
 
   const fetchTemplates = async () => {
     setIsLoading(true);

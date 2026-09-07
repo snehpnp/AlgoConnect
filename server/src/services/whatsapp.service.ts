@@ -1,7 +1,8 @@
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode';
 import prisma from '../models/prismaClient';
-import os from "os";
+import { SocketService } from './socket.service';
+import os from 'os';
 
 class WhatsAppService {
   private client: Client;
@@ -9,11 +10,9 @@ class WhatsAppService {
   private isConnected: boolean = false;
   private accountInfo: { name: string; number: string; pushname: string } | null = null;
 
-
-
-
   constructor() {
     const isWindows = os.platform() === 'win32';
+
     this.client = new Client({
       authStrategy: new LocalAuth({ dataPath: './whatsapp-auth' }),
       puppeteer: {
@@ -27,23 +26,6 @@ class WhatsAppService {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
         ],
-
-        //  args: [
-        //   '--no-sandbox',
-        //   '--disable-setuid-sandbox',
-        //   '--disable-dev-shm-usage',
-        //   '--disable-gpu',
-        //   '--no-first-run',
-        //   '--no-zygote',
-        //   '--single-process',
-        //   '--disable-extensions',
-        //   '--disable-background-networking',
-        //   '--disable-default-apps',
-        //   '--disable-sync',
-        //   '--mute-audio',
-        //   '--hide-scrollbars',
-        //   '--memory-pressure-off',
-        // ],
       },
     });
 
@@ -69,7 +51,7 @@ class WhatsAppService {
         this.accountInfo = {
           name: info?.pushname || 'Unknown',
           number: info?.wid?.user || '',
-          pushname: info?.pushname || ''
+          pushname: info?.pushname || '',
         };
         console.log(`[WhatsApp] Account: ${this.accountInfo.name} (+${this.accountInfo.number})`);
       } catch (e) {
@@ -110,7 +92,11 @@ class WhatsAppService {
   }
 
   public getStatus() {
-    return { connected: this.isConnected, qrCode: this.qrCodeDataUrl, account: this.accountInfo };
+    return {
+      connected: this.isConnected,
+      qrCode: this.qrCodeDataUrl,
+      account: this.accountInfo,
+    };
   }
 
   public async logout() {
@@ -134,7 +120,27 @@ class WhatsAppService {
 
     try {
       return await this.client.sendMessage(chatId, text);
-    } catch (error) {
+    } catch (error: any) {
+      const errMsg = error?.message || '';
+
+      // LID / chat table related error → retry with getChat
+      if (
+        errMsg.includes('Lid is missing') ||
+        errMsg.includes('Failed to find row in chat table') ||
+        errMsg.includes('No LID for user')
+      ) {
+        console.log(`[WhatsApp] LID issue for ${chatId}, trying getChat + retry...`);
+
+        try {
+          await this.client.getChatById(chatId);
+          await new Promise((r) => setTimeout(r, 2000)); // 2 sec wait
+          return await this.client.sendMessage(chatId, text);
+        } catch (retryError) {
+          console.error(`[WhatsApp] Retry also failed for ${phoneNumber}:`, retryError);
+          throw retryError;
+        }
+      }
+
       console.error(`[WhatsApp] Failed to send to ${phoneNumber}:`, error);
       throw error;
     }
@@ -151,12 +157,9 @@ class WhatsAppService {
     // @lid format — try multiple contact fields
     if (fromId.includes('@lid')) {
       try {
-        // message._data.notifyName is sometimes available
-        // Try getting from id.user directly
         if (message.id?.remote?.includes('@c.us')) {
           return message.id.remote.split('@')[0].replace(/\D/g, '');
         }
-        // Try author field (for group-like scenarios)
         if (message.author?.includes('@c.us')) {
           return message.author.split('@')[0].replace(/\D/g, '');
         }
@@ -185,7 +188,6 @@ class WhatsAppService {
       if (fromId.includes('@lid') && (digitsOnly.length > 13 || digitsOnly.length < 10)) {
         try {
           const contact = await message.getContact();
-          // Try contact.id.user (more reliable than contact.number)
           const contactUser = contact?.id?.user || contact?.number || '';
           const resolved = contactUser.replace(/\D/g, '');
           if (resolved && resolved.length >= 10 && resolved.length <= 13) {
@@ -208,13 +210,15 @@ class WhatsAppService {
 
       // Dedup check using message ID
       const providerMsgId = message.id?.id || `wa-in-${Date.now()}-${Math.random()}`;
-      const existing = await prisma.messageSend.findUnique({ where: { providerMessageId: providerMsgId } });
+      const existing = await prisma.messageSend.findUnique({
+        where: { providerMessageId: providerMsgId },
+      });
       if (existing) {
         console.log(`[WhatsApp] Already saved message ${providerMsgId}, skipping.`);
         return;
       }
 
-      // Fetch all leads with phone and match using JS includes
+      // Fetch all leads with phone and match using last 10 digits
       const allLeads = await prisma.lead.findMany({
         select: { id: true, phone: true, phone2: true, name: true },
         where: { NOT: { phone: null } },
@@ -225,7 +229,6 @@ class WhatsAppService {
         const p2 = (l.phone2 || '').replace(/\D/g, '');
         const p1last10 = p1.slice(-10);
         const p2last10 = p2.slice(-10);
-        // Exact last-10 match only (safer than two-way includes to avoid false positives)
         return p1last10 === last10 || (p2 && p2last10 === last10);
       });
 
@@ -242,7 +245,7 @@ class WhatsAppService {
           leadId: matchedLead.id,
           channel: 'WHATSAPP',
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
 
       // If no previous message exists to attach the reply to, create a dummy one
@@ -271,6 +274,31 @@ class WhatsAppService {
         where: { id: matchedLead.id },
         data: { engagementStatus: 'Replied' },
       });
+
+      // Broadcast new reply to frontend for real-time updates (Chat UI + Toast)
+      SocketService.broadcast('new_reply', {
+        leadId: matchedLead.id,
+        channel: 'WHATSAPP',
+        text: text,
+        timestamp: new Date().toISOString()
+      });
+
+      // Save as system Notification so it appears in the Bell icon
+      const usersToNotify = await prisma.user.findMany({ where: { role: { name: 'SUPERADMIN' } } });
+      for (const u of usersToNotify) {
+        const notif = await prisma.notification.create({
+          data: {
+            userId: u.id,
+            title: `WhatsApp Reply: ${matchedLead.name}`,
+            message: text && text.length > 60 ? text.substring(0, 60) + '...' : text,
+            type: 'WHATSAPP_REPLY',
+            relatedEntityId: matchedLead.id,
+            relatedEntity: 'Lead'
+          }
+        });
+        // Emit to update the Bell icon
+        SocketService.sendToUser(u.id, 'new_notification', notif);
+      }
 
       console.log(`[WhatsApp] ✅ Reply saved for lead "${matchedLead.name}" (id=${matchedLead.id})`);
     } catch (error) {

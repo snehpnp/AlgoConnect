@@ -1,6 +1,7 @@
 import imaps from 'imap-simple';
 import { simpleParser } from 'mailparser';
 import { PrismaClient } from '@prisma/client';
+import { SocketService } from './socket.service';
 
 const prisma = new PrismaClient();
 
@@ -52,14 +53,14 @@ export const checkIMAPReplies = async () => {
       const all = item.parts.find((part: any) => part.which === '');
       const id = item.attributes.uid;
       const idHeader = 'Imap-Id: ' + id + '\r\n';
-      
+
       if (!all) continue;
-      
+
       try {
         const mail = await simpleParser(idHeader + all.body);
-        
+
         if (!mail.from || !mail.from.value || mail.from.value.length === 0) continue;
-        
+
         const senderEmail = mail.from.value[0].address;
         if (!senderEmail) continue;
 
@@ -68,19 +69,19 @@ export const checkIMAPReplies = async () => {
         // --- CHECK FOR BOUNCE ---
         const senderLower = senderEmail.toLowerCase();
         const subjectLower = (mail.subject || '').toLowerCase();
-        
-        const isBounce = senderLower.includes('mailer-daemon') || 
-                         senderLower.includes('postmaster') ||
-                         subjectLower.includes('delivery status notification') ||
-                         subjectLower.includes('undelivered mail');
+
+        const isBounce = senderLower.includes('mailer-daemon') ||
+          senderLower.includes('postmaster') ||
+          subjectLower.includes('delivery status notification') ||
+          subjectLower.includes('undelivered mail');
 
         if (isBounce) {
           console.log(`[IMAP] Detected bounce email.`);
           const textContent = mail.text || '';
           const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
           const matchedEmails = textContent.match(emailRegex) || [];
-          
-          const failedEmails = matchedEmails.map(e => e.toLowerCase()).filter(e => 
+
+          const failedEmails = matchedEmails.map(e => e.toLowerCase()).filter(e =>
             !e.includes('mailer-daemon') && !e.includes('postmaster')
           );
 
@@ -88,7 +89,7 @@ export const checkIMAPReplies = async () => {
             // Usually the first non-system email is the bounced recipient
             const bouncedEmail = failedEmails[0];
             console.log(`[IMAP] Found bounced recipient: ${bouncedEmail}`);
-            
+
             const lead = await prisma.lead.findFirst({
               where: {
                 OR: [
@@ -148,7 +149,7 @@ export const checkIMAPReplies = async () => {
 
         if (lead) {
           console.log(`[IMAP] Matched email to Lead ID: ${lead.id}`);
-          
+
           // Find the most recent MessageSend for this lead
           const lastSend = await prisma.messageSend.findFirst({
             where: { leadId: lead.id, channel: 'EMAIL' },
@@ -157,7 +158,7 @@ export const checkIMAPReplies = async () => {
 
           if (lastSend) {
             console.log(`[IMAP] Logging reply for MessageSend ID: ${lastSend.id}`);
-            
+
             // Log the reply
             await prisma.emailReply.create({
               data: {
@@ -173,7 +174,7 @@ export const checkIMAPReplies = async () => {
             // Update MessageSend status
             await prisma.messageSend.update({
               where: { id: lastSend.id },
-              data: { 
+              data: {
                 status: 'REPLIED',
                 repliedAt: new Date()
               }
@@ -191,6 +192,31 @@ export const checkIMAPReplies = async () => {
               }
             });
 
+            // Broadcast new reply to frontend for real-time updates
+            SocketService.broadcast('new_reply', {
+              leadId: lead.id,
+              channel: 'EMAIL',
+              text: mail.text || 'No Body',
+              timestamp: new Date().toISOString()
+            });
+
+            // Save as system Notification so it appears in the Bell icon
+            const usersToNotify = await prisma.user.findMany();
+            for (const u of usersToNotify) {
+              const notif = await prisma.notification.create({
+                data: {
+                  userId: u.id,
+                  title: `Email Reply: ${lead.name}`,
+                  message: mail.subject ? mail.subject : 'New Email Reply',
+                  type: 'EMAIL_REPLY',
+                  relatedEntityId: lead.id,
+                  relatedEntity: 'Lead'
+                }
+              });
+              // Emit to update the Bell icon
+              SocketService.sendToUser(u.id, 'new_notification', notif);
+            }
+
             // Update Lead Engagement Status
             await prisma.lead.update({
               where: { id: lead.id },
@@ -199,7 +225,7 @@ export const checkIMAPReplies = async () => {
 
             console.log(`[IMAP] Successfully updated CRM for Lead ID: ${lead.id}`);
           } else {
-             console.log(`[IMAP] Lead found but no previous MessageSend found.`);
+            console.log(`[IMAP] Lead found but no previous MessageSend found.`);
           }
         }
       } catch (err) {

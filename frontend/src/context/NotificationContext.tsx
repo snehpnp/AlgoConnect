@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { apiClient } from '../services/apiClient';
+import toast from 'react-hot-toast';
 
 export interface Notification {
   id: number;
@@ -20,6 +21,7 @@ interface NotificationContextType {
   markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   clearAll: () => Promise<void>;
+  socket: Socket | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -59,6 +61,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setNotifications(prev => [notif, ...prev]);
 
         // Optional: Trigger a browser/toast notification here
+      });
+
+      newSocket.on('new_reply', (data: any) => {
+        // Show a global toast notification
+        const channelStr = data.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email';
+        const msgText = data.text && data.text.length > 50 ? data.text.substring(0, 50) + '...' : data.text;
+        toast(`💬 New ${channelStr} reply: "${msgText}"`, { duration: 5000, style: { background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' } });
       });
 
       setSocket(newSocket);
@@ -104,7 +113,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearAll }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, clearAll, socket }}>
       {children}
     </NotificationContext.Provider>
   );
