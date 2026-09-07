@@ -207,33 +207,32 @@ class WhatsAppService {
 
       console.log(`[WhatsApp] ✅ Matched lead: "${matchedLead.name}" (id=${matchedLead.id})`);
 
-      // Find the most recent campaign this lead was part of via WHATSAPP
-      const lastCampaignMessage = await prisma.messageSend.findFirst({
+      // Find the most recent message sent to this lead via WHATSAPP
+      let lastMessage = await prisma.messageSend.findFirst({
         where: {
           leadId: matchedLead.id,
           channel: 'WHATSAPP',
-          campaignId: { not: null }
         },
-        orderBy: { sentAt: 'desc' }
+        orderBy: { createdAt: 'desc' }
       });
-      const campaignId = lastCampaignMessage?.campaignId || null;
 
-      // Save to DB
-      const msgRecord = await prisma.messageSend.create({
-        data: {
-          leadId: matchedLead.id,
-          campaignId: campaignId,
-          channel: 'WHATSAPP',
-          subject: 'Incoming WhatsApp Reply',
-          status: 'DELIVERED',
-          providerMessageId: providerMsgId,
-          sentAt: new Date(),
-        },
-      });
+      // If no previous message exists to attach the reply to, create a dummy one
+      if (!lastMessage) {
+        lastMessage = await prisma.messageSend.create({
+          data: {
+            leadId: matchedLead.id,
+            channel: 'WHATSAPP',
+            subject: 'Incoming WhatsApp Reply',
+            status: 'RECEIVED',
+            providerMessageId: providerMsgId,
+            sentAt: new Date(),
+          },
+        });
+      }
 
       await prisma.engagementEvent.create({
         data: {
-          messageSendId: msgRecord.id,
+          messageSendId: lastMessage.id,
           eventType: 'REPLY',
           metadataJson: { text },
         },
