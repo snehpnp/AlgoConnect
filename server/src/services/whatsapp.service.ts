@@ -1,6 +1,7 @@
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode';
 import prisma from '../models/prismaClient';
+import os from "os";
 
 class WhatsAppService {
   private client: Client;
@@ -8,13 +9,41 @@ class WhatsAppService {
   private isConnected: boolean = false;
   private accountInfo: { name: string; number: string; pushname: string } | null = null;
 
+
+
+
   constructor() {
+    const isWindows = os.platform() === 'win32';
     this.client = new Client({
       authStrategy: new LocalAuth({ dataPath: './whatsapp-auth' }),
       puppeteer: {
         headless: true,
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        executablePath: isWindows
+          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+          : '/usr/bin/google-chrome-stable',
+        protocolTimeout: 300000,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+        ],
+
+        //  args: [
+        //   '--no-sandbox',
+        //   '--disable-setuid-sandbox',
+        //   '--disable-dev-shm-usage',
+        //   '--disable-gpu',
+        //   '--no-first-run',
+        //   '--no-zygote',
+        //   '--single-process',
+        //   '--disable-extensions',
+        //   '--disable-background-networking',
+        //   '--disable-default-apps',
+        //   '--disable-sync',
+        //   '--mute-audio',
+        //   '--hide-scrollbars',
+        //   '--memory-pressure-off',
+        // ],
       },
     });
 
@@ -89,7 +118,7 @@ class WhatsAppService {
       if (this.isConnected) await this.client.logout();
       this.isConnected = false;
       this.qrCodeDataUrl = null;
-      this.client.initialize().catch(() => {});
+      this.client.initialize().catch(() => { });
     } catch (error) {
       console.error('[WhatsApp] Logout failed:', error);
       throw error;
@@ -131,7 +160,7 @@ class WhatsAppService {
         if (message.author?.includes('@c.us')) {
           return message.author.split('@')[0].replace(/\D/g, '');
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Fallback: strip non-digits from whatever we have
