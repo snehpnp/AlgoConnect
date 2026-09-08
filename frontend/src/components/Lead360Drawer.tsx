@@ -12,6 +12,7 @@ import { apiClient } from '../services/apiClient';
 import { usersService } from '../services/users.service';
 import type { User } from '../services/users.service';
 import toast from 'react-hot-toast';
+import { WhatsAppTab } from './WhatsAppTab';
 
 interface Lead360DrawerProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ const parseEmailBody = (body: string) => {
 };
 
 export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerProps) => {
-  const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes' | 'emails'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes' | 'emails' | 'whatsapp'>('data');
   const [dataView, setDataView] = useState<'sebi' | 'scraped' | 'all'>('sebi');
   const [logs, setLogs] = useState<any[]>([]);
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
@@ -209,7 +210,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
         content: `📞 Call Logged [${callOutcome}]\n${callNotes}`
       });
       setNotes(prev => [res.data.data, ...prev]);
-      
+
       // Update last contacted date via follow-up endpoint
       await apiClient.put(`/leads/${lead.id}/follow-up`, {
         nextFollowUpAt: (lead as any).nextFollowUpAt, // keep existing
@@ -221,12 +222,12 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
       if (callOutcome === 'Interested') {
         await leadsService.updateLead(lead.id, { salesStage: 'Contacted' } as any);
       }
-      
+
       toast.success('Call logged successfully!');
       setShowCallLogModal(false);
       setCallNotes('');
       setCallOutcome('Interested');
-      
+
       // we need to notify parent to refetch
       onEdit({ ...lead, salesStage: callOutcome === 'Interested' ? 'Contacted' : lead.salesStage } as any);
 
@@ -240,11 +241,11 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
   if (!isOpen || !lead) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[70] flex justify-end bg-slate-900/40 backdrop-blur-sm transition-opacity animate-fade-in"
       onClick={onClose}
     >
-      <div 
+      <div
         className="flex h-full w-full sm:w-[500px] md:w-[600px] max-w-2xl flex-col bg-slate-50/95 backdrop-blur-xl shadow-premium border-l border-white/50 transition-transform duration-300"
         onClick={(e) => e.stopPropagation()}
       >
@@ -273,7 +274,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
           {/* Profile Section */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white/80 p-5 rounded-2xl border border-white/50 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            
+
             {lead.logoUrl ? (
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl overflow-hidden ring-1 ring-inset ring-slate-200/50 bg-white shadow-sm">
                 <img src={lead.logoUrl} alt={lead.name} className="h-full w-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="flex h-16 w-16 items-center justify-center bg-blue-50 text-blue-600 font-bold text-xl">${lead.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>` }} />
@@ -317,12 +318,12 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               </div>
               <p className="text-sm text-slate-500 mt-1">Lead ID: <span className="font-medium text-slate-700">{lead.id}</span></p>
             </div>
-            
+
             <div className="shrink-0 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-2 sm:gap-1 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
               <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assign To</label>
-              <select 
+              <select
                 disabled={isUpdatingStatus}
-                value={lead.userId || ''} 
+                value={lead.userId || ''}
                 onChange={handleAssignUser}
                 className="input-base !py-1.5 !text-xs !min-h-0 disabled:opacity-50"
               >
@@ -334,7 +335,119 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             </div>
           </div>
 
-          {/* Notes + Follow-Up Tab */}
+          {/* Quick Actions Bar */}
+          <div className="flex flex-wrap items-center gap-2 bg-white/80 p-3 rounded-xl border border-white/50 shadow-sm">
+            {lead.phone && (
+              <a
+                href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+            )}
+            {lead.phone && (
+              <a
+                href={`tel:${lead.phone}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+              >
+                <PhoneIcon className="h-3.5 w-3.5" /> Call
+              </a>
+            )}
+            <button
+              onClick={() => setShowCallLogModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg text-xs font-bold transition-colors"
+            >
+              <PhoneCall className="h-3.5 w-3.5" /> Log Call
+            </button>
+          </div>
+
+          {/* Call Log Modal */}
+          {showCallLogModal && (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 shadow-sm relative animate-in fade-in zoom-in duration-200">
+              <button
+                onClick={() => setShowCallLogModal(false)}
+                className="absolute top-3 right-3 text-purple-400 hover:text-purple-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-2 mb-3">
+                <PhoneCall className="h-4 w-4 text-purple-600" />
+                <h3 className="text-sm font-bold text-purple-900">Log a Call</h3>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-purple-800 mb-1 block">Outcome</label>
+                  <select
+                    value={callOutcome}
+                    onChange={(e) => setCallOutcome(e.target.value)}
+                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700"
+                  >
+                    <option value="Interested">Interested / Follow Up</option>
+                    <option value="Not Interested">Not Interested</option>
+                    <option value="No Answer">No Answer / Left Voicemail</option>
+                    <option value="Invalid Number">Invalid Number</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-purple-800 mb-1 block">Call Notes</label>
+                  <textarea
+                    value={callNotes}
+                    onChange={(e) => setCallNotes(e.target.value)}
+                    placeholder="What was discussed?"
+                    rows={2}
+                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={handleLogCall}
+                  disabled={isLoggingCall || !callNotes.trim()}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isLoggingCall ? 'Saving...' : 'Save Call Log'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex border-b border-slate-200">
+            <button
+              onClick={() => setActiveTab('data')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              Data
+            </button>
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'notes' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              Notes
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'notes' ? 'bg-amber-100' : 'bg-slate-100 text-slate-500'}`}>{notes.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('emails')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'emails' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              Inbox
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'emails' ? 'bg-indigo-100' : 'bg-slate-100 text-slate-500'}`}>{emailReplies.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('whatsapp')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'whatsapp' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              WhatsApp
+            </button>
+            <button
+              onClick={() => setActiveTab('timeline')}
+              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'timeline' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              Timeline
+            </button>
+          </div>
+
+          {/* Notes + Follow-Up Tab (now correctly rendered as tab content, below the Tabs bar) */}
           {activeTab === 'notes' && (
             <div className="space-y-5">
               {/* Follow-Up Card */}
@@ -345,11 +458,10 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                     <h3 className="text-sm font-bold text-slate-800">Follow-Up Reminder</h3>
                   </div>
                   {(lead as any).nextFollowUpAt && (
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                      new Date((lead as any).nextFollowUpAt) < new Date()
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${new Date((lead as any).nextFollowUpAt) < new Date()
                         ? 'bg-red-100 text-red-700'
                         : 'bg-amber-100 text-amber-700'
-                    }`}>
+                      }`}>
                       {new Date((lead as any).nextFollowUpAt) < new Date() ? '⚠️ Overdue' : '📅 Scheduled'}: {new Date((lead as any).nextFollowUpAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
@@ -466,112 +578,6 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             </div>
           )}
 
-          {/* Quick Actions Bar */}
-          <div className="flex flex-wrap items-center gap-2 bg-white/80 p-3 rounded-xl border border-white/50 shadow-sm">
-            {lead.phone && (
-              <a 
-                href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors"
-              >
-                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
-              </a>
-            )}
-            {lead.phone && (
-              <a 
-                href={`tel:${lead.phone}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
-              >
-                <PhoneIcon className="h-3.5 w-3.5" /> Call
-              </a>
-            )}
-            <button
-              onClick={() => setShowCallLogModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg text-xs font-bold transition-colors"
-            >
-              <PhoneCall className="h-3.5 w-3.5" /> Log Call
-            </button>
-          </div>
-
-          {/* Call Log Modal */}
-          {showCallLogModal && (
-            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 shadow-sm relative animate-in fade-in zoom-in duration-200">
-              <button 
-                onClick={() => setShowCallLogModal(false)}
-                className="absolute top-3 right-3 text-purple-400 hover:text-purple-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <div className="flex items-center gap-2 mb-3">
-                <PhoneCall className="h-4 w-4 text-purple-600" />
-                <h3 className="text-sm font-bold text-purple-900">Log a Call</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-bold text-purple-800 mb-1 block">Outcome</label>
-                  <select
-                    value={callOutcome}
-                    onChange={(e) => setCallOutcome(e.target.value)}
-                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700"
-                  >
-                    <option value="Interested">Interested / Follow Up</option>
-                    <option value="Not Interested">Not Interested</option>
-                    <option value="No Answer">No Answer / Left Voicemail</option>
-                    <option value="Invalid Number">Invalid Number</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-purple-800 mb-1 block">Call Notes</label>
-                  <textarea
-                    value={callNotes}
-                    onChange={(e) => setCallNotes(e.target.value)}
-                    placeholder="What was discussed?"
-                    rows={2}
-                    className="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-slate-700 resize-none"
-                  />
-                </div>
-                <button
-                  onClick={handleLogCall}
-                  disabled={isLoggingCall || !callNotes.trim()}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isLoggingCall ? 'Saving...' : 'Save Call Log'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('data')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'data' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Data
-            </button>
-            <button
-              onClick={() => setActiveTab('notes')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'notes' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Notes
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'notes' ? 'bg-amber-100' : 'bg-slate-100 text-slate-500'}`}>{notes.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('emails')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'emails' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Inbox
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'emails' ? 'bg-indigo-100' : 'bg-slate-100 text-slate-500'}`}>{emailReplies.length}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('timeline')}
-              className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'timeline' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              Timeline
-            </button>
-          </div>
-
           {/* Email Inbox Tab */}
           {activeTab === 'emails' && (
             <div className="space-y-4">
@@ -579,7 +585,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                 <Mail className="h-5 w-5 text-indigo-500" />
                 <h3 className="text-lg font-bold text-slate-800">Email Replies</h3>
               </div>
-              
+
               {emailReplies.length === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                   <Mail className="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -598,6 +604,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                             </p>
                           </div>
                           <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded-md border border-slate-200">
+
                             {new Date(reply.receivedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -612,7 +619,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                         {parseEmailBody(reply.body)}
                       </div>
                       <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-end">
-                        <a 
+                        <a
                           href={`mailto:${reply.fromEmail}?subject=Re: ${encodeURIComponent(reply.subject || '')}`}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
                         >
@@ -623,6 +630,17 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* WhatsApp Tab */}
+          {activeTab === 'whatsapp' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="h-5 w-5 text-emerald-500" />
+                <h3 className="text-lg font-bold text-slate-800">WhatsApp Chat</h3>
+              </div>
+              <WhatsAppTab lead={lead} />
             </div>
           )}
 
@@ -1029,14 +1047,25 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                         );
                       } else {
                         const msg = item;
+                        const isWhatsApp = msg.channel === 'WHATSAPP';
+                        const dotColor = isWhatsApp ? 'border-emerald-500' : 'border-indigo-500';
+                        const label = isWhatsApp ? 'WhatsApp' : 'Email';
+                        const title = isWhatsApp
+                          ? (msg.subject && msg.subject !== 'Outgoing WhatsApp Message' ? msg.subject : 'WhatsApp Message')
+                          : (msg.subject || '(No Subject)');
                         return (
-                          <div key={`eml-${msg.id}-${idx}`} className="relative pl-6 group">
-                            <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 border-emerald-500 group-hover:scale-125 transition-transform" />
+                          <div key={`msg-${msg.id}-${idx}`} className="relative pl-6 group">
+                            <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-white border-2 ${dotColor} group-hover:scale-125 transition-transform`} />
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-bold text-slate-800">Email: {msg.subject || '(No Subject)'}</span>
+                              <span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                {isWhatsApp ? <MessageSquare className="h-3.5 w-3.5 text-emerald-500" /> : <Mail className="h-3.5 w-3.5 text-indigo-500" />}
+                                {label}: {title}
+                              </span>
                               <span className="text-xs font-medium text-slate-500">{new Date(msg.sentAt || msg.createdAt).toLocaleString()}</span>
                             </div>
-                            <p className="text-sm text-slate-600 mb-2">Campaign: {msg.campaign?.name}</p>
+                            {msg.campaign?.name && (
+                              <p className="text-sm text-slate-600 mb-2">Campaign: {msg.campaign.name}</p>
+                            )}
                             <div className="inline-flex items-center gap-2 mt-1">
                               <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${msg.status === 'REPLIED' ? 'bg-green-100 text-green-700' : msg.status === 'CLICKED' ? 'bg-purple-100 text-purple-700' : msg.status === 'OPENED' ? 'bg-emerald-100 text-emerald-700' : msg.status === 'DELIVERED' ? 'bg-cyan-100 text-cyan-700' : msg.status === 'QUEUED' || msg.status === 'SENT' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
                                 {msg.status}

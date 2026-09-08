@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { whatsappService } from '../services/whatsapp.service';
 import { authenticate } from '../middlewares/auth.middleware';
+import { getLeadWhatsAppHistory, sendWhatsAppMessage } from '../controllers/whatsapp.controller';
 
 const router = Router();
 
+console.log("----------------------------------")
+router.get('/leads/:leadId/chat', authenticate, getLeadWhatsAppHistory);
+router.post('/leads/:leadId/send', authenticate, sendWhatsAppMessage);
 router.get('/status', authenticate, (req, res) => {
   const status = whatsappService.getStatus();
   res.status(200).json({ success: true, ...status });
