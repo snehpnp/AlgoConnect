@@ -48,7 +48,7 @@ class WhatsAppService {
     this.client.on('qr', async (qr) => {
       try {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
-        console.log('[WhatsApp] New QR code generated');
+
       } catch (err) {
         console.error('[WhatsApp] Failed to generate QR code:', getErrorMessage(err));
       }

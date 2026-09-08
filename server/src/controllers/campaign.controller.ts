@@ -95,7 +95,11 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
     if (latestReply) {
        status = 'REPLIED';
     } else if (lastEvent) {
-       status = lastEvent.eventType;
+       if (lastEvent.eventType === 'LIMIT_REACHED') {
+         status = 'PENDING (Limit Exceeded - Next Month)';
+       } else {
+         status = lastEvent.eventType;
+       }
     } else if (lastMessageSend) {
        status = lastMessageSend.status;
     }

@@ -51,9 +51,10 @@ export const startCampaignRunner = () => {
         if (channels.length === 0) continue;
 
         let processedCount = 0;
+        let limitReached = false;
 
         for (const lead of campaign.leads) {
-          if (processedCount >= BATCH_LIMIT) break;
+          if (processedCount >= BATCH_LIMIT || limitReached) break;
 
           // Global suppression check
           if (lead.consentStatus === 'OPT_OUT') {
@@ -71,7 +72,7 @@ export const startCampaignRunner = () => {
               }
             });
 
-            if (existingSend) {
+            if (existingSend && existingSend.status !== 'PENDING') {
               continue; // Already processed this channel for this lead
             }
 
@@ -161,17 +162,26 @@ export const startCampaignRunner = () => {
             }
 
             // Dispatch
-            await messagingGateway.sendMessage({
-              campaignId: campaign.id,
-              leadId: lead.id,
-              templateId: template.id,
-              channel: channel as any,
-              recipient,
-              content: renderedContent,
-              subject: renderedSubject,
-              htmlContent: renderedContent,
-              attachments
-            });
+            try {
+              await messagingGateway.sendMessage({
+                campaignId: campaign.id,
+                leadId: lead.id,
+                templateId: template.id,
+                channel: channel as any,
+                recipient,
+                content: renderedContent,
+                subject: renderedSubject,
+                htmlContent: renderedContent,
+                attachments,
+                messageSendId: existingSend?.id
+              });
+            } catch (error: any) {
+              if (error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'))) {
+                console.log(`[CampaignRunner] Limit reached for ${channel}. Aborting campaign batch.`);
+                limitReached = true;
+                break; // Break the channel loop, outer loop will also break due to limitReached
+              }
+            }
 
             processedCount++;
           }

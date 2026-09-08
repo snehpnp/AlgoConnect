@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X, History, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X, History } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { settingsService, type IntegrationSetting, type MessageLog, type EmailLimitAuditLog } from '../services/settings.service';
 import { whatsappService, type WhatsAppStatus } from '../services/whatsapp.service';
@@ -23,7 +23,7 @@ export const IntegrationSettings = () => {
   // Email Limit Audit Log state
   const [limitLogs, setLimitLogs] = useState<EmailLimitAuditLog[]>([]);
   const [limitLogsLoading, setLimitLogsLoading] = useState(false);
-  const [limitLogsTotal, setLimitLogsTotal] = useState(0);
+  
 
   // Message Logs State
   const [logs, setLogs] = useState<MessageLog[]>([]);
@@ -94,7 +94,7 @@ export const IntegrationSettings = () => {
       setLimitLogsLoading(true);
       const res = await settingsService.getEmailLimitLogs(1, 20);
       setLimitLogs(res.data || []);
-      setLimitLogsTotal(res.total || 0);
+   
     } catch (err) {
       // silent — not critical
     } finally {

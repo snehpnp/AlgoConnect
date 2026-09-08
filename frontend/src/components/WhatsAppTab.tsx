@@ -6,7 +6,7 @@ import {
   Loader2,
   Send,
 } from 'lucide-react';
-import { apiClient, base_url } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import type { Lead } from '../services/leads.service';
 
 interface WhatsAppTabProps {
@@ -32,7 +32,6 @@ export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
     try {

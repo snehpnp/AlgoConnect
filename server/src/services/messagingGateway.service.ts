@@ -12,32 +12,46 @@ export interface SendMessageOptions {
   subject?: string;     // email subject
   htmlContent?: string; // full rendered HTML (optional, fallback to content)
   attachments?: any[];  // file attachments array
+  messageSendId?: number; // pass existing ID if retrying a PENDING message
 }
 
 export const messagingGateway = {
   async sendMessage(options: SendMessageOptions) {
 
     const providerMessageId = `auto_${options.channel.toLowerCase()}_${Date.now()}`;
+    let msgId: number | null = options.messageSendId || null;
 
     try {
-      // 1. Create the MessageSend record first so we have the ID for tracking
-      const msg = await prisma.messageSend.create({
-        data: {
-          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
-          leadId: options.leadId,
-          channel: options.channel,
-          subject: options.subject || null,
-          templateId: options.templateId,
-          status: 'SENT',
-          sentAt: new Date(),
-          providerMessageId
-        }
-      });
+      // 1. Create or Update the MessageSend record first so we have the ID for tracking
+      if (msgId) {
+        await prisma.messageSend.update({
+          where: { id: msgId },
+          data: {
+            status: 'SENT',
+            sentAt: new Date(),
+            providerMessageId
+          }
+        });
+      } else {
+        const msg = await prisma.messageSend.create({
+          data: {
+            ...(options.campaignId ? { campaignId: options.campaignId } : {}),
+            leadId: options.leadId,
+            channel: options.channel,
+            subject: options.subject || null,
+            templateId: options.templateId,
+            status: 'SENT',
+            sentAt: new Date(),
+            providerMessageId
+          }
+        });
+        msgId = msg.id;
+      }
 
       // Save the actual content sent so it can be viewed in history
       await prisma.engagementEvent.create({
         data: {
-          messageSendId: msg.id,
+          messageSendId: msgId,
           eventType: 'SENT',
           metadataJson: { text: options.content }
         }
@@ -72,7 +86,7 @@ export const messagingGateway = {
           
           await prisma.emailLinkTracking.create({
             data: {
-              messageSendId: msg.id,
+              messageSendId: msgId,
               originalUrl: originalUrl,
               trackingUrl: trackingUrlId
             }
@@ -105,7 +119,7 @@ export const messagingGateway = {
               title: 'Automated Email Sent',
               message: `Email "${options.subject}" was sent to ${lead.name}.`,
               type: 'EMAIL_SENT',
-              relatedEntityId: msg.id,
+              relatedEntityId: msgId,
               relatedEntity: 'MessageSend'
             }
           });
@@ -122,7 +136,7 @@ export const messagingGateway = {
               title: 'Automated WhatsApp Sent',
               message: `WhatsApp message was sent to ${lead.name}.`,
               type: 'SYSTEM',
-              relatedEntityId: msg.id,
+              relatedEntityId: msgId,
               relatedEntity: 'MessageSend'
             }
           });
@@ -140,7 +154,7 @@ export const messagingGateway = {
       // 3. Log SENT event
       const sentEvent = await prisma.engagementEvent.create({
         data: {
-          messageSendId: msg.id,
+          messageSendId: msgId,
           eventType: 'SENT',
           metadataJson: sentDetails
         }
@@ -151,24 +165,32 @@ export const messagingGateway = {
     } catch (error: any) {
       console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
 
-      const msg = await prisma.messageSend.create({
-        data: {
-          ...(options.campaignId ? { campaignId: options.campaignId } : {}),
-          leadId: options.leadId,
-          channel: options.channel,
-          subject: options.subject || 'N/A',
-          templateId: options.templateId,
-          status: 'FAILED',
-          providerMessageId: `fail-${Date.now()}`
-        }
-      });
-      await prisma.engagementEvent.create({
-        data: {
-          messageSendId: msg.id,
-          eventType: 'FAILED',
-          metadataJson: { error: error.message || 'Failed to dispatch' }
-        }
-      });
+      const isLimitError = error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'));
+      const finalStatus = isLimitError ? 'PENDING' : 'FAILED';
+
+      if (msgId) {
+        await prisma.messageSend.update({
+          where: { id: msgId },
+          data: {
+            status: finalStatus,
+            providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`
+          }
+        });
+
+        await prisma.engagementEvent.create({
+          data: {
+            messageSendId: msgId,
+            eventType: isLimitError ? 'LIMIT_REACHED' : 'FAILED',
+            metadataJson: { error: error.message || 'Failed to dispatch' }
+          }
+        });
+      }
+
+      // If it's a limit error, throw it so the campaign runner can catch it and abort the batch
+      if (isLimitError) {
+        throw error;
+      }
+
       return { success: false, error };
     }
   }
