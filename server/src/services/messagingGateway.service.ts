@@ -1,5 +1,5 @@
 import prisma from '../models/prismaClient';
-import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { sendEmail, getEmailSenderId } from '../utils/emailService';
 import { SocketService } from './socket.service';
 
 export interface SendMessageOptions {
@@ -87,9 +87,8 @@ export const messagingGateway = {
 
         finalHtmlContent = `<div style="font-family: sans-serif;">${finalHtmlContent}</div>${trackingPixel}`;
 
-        const transporter = await getEmailTransporter();
         const sender = await getEmailSenderId();
-        await transporter.sendMail({
+        await sendEmail({
           from: sender,
           to: options.recipient,
           subject: options.subject,

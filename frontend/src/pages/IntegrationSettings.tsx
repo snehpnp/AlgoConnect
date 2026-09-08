@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X } from 'lucide-react';
+import { Mail, MessageSquare, Phone, Save, Play, Loader2, Key, Server, Hash, Info, ListFilter, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, AlertCircle, Eye, X, History, ToggleLeft, ToggleRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { settingsService, type IntegrationSetting, type MessageLog } from '../services/settings.service';
+import { settingsService, type IntegrationSetting, type MessageLog, type EmailLimitAuditLog } from '../services/settings.service';
 import { whatsappService, type WhatsAppStatus } from '../services/whatsapp.service';
 
 export const IntegrationSettings = () => {
   const [settings, setSettings] = useState<Record<string, Partial<IntegrationSetting>>>({
-    EMAIL: { type: 'EMAIL', provider: 'SMTP', host: '', port: 587, apiKey: '', apiSecret: '', senderId: '', secure: false, isActive: true },
+    EMAIL: { type: 'EMAIL', provider: 'SMTP', host: '', port: 587, apiKey: '', apiSecret: '', senderId: '', secure: false, isActive: true, limitType: 'DAILY', emailLimit: null },
     SMS: { type: 'SMS', provider: 'TWILIO', apiKey: '', apiSecret: '', senderId: '', isActive: true },
     WHATSAPP: { type: 'WHATSAPP', provider: 'META', apiKey: '', senderId: '', isActive: true },
   });
@@ -19,6 +19,11 @@ export const IntegrationSettings = () => {
   // WhatsApp State
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>({ connected: false, qrCode: null });
   const [waLoading, setWaLoading] = useState(false);
+
+  // Email Limit Audit Log state
+  const [limitLogs, setLimitLogs] = useState<EmailLimitAuditLog[]>([]);
+  const [limitLogsLoading, setLimitLogsLoading] = useState(false);
+  const [limitLogsTotal, setLimitLogsTotal] = useState(0);
 
   // Message Logs State
   const [logs, setLogs] = useState<MessageLog[]>([]);
@@ -38,6 +43,7 @@ export const IntegrationSettings = () => {
     fetchSettings();
     fetchLogs();
     fetchWaStatus();
+    fetchLimitLogs();
     
     // Poll for QR code or connection status
     const interval = setInterval(() => {
@@ -83,6 +89,19 @@ export const IntegrationSettings = () => {
     }
   };
 
+  const fetchLimitLogs = async () => {
+    try {
+      setLimitLogsLoading(true);
+      const res = await settingsService.getEmailLimitLogs(1, 20);
+      setLimitLogs(res.data || []);
+      setLimitLogsTotal(res.total || 0);
+    } catch (err) {
+      // silent — not critical
+    } finally {
+      setLimitLogsLoading(false);
+    }
+  };
+
   const fetchLogs = useCallback(async (page = 1, overrideChannel?: string) => {
     try {
       setLogsLoading(true);
@@ -123,6 +142,10 @@ export const IntegrationSettings = () => {
       setSavingType(type);
       await settingsService.updateIntegration(type, settings[type]);
       toast.success(`${type} settings saved successfully`);
+      if (type === 'EMAIL') {
+        await fetchSettings();
+        await fetchLimitLogs();
+      }
     } catch (err) {
       toast.error(`Failed to save ${type} settings`);
     } finally {
@@ -139,8 +162,16 @@ export const IntegrationSettings = () => {
       }
       const res = await settingsService.testIntegration(type, testData);
       toast.success(res.message || `${type} test successful`);
+      if (type === 'EMAIL') {
+        fetchSettings(); // refresh counters after sending
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || `Failed to test ${type} integration`);
+      const msg = err.response?.data?.message || `Failed to test ${type} integration`;
+      if (err.response?.status === 429) {
+        toast.error(`🚫 ${msg}`);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setTestingType(null);
     }
@@ -242,7 +273,101 @@ export const IntegrationSettings = () => {
           {activeTab === 'EMAIL' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
               <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4 sm:mb-6">Email Settings</h2>
+
+              {/* ─── Usage Stats Panel ─── */}
+              {(() => {
+                const lt = settings.EMAIL.limitType || 'DAILY';
+                const lim = settings.EMAIL.emailLimit ?? settings.EMAIL.dailyLimit ?? null;
+                const sentToday = settings.EMAIL.emailsSentToday || 0;
+                const sentMonth = settings.EMAIL.emailsSentThisMonth || 0;
+                const relevantSent = lt === 'MONTHLY' ? sentMonth : sentToday;
+                const remaining = lim ? Math.max(0, lim - relevantSent) : null;
+                return (
+                  <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div className="grid grid-cols-4 divide-x divide-slate-200">
+                      <div className="text-center p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          {lt === 'MONTHLY' ? 'Monthly' : 'Daily'} Limit
+                        </p>
+                        <p className="text-lg font-black text-slate-800">
+                          {lim ? lim.toLocaleString() : <span className="text-2xl">∞</span>}
+                        </p>
+                      </div>
+                      <div className="text-center p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sent Today</p>
+                        <p className="text-lg font-black text-blue-600">{sentToday.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sent This Month</p>
+                        <p className="text-lg font-black text-indigo-600">{sentMonth.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Remaining</p>
+                        <p className={`text-lg font-black ${remaining === 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {remaining !== null ? remaining.toLocaleString() : <span className="text-2xl">∞</span>}
+                        </p>
+                      </div>
+                    </div>
+                    {lim && remaining === 0 && (
+                      <div className="bg-red-50 border-t border-red-200 px-4 py-2 flex items-center gap-2 text-sm text-red-700 font-medium">
+                        <XCircle className="h-4 w-4 shrink-0" />
+                        {lt === 'MONTHLY' ? 'Monthly' : 'Daily'} email limit reached — emails are blocked until the {lt === 'MONTHLY' ? 'next month' : 'next day'}.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="space-y-4">
+                {/* ─── Limit Configuration ─── */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Email Sending Limit</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Limit Type Toggle */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Limit Type</label>
+                      <div className="flex rounded-lg border border-slate-300 overflow-hidden bg-white">
+                        {(['DAILY', 'MONTHLY'] as const).map(lt => (
+                          <button
+                            key={lt}
+                            type="button"
+                            onClick={() => handleChange('EMAIL', 'limitType', lt)}
+                            className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                              (settings.EMAIL.limitType || 'DAILY') === lt
+                                ? 'bg-primary text-white'
+                                : 'text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            {lt === 'DAILY' ? '📅 Daily' : '📆 Monthly'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Limit Value */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                        {(settings.EMAIL.limitType || 'DAILY') === 'DAILY' ? 'Emails Per Day' : 'Emails Per Month'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={settings.EMAIL.emailLimit ?? settings.EMAIL.dailyLimit ?? ''}
+                        onChange={(e) => handleChange('EMAIL', 'emailLimit', e.target.value === '' ? null : parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                        placeholder="Leave empty for unlimited"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {(settings.EMAIL.limitType || 'DAILY') === 'DAILY'
+                      ? 'Daily limit resets every midnight. When the limit is reached, all outgoing emails are blocked until the next day.'
+                      : 'Monthly limit allows flexible usage within the month (e.g. 300/month can be sent as 100 today, 50 tomorrow, etc.). Resets on the 1st of every month.'}
+                  </p>
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span><strong>Note:</strong> Test emails also count toward your limit — they are real sends.</span>
+                  </p>
+                </div>
                 {/* Host + Port — stacked on mobile */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -652,6 +777,88 @@ export const IntegrationSettings = () => {
           </div>
         )}
       </div>
+      {/* ─── EMAIL LIMIT CHANGE LOG ─── */}
+      {activeTab === 'EMAIL' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/60">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500 shrink-0" />
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-800">Email Limit Change Log</h2>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">Audit trail of every limit configuration change</p>
+              </div>
+            </div>
+            <button
+              onClick={fetchLimitLogs}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition-colors shrink-0 min-h-[36px]"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${limitLogsLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
+
+          {limitLogsLoading ? (
+            <div className="py-16 text-center">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+            </div>
+          ) : limitLogs.length === 0 ? (
+            <div className="py-16 text-center">
+              <History className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-500 font-medium text-sm">No limit changes recorded yet</p>
+              <p className="text-slate-400 text-xs mt-1">Changes will appear here when you save a new limit configuration.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm" style={{ minWidth: '680px' }}>
+                <thead>
+                  <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-6 py-3">Date & Time</th>
+                    <th className="px-4 py-3">Changed By</th>
+                    <th className="px-4 py-3">Previous Config</th>
+                    <th className="px-4 py-3">New Config</th>
+                    <th className="px-4 py-3">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {limitLogs.map((log) => (
+                    <tr key={log.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                      <td className="px-6 py-3 text-xs text-slate-500 whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <br />
+                        <span className="text-[10px] text-slate-400">{new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-semibold text-slate-700">{log.changedByName || 'System'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {log.prevLimitType ? (
+                          <div>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${log.prevLimitType === 'MONTHLY' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {log.prevLimitType === 'MONTHLY' ? '📆 Monthly' : '📅 Daily'}
+                            </span>
+                            <span className="ml-1 text-xs text-slate-500">{log.prevLimit ? `· ${log.prevLimit.toLocaleString()}` : '· Unlimited'}</span>
+                          </div>
+                        ) : <span className="text-slate-400 text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${log.newLimitType === 'MONTHLY' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {log.newLimitType === 'MONTHLY' ? '📆 Monthly' : '📅 Daily'}
+                          </span>
+                          <span className="ml-1 text-xs text-slate-500">{log.newLimit ? `· ${log.newLimit.toLocaleString()}` : '· Unlimited'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-slate-500 italic">{log.reason || '—'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Message Log Modal */}
       {selectedLog && (

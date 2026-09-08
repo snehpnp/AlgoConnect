@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
+import { checkAndIncrementEmailLimit } from '../utils/emailService';
 
 const prisma = new PrismaClient();
 
+// ─── GET /settings/integrations ──────────────────────────────────────────────
 export const getAllSettings = async (req: Request, res: Response) => {
   try {
     const settings = await (prisma as any).integrationSetting.findMany();
@@ -14,10 +16,28 @@ export const getAllSettings = async (req: Request, res: Response) => {
   }
 };
 
+// ─── PUT /settings/integrations/:type ────────────────────────────────────────
 export const updateSetting = async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
     const data = req.body;
+    const user = (req as any).user; // injected by auth middleware
+
+    // Parse and validate emailLimit
+    const parseLimit = (val: any): number | null => {
+      if (val === '' || val === null || val === undefined) return null;
+      const n = parseInt(String(val), 10);
+      return isNaN(n) ? null : n;
+    };
+
+    const newLimitType: string = data.limitType || 'DAILY';
+    // Support both `emailLimit` (new) and `dailyLimit` (old field from UI)
+    const newEmailLimit: number | null = parseLimit(data.emailLimit ?? data.dailyLimit);
+
+    // ── Fetch current record for audit comparison ──
+    const existing = await (prisma as any).integrationSetting.findUnique({
+      where: { type },
+    });
 
     const setting = await (prisma as any).integrationSetting.upsert({
       where: { type },
@@ -27,9 +47,13 @@ export const updateSetting = async (req: Request, res: Response) => {
         apiSecret: data.apiSecret,
         senderId: data.senderId,
         host: data.host,
-        port: data.port,
+        port: data.port !== undefined ? Number(data.port) : undefined,
         secure: data.secure,
         isActive: data.isActive,
+        limitType: newLimitType,
+        emailLimit: newEmailLimit,
+        // keep dailyLimit in sync for backward-compat
+        dailyLimit: newLimitType === 'DAILY' ? newEmailLimit : null,
       },
       create: {
         type,
@@ -38,11 +62,36 @@ export const updateSetting = async (req: Request, res: Response) => {
         apiSecret: data.apiSecret,
         senderId: data.senderId,
         host: data.host,
-        port: data.port,
+        port: data.port ? Number(data.port) : null,
         secure: data.secure || false,
         isActive: data.isActive !== undefined ? data.isActive : true,
+        limitType: newLimitType,
+        emailLimit: newEmailLimit,
+        dailyLimit: newLimitType === 'DAILY' ? newEmailLimit : null,
       },
     });
+
+    // ── Create audit log if EMAIL limit config changed ──
+    if (type === 'EMAIL') {
+      const prevLimitType = existing?.limitType ?? 'DAILY';
+      const prevLimit = existing?.emailLimit ?? existing?.dailyLimit ?? null;
+      const limitChanged =
+        prevLimitType !== newLimitType || prevLimit !== newEmailLimit;
+
+      if (limitChanged) {
+        await (prisma as any).emailLimitAuditLog.create({
+          data: {
+            changedByUserId: user?.id ?? null,
+            changedByName: user?.name ?? 'System',
+            prevLimitType,
+            newLimitType,
+            prevLimit,
+            newLimit: newEmailLimit,
+            reason: data.reason ?? null,
+          },
+        });
+      }
+    }
 
     res.json({ message: 'Setting updated successfully', data: setting });
   } catch (error) {
@@ -51,6 +100,7 @@ export const updateSetting = async (req: Request, res: Response) => {
   }
 };
 
+// ─── POST /settings/integrations/:type/test ──────────────────────────────────
 export const testIntegration = async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
@@ -82,8 +132,10 @@ export const testIntegration = async (req: Request, res: Response) => {
               pass: setting.apiSecret,
             },
           });
-          
+
           if (setting.testEmail) {
+            // Test email IS counted toward the limit — it is a real send
+            await checkAndIncrementEmailLimit();
             await transporter.sendMail({
               from: setting.senderId || setting.apiKey,
               to: setting.testEmail,
@@ -100,13 +152,14 @@ export const testIntegration = async (req: Request, res: Response) => {
           }
         } catch (err: any) {
           success = false;
-          message = `SMTP Verification failed: ${err.message || err.toString()}`;
+          message = err.message?.includes('limit')
+            ? err.message
+            : `SMTP Verification failed: ${err.message || err.toString()}`;
         }
       } else {
         message = 'Missing host or port for EMAIL connection';
       }
     } else if (type === 'SMS') {
-      // Simulate SMS API connection
       if (setting.apiKey) {
         success = true;
         message = `Successfully verified SMS API Key for provider ${setting.provider}`;
@@ -114,7 +167,6 @@ export const testIntegration = async (req: Request, res: Response) => {
         message = 'Missing API Key for SMS connection';
       }
     } else if (type === 'WHATSAPP') {
-      // Simulate WhatsApp API connection
       if (setting.apiKey) {
         success = true;
         message = `Successfully authenticated with WhatsApp API`;
@@ -128,12 +180,16 @@ export const testIntegration = async (req: Request, res: Response) => {
     } else {
       res.status(400).json({ success: false, message });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error testing integration:', error);
+    if (error.statusCode === 429) {
+      return res.status(429).json({ success: false, message: error.message });
+    }
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
+// ─── GET /settings/message-logs ──────────────────────────────────────────────
 export const getMessageLogs = async (req: Request, res: Response) => {
   try {
     const { channel, status, dateFrom, dateTo, page = '1', limit = '50' } = req.query;
@@ -175,12 +231,12 @@ export const getMessageLogs = async (req: Request, res: Response) => {
           messageSend: {
             include: {
               lead: { select: { id: true, name: true, email: true, phone: true } },
-              campaign: { select: { id: true, name: true } }
-            }
-          }
-        }
+              campaign: { select: { id: true, name: true } },
+            },
+          },
+        },
       }),
-      prisma.engagementEvent.count({ where })
+      prisma.engagementEvent.count({ where }),
     ]);
 
     const logs = logsRaw.map(log => ({
@@ -188,17 +244,40 @@ export const getMessageLogs = async (req: Request, res: Response) => {
       lead: log.messageSend?.lead,
       campaign: log.messageSend?.campaign,
       details: log.metadataJson,
-      channel: log.messageSend?.channel
+      channel: log.messageSend?.channel,
     }));
 
     res.json({
       data: logs,
       total,
       page: parseInt(page as string),
-      totalPages: Math.ceil(total / take)
+      totalPages: Math.ceil(total / take),
     });
   } catch (error) {
     console.error('Error fetching message logs:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ─── GET /settings/email-limit-logs ──────────────────────────────────────────
+export const getEmailLimitLogs = async (req: Request, res: Response) => {
+  try {
+    const { page = '1', limit = '20' } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
+    const [logs, total] = await Promise.all([
+      (prisma as any).emailLimitAuditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      (prisma as any).emailLimitAuditLog.count(),
+    ]);
+
+    res.json({ data: logs, total, page: parseInt(page as string), totalPages: Math.ceil(total / take) });
+  } catch (error) {
+    console.error('Error fetching email limit logs:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

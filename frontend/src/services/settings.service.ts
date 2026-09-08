@@ -11,6 +11,29 @@ export interface IntegrationSetting {
   port?: number;
   secure?: boolean;
   isActive: boolean;
+
+  // Limit config
+  limitType?: 'DAILY' | 'MONTHLY';
+  emailLimit?: number | null;
+  dailyLimit?: number | null; // backward-compat
+
+  // Usage counters
+  emailsSentToday?: number;
+  emailsSentThisMonth?: number;
+  lastEmailSentDate?: string | null;
+  currentPeriodStart?: string | null;
+}
+
+export interface EmailLimitAuditLog {
+  id: number;
+  changedByUserId: number | null;
+  changedByName: string | null;
+  prevLimitType: string | null;
+  newLimitType: string | null;
+  prevLimit: number | null;
+  newLimit: number | null;
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface MessageLog {
@@ -38,7 +61,7 @@ export const settingsService = {
     return response.data;
   },
 
-  updateIntegration: async (type: string, data: Partial<IntegrationSetting>) => {
+  updateIntegration: async (type: string, data: Partial<IntegrationSetting> & { reason?: string }) => {
     const response = await apiClient.put(`/settings/integrations/${type}`, data);
     return response.data;
   },
@@ -52,5 +75,9 @@ export const settingsService = {
     const response = await apiClient.get('/settings/message-logs', { params });
     return response.data;
   },
-};
 
+  getEmailLimitLogs: async (page = 1, limit = 20) => {
+    const response = await apiClient.get('/settings/email-limit-logs', { params: { page, limit } });
+    return response.data;
+  },
+};

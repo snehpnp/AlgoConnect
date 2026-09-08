@@ -189,9 +189,35 @@ model IntegrationSetting {
   port      Int?
   secure    Boolean  @default(false)
   isActive  Boolean  @default(true)
+
+  // Limit configuration
+  limitType           String    @default("DAILY") // 'DAILY' | 'MONTHLY'
+  emailLimit          Int?      // unified limit value (replaces dailyLimit)
+  dailyLimit          Int?      // kept for backward-compat, will be migrated
+
+  // Usage counters (always tracked regardless of limitType)
+  emailsSentToday     Int       @default(0)
+  emailsSentThisMonth Int       @default(0)
+  lastEmailSentDate   DateTime?
+  currentPeriodStart  DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Audit log: every time an admin changes the limit config
+model EmailLimitAuditLog {
+  id               Int      @id @default(autoincrement())
+  changedByUserId  Int?
+  changedByName    String?
+  prevLimitType    String?
+  newLimitType     String?
+  prevLimit        Int?
+  newLimit         Int?
+  reason           String?
+  createdAt        DateTime @default(now())
+}
+
 
 model CampaignAutomation {
   id         Int      @id @default(autoincrement())

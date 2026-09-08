@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
-import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { sendEmail, getEmailSenderId } from '../utils/emailService';
 
 export const getCampaigns = asyncHandler(async (req: Request, res: Response) => {
   const campaigns = await prisma.campaign.findMany({
@@ -479,9 +479,8 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     htmlSent = `<div style="font-family: sans-serif; white-space: pre-wrap;">${content}</div>${trackingPixel}`;
 
     try {
-      const transporter = await getEmailTransporter();
       const sender = await getEmailSenderId();
-      await transporter.sendMail({
+      await sendEmail({
         from: sender,
         to: recipient,
         subject,

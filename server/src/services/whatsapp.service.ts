@@ -4,6 +4,18 @@ import prisma from '../models/prismaClient';
 import { SocketService } from './socket.service';
 import os from 'os';
 
+// Extracts just the message from any thrown value, no stack trace, no puppeteer noise
+function getErrorMessage(err: any): string {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string') return err;
+  if (err.message) return String(err.message).split('\n')[0]; // first line only
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 class WhatsAppService {
   private client: Client;
   private qrCodeDataUrl: string | null = null;
@@ -38,7 +50,7 @@ class WhatsAppService {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
         console.log('[WhatsApp] New QR code generated');
       } catch (err) {
-        console.error('[WhatsApp] Failed to generate QR code', err);
+        console.error('[WhatsApp] Failed to generate QR code:', getErrorMessage(err));
       }
     });
 
@@ -64,7 +76,7 @@ class WhatsAppService {
     });
 
     this.client.on('auth_failure', (msg) => {
-      console.error('[WhatsApp] Authentication failure', msg);
+      console.error('[WhatsApp] Authentication failure:', msg);
       this.isConnected = false;
       this.qrCodeDataUrl = null;
     });
@@ -87,7 +99,7 @@ class WhatsAppService {
   public initialize() {
     console.log('[WhatsApp] Starting client initialization...');
     this.client.initialize().catch((err) => {
-      console.error('[WhatsApp] Initialization error (non-fatal):', err?.message || err);
+      console.error('[WhatsApp] Initialization error (non-fatal):', getErrorMessage(err));
     });
   }
 
@@ -106,7 +118,7 @@ class WhatsAppService {
       this.qrCodeDataUrl = null;
       this.client.initialize().catch(() => { });
     } catch (error) {
-      console.error('[WhatsApp] Logout failed:', error);
+      console.error('[WhatsApp] Logout failed:', getErrorMessage(error));
       throw error;
     }
   }
@@ -146,13 +158,13 @@ class WhatsAppService {
           await new Promise((r) => setTimeout(r, 2000)); // 2 sec wait
           return await this.client.sendMessage(chatId, contentToSend, options);
         } catch (retryError) {
-          console.error(`[WhatsApp] Retry also failed for ${phoneNumber}:`, retryError);
-          throw retryError;
+          console.error(`[WhatsApp] Retry also failed for ${phoneNumber}:`, getErrorMessage(retryError));
+          throw new Error(getErrorMessage(retryError));
         }
       }
 
-      console.error(`[WhatsApp] Failed to send to ${phoneNumber}:`, error);
-      throw error;
+      console.error(`[WhatsApp] Failed to send to ${phoneNumber}:`, getErrorMessage(error));
+      throw new Error(getErrorMessage(error));
     }
   }
 
@@ -181,19 +193,19 @@ class WhatsAppService {
   }
 
   private async downloadMediaWithRetry(message: any, retries = 3, delayMs = 1500) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const media = await message.downloadMedia();
-      if (media) return media;
-      // media undefined but no throw — treat as retryable
-    } catch (err: any) {
-      console.error(`[WhatsApp] downloadMedia attempt ${attempt} failed:`, err?.message || err);
-      if (attempt === retries) throw err;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const media = await message.downloadMedia();
+        if (media) return media;
+        // media undefined but no throw — treat as retryable
+      } catch (err: any) {
+        console.error(`[WhatsApp] downloadMedia attempt ${attempt} failed:`, getErrorMessage(err));
+        if (attempt === retries) return null; // don't throw, just give up quietly
+      }
+      await new Promise((r) => setTimeout(r, delayMs * attempt)); // backoff
     }
-    await new Promise((r) => setTimeout(r, delayMs * attempt)); // backoff
+    return null;
   }
-  return null;
-}
 
   private async handleIncomingMessage(message: any) {
     try {
@@ -226,9 +238,11 @@ class WhatsAppService {
               require('fs').writeFileSync(filePath, media.data, 'base64');
               mediaUrl = `/uploads/whatsapp/${filename}`;
               mediaType = media.mimetype;
+            } else {
+              console.log('[WhatsApp] Media download unavailable, continuing as text-only');
             }
           } catch (mediaErr) {
-            console.error('[WhatsApp] Failed to download media after retries:', mediaErr);
+            console.log('[WhatsApp] Failed to download media:', getErrorMessage(mediaErr));
             // Fall through — still save the reply as text-only so the lead isn't lost
           }
         }
@@ -251,7 +265,7 @@ class WhatsAppService {
           }
           console.log(`[WhatsApp] getContact resolved: ${resolved}, pushname: ${contact?.pushname}`);
         } catch (e) {
-          console.error('[WhatsApp] getContact failed:', e);
+          console.error('[WhatsApp] getContact failed:', getErrorMessage(e));
         }
       }
 
@@ -358,7 +372,7 @@ class WhatsAppService {
 
       console.log(`[WhatsApp] ✅ Reply saved for lead "${matchedLead.name}" (id=${matchedLead.id})`);
     } catch (error) {
-      console.error('[WhatsApp] Error handling incoming message:', error);
+      console.error('[WhatsApp] Error handling incoming message:', getErrorMessage(error));
     }
   }
 }
