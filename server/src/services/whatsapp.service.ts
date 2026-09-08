@@ -1,4 +1,4 @@
-import { Client, LocalAuth } from 'whatsapp-web.js';
+import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode';
 import prisma from '../models/prismaClient';
 import { SocketService } from './socket.service';
@@ -111,15 +111,25 @@ class WhatsAppService {
     }
   }
 
-  public async sendMessage(phoneNumber: string, text: string) {
+  public async sendMessage(phoneNumber: string, text: string, mediaPath?: string) {
     if (!this.isConnected) throw new Error('WhatsApp client is not connected');
 
     let num = phoneNumber.replace(/\D/g, '');
     if (num.length === 10) num = '91' + num;
     const chatId = `${num}@c.us`;
+    let contentToSend: any = text;
+    let options: any = {};
 
     try {
-      return await this.client.sendMessage(chatId, text);
+
+      if (mediaPath) {
+        contentToSend = MessageMedia.fromFilePath(mediaPath);
+        if (text) {
+          options.caption = text;
+        }
+      }
+
+      return await this.client.sendMessage(chatId, contentToSend, options);
     } catch (error: any) {
       const errMsg = error?.message || '';
 
@@ -134,7 +144,7 @@ class WhatsAppService {
         try {
           await this.client.getChatById(chatId);
           await new Promise((r) => setTimeout(r, 2000)); // 2 sec wait
-          return await this.client.sendMessage(chatId, text);
+          return await this.client.sendMessage(chatId, contentToSend, options);
         } catch (retryError) {
           console.error(`[WhatsApp] Retry also failed for ${phoneNumber}:`, retryError);
           throw retryError;
@@ -170,6 +180,21 @@ class WhatsAppService {
     return fromId.split('@')[0].replace(/\D/g, '');
   }
 
+  private async downloadMediaWithRetry(message: any, retries = 3, delayMs = 1500) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const media = await message.downloadMedia();
+      if (media) return media;
+      // media undefined but no throw — treat as retryable
+    } catch (err: any) {
+      console.error(`[WhatsApp] downloadMedia attempt ${attempt} failed:`, err?.message || err);
+      if (attempt === retries) throw err;
+    }
+    await new Promise((r) => setTimeout(r, delayMs * attempt)); // backoff
+  }
+  return null;
+}
+
   private async handleIncomingMessage(message: any) {
     try {
       const fromId: string = message.from || '';
@@ -177,9 +202,40 @@ class WhatsAppService {
       // Skip groups, status, broadcasts
       if (fromId.includes('@g.us')) return;
       if (fromId === 'status@broadcast') return;
-      if (!message.body) return;
+      let mediaUrl = null;
+      let mediaType = null;
 
-      const text: string = message.body;
+      if (message.hasMedia) {
+        if (message.isViewOnce) {
+          console.log('[WhatsApp] View-once media — cannot be downloaded, skipping');
+        } else {
+          try {
+            const media = await this.downloadMediaWithRetry(message);
+            if (media) {
+              let ext = 'bin';
+              if (media.mimetype) {
+                const mimeParts = media.mimetype.split(';')[0].split('/');
+                if (mimeParts.length === 2) ext = mimeParts[1];
+              }
+              const filename = `wa-in-${Date.now()}.${ext}`;
+              const uploadDir = require('path').join(process.cwd(), 'uploads', 'whatsapp');
+              if (!require('fs').existsSync(uploadDir)) {
+                require('fs').mkdirSync(uploadDir, { recursive: true });
+              }
+              const filePath = require('path').join(uploadDir, filename);
+              require('fs').writeFileSync(filePath, media.data, 'base64');
+              mediaUrl = `/uploads/whatsapp/${filename}`;
+              mediaType = media.mimetype;
+            }
+          } catch (mediaErr) {
+            console.error('[WhatsApp] Failed to download media after retries:', mediaErr);
+            // Fall through — still save the reply as text-only so the lead isn't lost
+          }
+        }
+      }
+
+      const text: string = message.body || (message.hasMedia ? '[Media Message]' : '');
+      if (!text && !mediaUrl) return;
 
       // Try to get real phone number
       let digitsOnly = this.extractPhone(message);
@@ -266,7 +322,7 @@ class WhatsAppService {
         data: {
           messageSendId: lastMessage.id,
           eventType: 'REPLY',
-          metadataJson: { text },
+          metadataJson: { text, mediaUrl, mediaType },
         },
       });
 

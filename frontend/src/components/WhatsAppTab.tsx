@@ -6,7 +6,7 @@ import {
   Loader2,
   Send,
 } from 'lucide-react';
-import { apiClient } from '../services/apiClient';
+import { apiClient, base_url } from '../services/apiClient';
 import type { Lead } from '../services/leads.service';
 
 interface WhatsAppTabProps {
@@ -19,6 +19,8 @@ interface WhatsAppMessage {
   direction: 'Sent' | 'Received';
   status: string;
   createdAt: string;
+  mediaUrl?: string;
+  mediaType?: string;
 }
 
 export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
@@ -29,6 +31,8 @@ export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
   const [isSending, setIsSending] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
     try {
@@ -119,7 +123,7 @@ export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
   const handleSend = async () => {
     const message = newMessage.trim();
 
-    if (!message || isSending) {
+    if ((!message && !selectedFile) || isSending) {
       return;
     }
 
@@ -127,15 +131,32 @@ export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
     setError('');
 
     try {
+      let mediaData = null;
+
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        const uploadRes = await apiClient.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (uploadRes.data?.success) {
+          mediaData = uploadRes.data.data;
+        } else {
+          throw new Error('Failed to upload file');
+        }
+      }
+
       const res = await apiClient.post(
         `/whatsapp/leads/${lead.id}/send`,
         {
           message,
+          media: mediaData
         }
       );
 
       if (res.data?.success) {
         setNewMessage('');
+        setSelectedFile(null);
         await fetchHistory();
       } else {
         setError(
@@ -260,7 +281,7 @@ export const WhatsAppTab = ({ lead }: WhatsAppTabProps) => {
         <button
           type="button"
           onClick={handleSend}
-          disabled={!newMessage.trim() || isSending}
+          disabled={(!newMessage.trim() && !selectedFile) || isSending}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white transition-colors hover:bg-[#008f6f] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSending ? (

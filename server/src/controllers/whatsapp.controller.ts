@@ -30,7 +30,7 @@ export const getLeadWhatsAppHistory = async (req: Request, res: Response) => {
 export const sendWhatsAppMessage = async (req: Request, res: Response) => {
   try {
     const { leadId } = req.params;
-    const { message } = req.body;
+    const { message, media } = req.body;
 
     if (!message || !message.trim()) {
       return res.status(400).json({ success: false, error: 'Message cannot be empty' });
@@ -53,7 +53,7 @@ export const sendWhatsAppMessage = async (req: Request, res: Response) => {
     }
 
     // Call service to send
-    const response = await whatsappService.sendMessage(phoneToSend, message);
+    const response = await whatsappService.sendMessage(phoneToSend, message, media?.path);
 
     // Save to DB
     const messageSend = await prisma.messageSend.create({
@@ -74,7 +74,11 @@ export const sendWhatsAppMessage = async (req: Request, res: Response) => {
       data: {
         messageSendId: messageSend.id,
         eventType: 'TEXT_SENT',
-        metadataJson: { text: message }
+        metadataJson: { 
+          text: message,
+          mediaUrl: media?.url || null,
+          mediaType: media?.mimetype || null
+        }
       }
     });
 
