@@ -244,6 +244,7 @@ export const Leads: React.FC = () => {
 
   const initialFilter = location.state?.unifiedStatus || 'All';
   const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
+  const [bouncedFilter, setBouncedFilter] = useState(location.state?.bouncedFilter || 'All');
   const [typeFilter, setTypeFilter] = useState(location.state?.typeFilter || 'All');
   const [stateFilter, setStateFilter] = useState(location.state?.stateFilter || 'All');
   const [cityFilter, setCityFilter] = useState(location.state?.cityFilter || 'All');
@@ -256,6 +257,7 @@ export const Leads: React.FC = () => {
   useEffect(() => {
     if (location.state) {
       setUnifiedStatusFilter(location.state.unifiedStatus || 'All');
+      setBouncedFilter(location.state.bouncedFilter || 'All');
       setTypeFilter(location.state.typeFilter || 'All');
       setStateFilter(location.state.stateFilter || 'All');
       setCityFilter(location.state.cityFilter || 'All');
@@ -400,6 +402,7 @@ export const Leads: React.FC = () => {
         limit: PAGE_SIZE,
         search: searchQuery || undefined,
         unifiedStatus: unifiedStatusFilter === 'All' ? undefined : unifiedStatusFilter,
+        bounced: bouncedFilter === 'All' ? undefined : bouncedFilter,
         type: typeFilter === 'All' ? undefined : typeFilter,
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
@@ -425,12 +428,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -518,7 +521,7 @@ export const Leads: React.FC = () => {
     if (!name) return;
     const newView = {
       name,
-      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
+      filters: { stateFilter, cityFilter, unifiedStatusFilter, bouncedFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
     };
     const newSavedViews = [...savedViews, newView];
     setSavedViews(newSavedViews);
@@ -530,6 +533,7 @@ export const Leads: React.FC = () => {
     setStateFilter(filters.stateFilter || 'All');
     setCityFilter(filters.cityFilter || 'All');
     setUnifiedStatusFilter(filters.unifiedStatusFilter || 'All');
+    setBouncedFilter(filters.bouncedFilter || 'All');
     setTypeFilter(filters.typeFilter || 'All');
     setWebsiteStatusFilter(filters.websiteStatusFilter || 'All');
     setAlgoTradingFilter(filters.algoTradingFilter || 'All');
@@ -544,7 +548,7 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
-  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || bouncedFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
 
   return (
     <div className="relative flex gap-6 pb-24 sm:pb-20">
@@ -691,11 +695,23 @@ export const Leads: React.FC = () => {
                 </select>
 
                 <select
+                  value={bouncedFilter}
+                  onChange={(e) => setBouncedFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full font-bold text-slate-800 border-orange-300 bg-orange-50/40 focus:border-orange-500"
+                >
+                  <option value="All">All Bounce Status</option>
+                  <option value="BOUNCED">🛑 Bounced Leads</option>
+                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
+                </select>
+
+                <select
                   value={unifiedStatusFilter}
                   onChange={(e) => setUnifiedStatusFilter(e.target.value)}
                   className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
                 >
                   <option value="All">All Statuses</option>
+                  <option value="BOUNCED">🛑 Bounced Leads</option>
+                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
                   <option value="IMPORTED">Imported</option>
                   <option value="UNVERIFIED">Unverified</option>
                   <option value="NEW">New (Verified)</option>
@@ -912,6 +928,11 @@ export const Leads: React.FC = () => {
                               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${stageColorClasses(lead.salesStage)}`}>
                                 {lead.salesStage || 'New'}
                               </span>
+                              {lead.engagementStatus === 'Bounced' && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
+                                  🛑 Bounced
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 mt-2.5">
@@ -1059,6 +1080,11 @@ export const Leads: React.FC = () => {
                                   >
                                     {lead.name}
                                   </a>
+                                  {lead.engagementStatus === 'Bounced' && (
+                                     <span className="inline-flex items-center gap-1 mt-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
+                                       🛑 Bounced
+                                     </span>
+                                   )}
                                   {lead.user ? (
                                     <div className="flex items-center gap-1.5 mt-1" title={`Assigned to ${lead.user.name}`}>
                                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">

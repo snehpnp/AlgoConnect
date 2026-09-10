@@ -118,6 +118,8 @@ export const getLeadMessages = async (req: Request, res: Response) => {
       where: { leadId: Number(leadId) },
       include: {
         campaign: { select: { id: true, name: true } },
+        events: { orderBy: { createdAt: 'desc' } },
+        replies: { orderBy: { receivedAt: 'desc' } }
       },
       orderBy: { createdAt: 'desc' }
     });

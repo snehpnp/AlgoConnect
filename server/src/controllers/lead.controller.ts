@@ -165,6 +165,8 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const exchangeName = (req.query.exchangeName as string) || 'All';
   const otherListings = (req.query.otherListings as string) || 'All';
   
+  const bounced = (req.query.bounced as string) || (req.query.bouncedFilter as string) || 'All';
+
   const skip = (page - 1) * limit;
   const where: any = {};
   
@@ -205,6 +207,12 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
       case 'ENGAGED':
         where.engagementStatus = { not: 'Not Engaged' };
         break;
+      case 'BOUNCED':
+        where.engagementStatus = 'Bounced';
+        break;
+      case 'NOT_BOUNCED':
+        where.engagementStatus = { not: 'Bounced' };
+        break;
       case 'IMPORTED':
         where.verificationStatus = 'Imported';
         break;
@@ -222,7 +230,24 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   }
   
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
-  if (engagementStatus && engagementStatus !== 'All') where.engagementStatus = engagementStatus;
+  
+  if (bounced && bounced !== 'All') {
+    if (bounced === 'BOUNCED' || bounced === 'Bounced') {
+      where.engagementStatus = 'Bounced';
+    } else if (bounced === 'NOT_BOUNCED' || bounced === 'Not Bounced' || bounced === 'NotBounced') {
+      where.engagementStatus = { not: 'Bounced' };
+    }
+  }
+
+  if (engagementStatus && engagementStatus !== 'All') {
+    if (engagementStatus === 'BOUNCED' || engagementStatus === 'Bounced') {
+      where.engagementStatus = 'Bounced';
+    } else if (engagementStatus === 'NOT_BOUNCED' || engagementStatus === 'Not Bounced' || engagementStatus === 'NotBounced') {
+      where.engagementStatus = { not: 'Bounced' };
+    } else {
+      where.engagementStatus = engagementStatus;
+    }
+  }
   if (consentStatus && consentStatus !== 'All') where.consentStatus = consentStatus;
   if (type && type !== 'All') where.type = type;
   if (state && state !== 'All') where.state = state;
