@@ -278,20 +278,25 @@ export const IntegrationSettings = () => {
               {(() => {
                 const lt = settings.EMAIL.limitType || 'DAILY';
                 const lim = settings.EMAIL.emailLimit ?? settings.EMAIL.dailyLimit ?? null;
+                const sentHour = settings.EMAIL.emailsSentThisHour || 0;
                 const sentToday = settings.EMAIL.emailsSentToday || 0;
                 const sentMonth = settings.EMAIL.emailsSentThisMonth || 0;
-                const relevantSent = lt === 'MONTHLY' ? sentMonth : sentToday;
-                const remaining = lim ? Math.max(0, lim - relevantSent) : null;
+                const relevantSent = lt === 'HOURLY' ? sentHour : (lt === 'MONTHLY' ? sentMonth : sentToday);
+                const remaining = lim !== null && lim !== undefined ? Math.max(0, lim - relevantSent) : null;
                 return (
                   <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                    <div className="grid grid-cols-4 divide-x divide-slate-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
                       <div className="text-center p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          {lt === 'MONTHLY' ? 'Monthly' : 'Daily'} Limit
+                          {lt === 'HOURLY' ? 'Hourly' : (lt === 'MONTHLY' ? 'Monthly' : 'Daily')} Limit
                         </p>
                         <p className="text-lg font-black text-slate-800">
-                          {lim ? lim.toLocaleString() : <span className="text-2xl">∞</span>}
+                          {lim !== null && lim !== undefined ? lim.toLocaleString() : <span className="text-2xl">∞</span>}
                         </p>
+                      </div>
+                      <div className="text-center p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sent This Hour</p>
+                        <p className="text-lg font-black text-sky-600">{sentHour.toLocaleString()}</p>
                       </div>
                       <div className="text-center p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sent Today</p>
@@ -301,7 +306,7 @@ export const IntegrationSettings = () => {
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Sent This Month</p>
                         <p className="text-lg font-black text-indigo-600">{sentMonth.toLocaleString()}</p>
                       </div>
-                      <div className="text-center p-3">
+                      <div className="text-center p-3 col-span-2 sm:col-span-1">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Remaining</p>
                         <p className={`text-lg font-black ${remaining === 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                           {remaining !== null ? remaining.toLocaleString() : <span className="text-2xl">∞</span>}
@@ -311,7 +316,7 @@ export const IntegrationSettings = () => {
                     {lim && remaining === 0 && (
                       <div className="bg-red-50 border-t border-red-200 px-4 py-2 flex items-center gap-2 text-sm text-red-700 font-medium">
                         <XCircle className="h-4 w-4 shrink-0" />
-                        {lt === 'MONTHLY' ? 'Monthly' : 'Daily'} email limit reached — emails are blocked until the {lt === 'MONTHLY' ? 'next month' : 'next day'}.
+                        {lt === 'HOURLY' ? 'Hourly' : (lt === 'MONTHLY' ? 'Monthly' : 'Daily')} email limit reached — emails are blocked until the {lt === 'HOURLY' ? 'next hour' : (lt === 'MONTHLY' ? 'next month' : 'next day')}.
                       </div>
                     )}
                   </div>
@@ -327,18 +332,18 @@ export const IntegrationSettings = () => {
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Limit Type</label>
                       <div className="flex rounded-lg border border-slate-300 overflow-hidden bg-white">
-                        {(['DAILY', 'MONTHLY'] as const).map(lt => (
+                        {(['HOURLY', 'DAILY', 'MONTHLY'] as const).map(lt => (
                           <button
                             key={lt}
                             type="button"
                             onClick={() => handleChange('EMAIL', 'limitType', lt)}
-                            className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                            className={`flex-1 py-2 text-xs sm:text-sm font-semibold transition-colors ${
                               (settings.EMAIL.limitType || 'DAILY') === lt
                                 ? 'bg-primary text-white'
                                 : 'text-slate-500 hover:bg-slate-50'
                             }`}
                           >
-                            {lt === 'DAILY' ? '📅 Daily' : '📆 Monthly'}
+                            {lt === 'HOURLY' ? '⏱️ Hourly' : lt === 'DAILY' ? '📅 Daily' : '📆 Monthly'}
                           </button>
                         ))}
                       </div>
@@ -346,7 +351,11 @@ export const IntegrationSettings = () => {
                     {/* Limit Value */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                        {(settings.EMAIL.limitType || 'DAILY') === 'DAILY' ? 'Emails Per Day' : 'Emails Per Month'}
+                        {(settings.EMAIL.limitType || 'DAILY') === 'HOURLY'
+                          ? 'Emails Per Hour'
+                          : (settings.EMAIL.limitType || 'DAILY') === 'DAILY'
+                          ? 'Emails Per Day'
+                          : 'Emails Per Month'}
                       </label>
                       <input
                         type="number"
@@ -359,9 +368,11 @@ export const IntegrationSettings = () => {
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">
-                    {(settings.EMAIL.limitType || 'DAILY') === 'DAILY'
+                    {(settings.EMAIL.limitType || 'DAILY') === 'HOURLY'
+                      ? 'Hourly limit resets at the start of every hour. When the limit is reached, all outgoing emails are blocked until the next hour.'
+                      : (settings.EMAIL.limitType || 'DAILY') === 'DAILY'
                       ? 'Daily limit resets every midnight. When the limit is reached, all outgoing emails are blocked until the next day.'
-                      : 'Monthly limit allows flexible usage within the month (e.g. 300/month can be sent as 100 today, 50 tomorrow, etc.). Resets on the 1st of every month.'}
+                      : 'Monthly limit allows flexible usage within the month (e.g. 3000/month can be sent as 100 today, 50 tomorrow, etc.). Resets on the 1st of every month.'}
                   </p>
                   <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />

@@ -191,11 +191,12 @@ model IntegrationSetting {
   isActive  Boolean  @default(true)
 
   // Limit configuration
-  limitType           String    @default("DAILY") // 'DAILY' | 'MONTHLY'
+  limitType           String    @default("DAILY") // 'HOURLY' | 'DAILY' | 'MONTHLY'
   emailLimit          Int?      // unified limit value (replaces dailyLimit)
   dailyLimit          Int?      // kept for backward-compat, will be migrated
 
   // Usage counters (always tracked regardless of limitType)
+  emailsSentThisHour  Int       @default(0)
   emailsSentToday     Int       @default(0)
   emailsSentThisMonth Int       @default(0)
   lastEmailSentDate   DateTime?

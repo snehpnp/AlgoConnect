@@ -39,7 +39,7 @@ export const campaignWorker = new Worker(
         where: { id: messageSendId },
         data: {
           status: 'SENT',
-          providerMessageId: result.messageId,
+          providerMessageId: result.messageId ? String(result.messageId) : undefined,
           sentAt: new Date(),
         },
       });

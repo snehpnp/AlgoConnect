@@ -1,15 +1,66 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
+import prisma from '../models/prismaClient';
 import { checkAndIncrementEmailLimit } from '../utils/emailService';
 
-const prisma = new PrismaClient();
+const sanitizeSettingCounters = async (setting: any) => {
+  if (!setting || setting.type !== 'EMAIL') return setting;
+
+  const now = new Date();
+  const hourStart = new Date(now);
+  hourStart.setMinutes(0, 0, 0);
+
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+
+  const lastSent = setting.lastEmailSentDate ? new Date(setting.lastEmailSentDate) : null;
+  const periodStart = setting.currentPeriodStart ? new Date(setting.currentPeriodStart) : null;
+
+  const needsHourReset = !lastSent || lastSent < hourStart;
+  const needsDayReset = !lastSent || lastSent < todayStart;
+  const needsMonthReset = !periodStart || periodStart < monthStart;
+
+  let changed = false;
+
+  if (needsHourReset && setting.emailsSentThisHour !== 0) {
+    setting.emailsSentThisHour = 0;
+    changed = true;
+  }
+  if (needsDayReset && setting.emailsSentToday !== 0) {
+    setting.emailsSentToday = 0;
+    changed = true;
+  }
+  if (needsMonthReset && setting.emailsSentThisMonth !== 0) {
+    setting.emailsSentThisMonth = 0;
+    changed = true;
+  }
+
+  if (changed || needsMonthReset) {
+    try {
+      await (prisma as any).integrationSetting.update({
+        where: { id: setting.id },
+        data: {
+          emailsSentThisHour: setting.emailsSentThisHour,
+          emailsSentToday: setting.emailsSentToday,
+          emailsSentThisMonth: setting.emailsSentThisMonth,
+          currentPeriodStart: needsMonthReset ? monthStart : setting.currentPeriodStart,
+        },
+      });
+    } catch (e) {
+      // non-critical
+    }
+  }
+  return setting;
+};
 
 // ─── GET /settings/integrations ──────────────────────────────────────────────
 export const getAllSettings = async (req: Request, res: Response) => {
   try {
     const settings = await (prisma as any).integrationSetting.findMany();
-    res.json({ data: settings });
+    const sanitized = await Promise.all(settings.map((s: any) => sanitizeSettingCounters(s)));
+    res.json({ data: sanitized });
   } catch (error) {
     console.error('Error fetching settings:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -93,7 +144,8 @@ export const updateSetting = async (req: Request, res: Response) => {
       }
     }
 
-    res.json({ message: 'Setting updated successfully', data: setting });
+    const sanitizedSetting = await sanitizeSettingCounters(setting);
+    res.json({ message: 'Setting updated successfully', data: sanitizedSetting });
   } catch (error) {
     console.error('Error updating setting:', error);
     res.status(500).json({ message: 'Internal server error' });

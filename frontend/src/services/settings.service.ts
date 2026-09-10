@@ -13,11 +13,12 @@ export interface IntegrationSetting {
   isActive: boolean;
 
   // Limit config
-  limitType?: 'DAILY' | 'MONTHLY';
+  limitType?: 'HOURLY' | 'DAILY' | 'MONTHLY';
   emailLimit?: number | null;
   dailyLimit?: number | null; // backward-compat
 
   // Usage counters
+  emailsSentThisHour?: number;
   emailsSentToday?: number;
   emailsSentThisMonth?: number;
   lastEmailSentDate?: string | null;

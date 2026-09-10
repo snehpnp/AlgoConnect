@@ -47,20 +47,24 @@ export const checkAndIncrementEmailLimit = async () => {
 
         const now = new Date();
 
-        // ── Compute start-of-day and start-of-month in local time ──
+        // ── Compute start-of-hour, start-of-day, and start-of-month in local time ──
+        const hourStart = new Date(now);
+        hourStart.setMinutes(0, 0, 0);
+
         const todayStart = new Date(now);
         todayStart.setHours(0, 0, 0, 0);
 
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
         // ── Active limit config ──
-        // Support both old `dailyLimit` field and new `emailLimit` field.
+        // Support old `dailyLimit` field and new `emailLimit` field.
         // If `emailLimit` is explicitly set, prefer it; otherwise fall back to `dailyLimit`.
         const limitType: string = setting.limitType || 'DAILY';
         const activeLimit: number | null =
           setting.emailLimit ?? setting.dailyLimit ?? null;
 
         // ── Determine current counters, resetting stale periods ──
+        let sentThisHour: number = setting.emailsSentThisHour || 0;
         let sentToday: number = setting.emailsSentToday || 0;
         let sentThisMonth: number = setting.emailsSentThisMonth || 0;
 
@@ -70,6 +74,10 @@ export const checkAndIncrementEmailLimit = async () => {
         const periodStart: Date | null = setting.currentPeriodStart
           ? new Date(setting.currentPeriodStart)
           : null;
+
+        // Reset hourly counter if we're in a new hour
+        const needsHourReset = !lastSent || lastSent < hourStart;
+        if (needsHourReset) sentThisHour = 0;
 
         // Reset daily counter if we're in a new day
         const needsDayReset = !lastSent || lastSent < todayStart;
@@ -81,6 +89,12 @@ export const checkAndIncrementEmailLimit = async () => {
 
         // ── Enforce the active limit ──
         if (activeLimit !== null && activeLimit > 0) {
+          if (limitType === 'HOURLY' && sentThisHour >= activeLimit) {
+            throw new AppError(
+              `Hourly email limit of ${activeLimit} reached. Try again next hour.`,
+              429
+            );
+          }
           if (limitType === 'DAILY' && sentToday >= activeLimit) {
             throw new AppError(
               `Daily email limit of ${activeLimit} reached. Try again tomorrow.`,
@@ -96,15 +110,17 @@ export const checkAndIncrementEmailLimit = async () => {
         }
 
         // ── Atomic optimistic update using updateMany with condition ──
-        // We match on both counters so a concurrent transaction that already
+        // We match on all counters so a concurrent transaction that already
         // incremented will cause count === 0, triggering a retry.
         const updated = await tx.integrationSetting.updateMany({
           where: {
             type: 'EMAIL',
+            emailsSentThisHour: setting.emailsSentThisHour ?? 0,
             emailsSentToday: setting.emailsSentToday,
             emailsSentThisMonth: setting.emailsSentThisMonth,
           },
           data: {
+            emailsSentThisHour: needsHourReset ? 1 : sentThisHour + 1,
             emailsSentToday: needsDayReset ? 1 : sentToday + 1,
             emailsSentThisMonth: needsMonthReset ? 1 : sentThisMonth + 1,
             lastEmailSentDate: now,
