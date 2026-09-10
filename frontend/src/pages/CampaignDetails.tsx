@@ -599,7 +599,7 @@ export const CampaignDetails = () => {
                 <div
                   className="p-6 prose prose-sm max-w-none text-slate-800"
                   style={{ fontFamily: 'sans-serif', lineHeight: 1.7 }}
-                  dangerouslySetInnerHTML={{ __html: previewLog.parsedDetails.htmlContent }}
+                  dangerouslySetInnerHTML={{ __html: previewLog.parsedDetails.htmlContent.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '') }}
                 />
               ) : (
                 <div className="p-6 text-center text-slate-400">

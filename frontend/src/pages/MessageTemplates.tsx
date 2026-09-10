@@ -1,31 +1,62 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getTemplates,
-  createTemplate,
-  updateTemplate,
   deleteTemplate,
   type MessageTemplate
 } from '../services/template.service';
 import { Plus, Edit2, Trash2, X, Eye, PhoneCall, Mail } from 'lucide-react';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import { useNavigate } from 'react-router-dom';
 
 export const MessageTemplates = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
-  const [showHtml, setShowHtml] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    subject: '',
-    type: 'EMAIL',
-    status: 'PENDING',
-    content: '',
-    isShared: false
-  });
+  const generateGmailPreview = (content: string, subject: string) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <style>
+          body { margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, sans-serif; }
+          .gmail-wrapper { max-width: 100%; padding: 16px 12px; box-sizing: border-box; }
+          @media (min-width: 600px) { .gmail-wrapper { padding: 20px 24px; } }
+          .gmail-subject { margin: 0 0 16px 0; font-size: 18px; font-weight: normal; color: #222; }
+          @media (min-width: 600px) { .gmail-subject { font-size: 22px; } }
+          .gmail-sender-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+          .gmail-sender-info-left { display: flex; align-items: center; }
+          .gmail-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #f2a60c; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; }
+          .gmail-sender-name { font-size: 14px; font-weight: bold; color: #222; }
+          .gmail-sender-email { font-weight: normal; color: #555; font-size: 12px; margin-left: 4px; }
+          .gmail-to { font-size: 12px; color: #555; margin-top: 2px; }
+          .gmail-timestamp { color: #555; font-size: 12px; }
+          .gmail-content { font-size: 14px; line-height: 1.5; color: #222; }
+        </style>
+      </head>
+      <body>
+        <div class="gmail-wrapper">
+          <h2 class="gmail-subject">${subject || '(No Subject)'}</h2>
+          <div class="gmail-sender-row">
+            <div class="gmail-sender-info-left">
+              <div class="gmail-avatar">A</div>
+              <div>
+                <div class="gmail-sender-name">AlgoConnect <span class="gmail-sender-email">&lt;noreply@algoconnect.com&gt;</span></div>
+                <div class="gmail-to">to me <span style="font-size: 10px; margin-left: 4px; color: #555;">▼</span></div>
+              </div>
+            </div>
+            <div class="gmail-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (0 minutes ago)</div>
+          </div>
+          <div class="gmail-content">
+            ${content}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -43,51 +74,9 @@ export const MessageTemplates = () => {
     fetchTemplates();
   }, []);
 
-  const openModal = (template?: MessageTemplate) => {
-    if (template) {
-      setEditingTemplate(template);
-      setFormData({
-        name: template.name,
-        subject: template.subject || '',
-        type: template.type,
-        status: template.status,
-        content: template.content,
-        isShared: template.isShared || false
-      });
-    } else {
-      setEditingTemplate(null);
-      setFormData({
-        name: '',
-        subject: '',
-        type: 'EMAIL',
-        status: 'PENDING',
-        content: '',
-        isShared: false
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingTemplate(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingTemplate) {
-        await updateTemplate(editingTemplate.id, formData);
-      } else {
-        await createTemplate(formData);
-      }
-      closeModal();
-      fetchTemplates();
-    } catch (error) {
-      console.error('Failed to save template', error);
-      alert('Failed to save template');
-    }
-  };
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
@@ -106,245 +95,171 @@ export const MessageTemplates = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Message Templates</h1>
           <p className="text-sm text-gray-500">Manage your Email, SMS, and WhatsApp templates.</p>
         </div>
         <button
-          onClick={() => openModal()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
+          onClick={() => navigate('/templates/create')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 sm:py-2 rounded-lg flex items-center shadow-sm transition-colors self-end sm:self-auto justify-center"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Template
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
-              <th className="p-4 font-medium">Name</th>
-              <th className="p-4 font-medium">Type</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium">Content Preview</th>
-              <th className="p-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {templates.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">
-                  No templates found. Create one to get started.
-                </td>
-              </tr>
-            ) : (
-              templates.map((template) => (
-                <tr key={template.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="p-4 font-medium text-gray-900">
-                    {template.name}
-                    {template.isShared && (
-                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 uppercase tracking-wider">
-                        Shared
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 w-full overflow-hidden">
+        {/* Mobile Card List */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {templates.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              No templates found. Create one to get started.
+            </div>
+          ) : (
+            templates.map((template) => (
+              <div key={template.id} className="p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-900 text-sm">
+                      {template.name}
+                      {template.isShared && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 uppercase tracking-wider">
+                          Shared
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
+                        ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' :
+                          template.type === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
+                            'bg-purple-100 text-purple-700'}`}>
+                        {template.type}
                       </span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' :
-                        template.type === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
-                          'bg-purple-100 text-purple-700'}`}>
-                      {template.type}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${template.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {template.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-gray-500 text-sm max-w-xs truncate">
-                    {template.type === 'EMAIL'
-                      ? template.content.replace(/<[^>]*>?/gm, '') // Strip HTML for plain text preview in table
-                      : template.content}
-                  </td>
-                  <td className="p-4 text-right">
-                    <button
-                      onClick={() => setPreviewTemplate(template)}
-                      className="text-gray-400 hover:text-green-600 p-2 transition-colors"
-                      title="Preview Content"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => openModal(template)}
-                      className="text-gray-400 hover:text-blue-600 p-2 transition-colors"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(template.id)}
-                      className="text-gray-400 hover:text-red-600 p-2 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
+                        ${template.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {template.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-gray-500 text-xs line-clamp-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  {template.type === 'EMAIL'
+                    ? template.content.replace(new RegExp('<[^>]*>?', 'gm'), '') // Strip HTML
+                    : template.content}
+                </div>
+
+                <div className="flex items-center justify-end gap-1 pt-1">
+                  <button
+                    onClick={() => setPreviewTemplate(template)}
+                    className="text-gray-400 hover:text-green-600 p-2 hover:bg-green-50 rounded-lg transition-colors"
+                    title="Preview Content"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => navigate(`/templates/${template.id}/edit`)}
+                    className="text-gray-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(template.id)}
+                    className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden sm:block overflow-x-auto custom-scrollbar w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
+                <th className="p-4 font-medium">Name</th>
+                <th className="p-4 font-medium">Type</th>
+                <th className="p-4 font-medium">Status</th>
+                <th className="p-4 font-medium">Content Preview</th>
+                <th className="p-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-gray-500">
+                    No templates found. Create one to get started.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingTemplate ? 'Edit Template' : 'Create Template'}
-              </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g., Welcome Email"
-                  />
-                </div>
-
-                {formData.type === 'EMAIL' && (
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Subject</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="e.g., Welcome to AlgoConnect!"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Channel Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="EMAIL">Email</option>
-                    <option value="SMS">SMS</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="PENDING">Pending Approval</option>
-                    <option value="APPROVED">Approved</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2 flex items-center mt-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="isShared"
-                    checked={formData.isShared}
-                    onChange={(e) => setFormData({ ...formData, isShared: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="isShared" className="ml-2 block text-sm font-medium text-gray-700">
-                    Share this template with other users/teams
-                  </label>
-                </div>
-
-                <div className="col-span-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Message Content</label>
-                    {formData.type === 'EMAIL' && (
-                      <button
-                        type="button"
-                        onClick={() => setShowHtml(!showHtml)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        {showHtml ? 'Show Visual Editor' : 'Show HTML Source'}
-                      </button>
-                    )}
-                  </div>
-                  {formData.type === 'EMAIL' ? (
-                    showHtml ? (
-                      <textarea
-                        required
-                        rows={8}
-                        value={formData.content}
-                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none font-mono text-sm"
-                        placeholder="<h1>Hello {{name}}</h1>"
-                      />
-                    ) : (
-                      <div className="bg-white">
-                        <ReactQuill
-                          theme="snow"
-                          value={formData.content}
-                          onChange={(content) => setFormData({ ...formData, content })}
-                          className="h-48 mb-12"
-                          placeholder="Hello {{name}}, welcome to our platform!"
-                        />
+              ) : (
+                templates.map((template) => (
+                  <tr key={template.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="p-4 font-medium text-gray-900">
+                      {template.name}
+                      {template.isShared && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 uppercase tracking-wider">
+                          Shared
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium
+                        ${template.type === 'EMAIL' ? 'bg-blue-100 text-blue-700' :
+                          template.type === 'WHATSAPP' ? 'bg-green-100 text-green-700' :
+                            'bg-purple-100 text-purple-700'}`}>
+                        {template.type}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium
+                        ${template.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {template.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-gray-500 text-sm max-w-xs truncate">
+                      {template.type === 'EMAIL'
+                        ? template.content.replace(new RegExp('<[^>]*>?', 'gm'), '') // Strip HTML for plain text preview in table
+                        : template.content}
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setPreviewTemplate(template)}
+                          className="text-gray-400 hover:text-green-600 p-2 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Preview Content"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/templates/${template.id}/edit`)}
+                          className="text-gray-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(template.id)}
+                          className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                    )
-                  ) : (
-                    <textarea
-                      required
-                      rows={6}
-                      value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                      placeholder="Hello {{name}}, welcome to our platform!"
-                    />
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">You can use variables like {'{{name}}'} if your sender supports them.</p>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  {editingTemplate ? 'Update Template' : 'Create Template'}
-                </button>
-              </div>
-            </form>
-          </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       {/* Preview Modal */}
       {previewTemplate && (
@@ -364,42 +279,15 @@ export const MessageTemplates = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-0 sm:p-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+            <div className="p-0 sm:p-6 h-[75vh] sm:max-h-[75vh] overflow-y-auto custom-scrollbar flex flex-col">
               {previewTemplate.type === 'EMAIL' ? (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                  {/* Email Header */}
-                  <div className="px-6 py-4 border-b border-slate-100">
-                    <h3 className="text-xl font-medium text-slate-900 mb-4">
-                      {previewTemplate.subject || '(No Subject)'}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
-                          A
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-sm text-slate-900">AlgoConnect Sales</span>
-                            <span className="text-xs text-slate-500">&lt;sales@algoconnect.com&gt;</span>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            to <span className="text-slate-700">Client Name</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-slate-500 flex items-center gap-2">
-                        <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Email Body */}
-                  <div className="p-6">
-                    <div
-                      className="prose prose-sm sm:prose-base max-w-none prose-slate"
-                      dangerouslySetInnerHTML={{ __html: previewTemplate.content }}
-                    />
-                  </div>
+                <div className="bg-[#f6f8fc] sm:border border-slate-200 rounded-none sm:rounded-xl shadow-sm overflow-hidden flex-1 flex min-h-0">
+                  <iframe
+                    title="HTML preview"
+                    srcDoc={generateGmailPreview(previewTemplate.content, previewTemplate.subject || '')}
+                    className="flex-1 w-full h-full border-0"
+                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+                  />
                 </div>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 max-w-md mx-auto relative mt-4">

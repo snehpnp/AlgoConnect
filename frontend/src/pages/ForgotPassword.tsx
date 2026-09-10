@@ -59,7 +59,7 @@ export const ForgotPassword = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-xl shadow-blue-900/5">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 sm:p-8 shadow-xl shadow-blue-900/5">
           {success ? (
             <div className="text-center space-y-4">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -71,7 +71,7 @@ export const ForgotPassword = () => {
               <p className="text-sm text-[#64748B]">
                 We've sent a password reset link to <br/><span className="font-medium text-slate-800">{email}</span>
               </p>
-              <button onClick={() => navigate('/login')} className="mt-4 flex w-full justify-center rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600">
+              <button onClick={() => navigate('/login')} className="mt-4 flex w-full justify-center rounded-lg bg-primary py-3 sm:py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600">
                 Back to Login
               </button>
             </div>
@@ -94,13 +94,13 @@ export const ForgotPassword = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+                    className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-3 sm:py-2.5 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 sm:py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-60"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   <span>{loading ? 'Sending link...' : 'Send Reset Link'}</span>

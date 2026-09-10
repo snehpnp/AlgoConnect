@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../middlewares/errorHandler';
-import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { sendEmail, getEmailSenderId } from '../utils/emailService';
 // ─── LOGIN ───────────────────────────────────────────────────────────────────
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -175,10 +175,9 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
 
   // Send email
   try {
-    const transporter = await getEmailTransporter();
     const senderId = await getEmailSenderId();
-    await transporter.sendMail({
-      from: senderId,
+    await sendEmail({
+      from: `"Deepmind Infotech" <` + (senderId) + `>`,
       to: user.email,
       subject: 'AlgoConnect – Password Reset Request',
       html: `

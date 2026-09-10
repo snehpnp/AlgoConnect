@@ -91,7 +91,7 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Login Card */}
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 shadow-xl shadow-blue-900/5">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 sm:p-8 shadow-xl shadow-blue-900/5">
           <h3 className="text-lg font-bold text-[#0F172A]">Welcome back</h3>
           <p className="mt-1 text-xs text-[#64748B]">Sign in to access your customized dashboard.</p>
 
@@ -114,7 +114,7 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@algoconnect.com"
-                className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+                className="mt-1.5 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-3 sm:py-2.5 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -135,7 +135,7 @@ export const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5 pr-10 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-3 sm:py-2.5 pr-10 text-sm text-[#0F172A] placeholder-slate-400 outline-none transition-all duration-200 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                 />
                 <button
                   type="button"
@@ -151,7 +151,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 sm:py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:bg-blue-600 active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>{loading ? 'Signing in...' : 'Sign In'}</span>

@@ -67,6 +67,11 @@ export const campaignService = {
     return response.data;
   },
 
+  getCampaignConnectedLeads: async (id: number): Promise<{ data: any[] }> => {
+    const response = await apiClient.get<{ data: any[] }>(`/campaigns/${id}/connected-leads`);
+    return response.data;
+  },
+
   getCampaignLogDetail: async (campaignId: number, logId: number): Promise<any> => {
     const response = await apiClient.get(`/campaigns/${campaignId}/logs/${logId}`);
     return response.data;
@@ -74,6 +79,11 @@ export const campaignService = {
 
   sendManualMessage: async (id: number, data: { leadId: number; channel: string; templateId?: number; message?: string }): Promise<any> => {
     const response = await apiClient.post(`/campaigns/${id}/manual-message`, data);
+    return response.data;
+  },
+
+  getEngineLogs: async (): Promise<{ data: any[] }> => {
+    const response = await apiClient.get<{ data: any[] }>('/campaigns/engine/logs');
     return response.data;
   },
 

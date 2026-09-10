@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../models/prismaClient';
+import { checkIMAPReplies } from './imap.service';
 import { messagingGateway } from './messagingGateway.service';
 
 const BATCH_LIMIT = 50; // Max leads processed per minute per campaign
@@ -16,8 +17,14 @@ export const getEngineState = () => {
 };
 
 export const startCampaignRunner = () => {
-  // Run every 10 minute 
-  cron.schedule('* 10 * * *', async () => {
+  // Run IMAP checker every 1 minute
+  cron.schedule('*/1 * * * *', async () => {
+    if (!isEngineRunning) return;
+    await checkIMAPReplies();
+  });
+
+  // Run campaign processor every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
     if (!isEngineRunning) {
       return;
     }
@@ -44,9 +51,10 @@ export const startCampaignRunner = () => {
         if (channels.length === 0) continue;
 
         let processedCount = 0;
+        let limitReached = false;
 
         for (const lead of campaign.leads) {
-          if (processedCount >= BATCH_LIMIT) break;
+          if (processedCount >= BATCH_LIMIT || limitReached) break;
 
           // Global suppression check
           if (lead.consentStatus === 'OPT_OUT') {
@@ -64,7 +72,7 @@ export const startCampaignRunner = () => {
               }
             });
 
-            if (existingSend) {
+            if (existingSend && existingSend.status !== 'PENDING') {
               continue; // Already processed this channel for this lead
             }
 
@@ -142,17 +150,38 @@ export const startCampaignRunner = () => {
               .replace(/{{name}}/g, lead.name || '')
               .replace(/{{company}}/g, lead.name || '');
 
+            let attachments = [];
+            if (template.designJson && typeof template.designJson === 'object' && (template.designJson as any).attachments) {
+              attachments = (template.designJson as any).attachments.map((att: any) => {
+                // If url is /uploads/123.jpg, we resolve it to the full path
+                return {
+                  filename: att.filename,
+                  path: require('path').join(process.cwd(), att.url)
+                };
+              });
+            }
+
             // Dispatch
-            await messagingGateway.sendMessage({
-              campaignId: campaign.id,
-              leadId: lead.id,
-              templateId: template.id,
-              channel: channel as any,
-              recipient,
-              content: renderedContent,
-              subject: renderedSubject,
-              htmlContent: renderedContent,
-            });
+            try {
+              await messagingGateway.sendMessage({
+                campaignId: campaign.id,
+                leadId: lead.id,
+                templateId: template.id,
+                channel: channel as any,
+                recipient,
+                content: renderedContent,
+                subject: renderedSubject,
+                htmlContent: renderedContent,
+                attachments,
+                messageSendId: existingSend?.id
+              });
+            } catch (error: any) {
+              if (error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'))) {
+                console.log(`[CampaignRunner] Limit reached for ${channel}. Aborting campaign batch.`);
+                limitReached = true;
+                break; // Break the channel loop, outer loop will also break due to limitReached
+              }
+            }
 
             processedCount++;
           }

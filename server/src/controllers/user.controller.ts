@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../models/prismaClient';
 import { asyncHandler } from '../utils/asyncHandler';
 import bcrypt from 'bcrypt';
-import { getEmailTransporter, getEmailSenderId } from '../utils/emailService';
+import { sendEmail, getEmailSenderId } from '../utils/emailService';
 
 export const getUsers = asyncHandler(async (req: Request, res: Response) => {
   const users = await prisma.user.findMany({
@@ -50,13 +50,12 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
 
   // Try to send welcome email
   try {
-    const transporter = await getEmailTransporter();
     const senderId = await getEmailSenderId();
     
     const loginUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     
-    await transporter.sendMail({
-      from: senderId,
+    await sendEmail({
+       from: `"Deepmind Infotech" <` + (senderId) + `>`,
       to: user.email,
       subject: 'Welcome to AlgoConnect - Your Account Details',
       html: `

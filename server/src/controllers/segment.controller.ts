@@ -55,6 +55,18 @@ export const previewSegment = asyncHandler(async (req: Request, res: Response) =
     whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
   }
 
+  if (rules.exchangeName && rules.exchangeName !== 'All') {
+    whereClause.exchangeName = rules.exchangeName;
+  }
+  
+  if (rules.otherListings === 'Yes') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ otherListings: { not: null }, NOT: { otherListings: '' } });
+  } else if (rules.otherListings === 'No') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
+  }
+
   const [count, leads] = await Promise.all([
     prisma.lead.count({ where: whereClause }),
     prisma.lead.findMany({ where: whereClause, take: 50, orderBy: { createdAt: 'desc' } })
@@ -108,11 +120,28 @@ export const getSegmentLeads = asyncHandler(async (req: Request, res: Response) 
     whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
   }
   
-  const leads = await prisma.lead.findMany({
-    where: whereClause,
-    take: 50, // preview limit
-    orderBy: { createdAt: 'desc' }
-  });
+  if (rules.exchangeName && rules.exchangeName !== 'All') {
+    whereClause.exchangeName = rules.exchangeName;
+  }
+  
+  if (rules.otherListings === 'Yes') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ otherListings: { not: null }, NOT: { otherListings: '' } });
+  } else if (rules.otherListings === 'No') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
+  }
+  
+  const [leads, totalCount] = await Promise.all([
+    prisma.lead.findMany({
+      where: whereClause,
+      take: 50, // preview limit
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.lead.count({
+      where: whereClause
+    })
+  ]);
 
-  res.status(200).json({ data: leads, message: 'Segment leads retrieved' });
+  res.status(200).json({ data: leads, total: totalCount, message: 'Segment leads retrieved' });
 });
