@@ -55,7 +55,7 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
     const loginUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     
     await sendEmail({
-      from: senderId,
+       from: `"Deepmind Infotech" <` + (senderId) + `>`,
       to: user.email,
       subject: 'Welcome to AlgoConnect - Your Account Details',
       html: `

@@ -103,7 +103,7 @@ export const messagingGateway = {
 
         const sender = await getEmailSenderId();
         await sendEmail({
-          from: sender,
+         from: `"Deepmind Infotech" <` + (sender) + `>`,
           to: options.recipient,
           subject: options.subject,
           html: finalHtmlContent,

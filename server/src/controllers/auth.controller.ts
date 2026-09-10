@@ -177,7 +177,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   try {
     const senderId = await getEmailSenderId();
     await sendEmail({
-      from: senderId,
+      from: `"Deepmind Infotech" <` + (senderId) + `>`,
       to: user.email,
       subject: 'AlgoConnect – Password Reset Request',
       html: `

@@ -137,7 +137,7 @@ export const testIntegration = async (req: Request, res: Response) => {
             // Test email IS counted toward the limit — it is a real send
             await checkAndIncrementEmailLimit();
             await transporter.sendMail({
-              from: setting.senderId || setting.apiKey,
+              from: `"Deepmind Infotech" <` + (setting.senderId || setting.apiKey) + `>`,
               to: setting.testEmail,
               subject: 'AlgoConnect: SMTP Test Connection Successful',
               text: 'Congratulations! Your SMTP email integration is configured correctly in AlgoConnect.',

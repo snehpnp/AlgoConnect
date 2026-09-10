@@ -485,7 +485,7 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     try {
       const sender = await getEmailSenderId();
       await sendEmail({
-        from: sender,
+        from: `"Deepmind Infotech" <` + (sender) + `>`,
         to: recipient,
         subject,
         html: htmlSent,

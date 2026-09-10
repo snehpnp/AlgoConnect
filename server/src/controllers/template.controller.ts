@@ -45,7 +45,7 @@ export const createTemplate = asyncHandler(async (req: Request, res: Response) =
 
 export const updateTemplate = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, content, type, status, isShared, designJson } = req.body;
+  const { name, content, type, subject,status, isShared, designJson } = req.body;
   
   const template = await prisma.messageTemplate.update({
     where: { id: parseInt(id as string) },
@@ -55,7 +55,8 @@ export const updateTemplate = asyncHandler(async (req: Request, res: Response) =
       ...(designJson !== undefined && { designJson }),
       type,
       status,
-      isShared
+      isShared,
+      subject
     }
   });
   
