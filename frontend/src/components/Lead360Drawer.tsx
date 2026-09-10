@@ -13,6 +13,7 @@ import { usersService } from '../services/users.service';
 import type { User } from '../services/users.service';
 import toast from 'react-hot-toast';
 import { WhatsAppTab } from './WhatsAppTab';
+import { DirectMailModal } from './DirectMailModal';
 
 interface Lead360DrawerProps {
   isOpen: boolean;
@@ -74,8 +75,9 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
   const [callNotes, setCallNotes] = useState('');
   const [isLoggingCall, setIsLoggingCall] = useState(false);
 
-  // Email Replies state
+  // Email Replies & History state
   const [emailReplies, setEmailReplies] = useState<any[]>([]);
+  const [isDirectMailOpen, setIsDirectMailOpen] = useState(false);
 
   useEffect(() => {
     usersService.getUsers().then(res => setTeamMembers(res.data)).catch(console.error);
@@ -430,8 +432,10 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               onClick={() => setActiveTab('emails')}
               className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'emails' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
-              Inbox
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'emails' ? 'bg-indigo-100' : 'bg-slate-100 text-slate-500'}`}>{emailReplies.length}</span>
+              Email Inbox
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'emails' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                {emailLogs.length + emailReplies.length}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('whatsapp')}
@@ -578,60 +582,190 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             </div>
           )}
 
-          {/* Email Inbox Tab */}
-          {activeTab === 'emails' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Mail className="h-5 w-5 text-indigo-500" />
-                <h3 className="text-lg font-bold text-slate-800">Email Replies</h3>
-              </div>
+          {/* Email Inbox Tab - Unified 2-Way Email Thread */}
+          {activeTab === 'emails' && (() => {
+            const unifiedEmailThread = (() => {
+              const items: any[] = [];
+              const addedReplyIds = new Set<number>();
 
-              {emailReplies.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <Mail className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-slate-500">No replies received yet.</p>
+              (emailLogs || []).filter(m => m.channel === 'EMAIL' || !m.channel).forEach(msg => {
+                const sentEvent = (msg.events || []).find((e: any) => e.eventType === 'SENT');
+                const emailBody = sentEvent?.metadataJson?.htmlContent || sentEvent?.metadataJson?.text || msg.subject || 'Email Sent';
+
+                items.push({
+                  type: 'OUTBOUND',
+                  id: `send-${msg.id}`,
+                  date: new Date(msg.sentAt || msg.createdAt).getTime(),
+                  timestamp: msg.sentAt || msg.createdAt,
+                  subject: msg.subject,
+                  campaignName: msg.campaign?.name,
+                  status: msg.status,
+                  openedAt: msg.openedAt,
+                  bouncedAt: msg.bouncedAt,
+                  deliveredAt: msg.deliveredAt,
+                  body: emailBody
+                });
+
+                (msg.replies || []).forEach((r: any) => {
+                  addedReplyIds.add(r.id);
+                  items.push({
+                    type: 'INBOUND',
+                    id: `reply-${r.id}`,
+                    date: new Date(r.receivedAt).getTime(),
+                    timestamp: r.receivedAt,
+                    fromEmail: r.fromEmail,
+                    subject: r.subject,
+                    campaignName: msg.campaign?.name,
+                    body: r.body
+                  });
+                });
+              });
+
+              (emailReplies || []).forEach((r: any) => {
+                if (!addedReplyIds.has(r.id)) {
+                  items.push({
+                    type: 'INBOUND',
+                    id: `reply-standalone-${r.id}`,
+                    date: new Date(r.receivedAt).getTime(),
+                    timestamp: r.receivedAt,
+                    fromEmail: r.fromEmail,
+                    subject: r.subject,
+                    campaignName: r.messageSend?.campaign?.name,
+                    body: r.body
+                  });
+                }
+              });
+
+              return items.sort((a, b) => b.date - a.date);
+            })();
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-indigo-500" />
+                    <h3 className="text-lg font-bold text-slate-800">Email Inbox & Activity</h3>
+                    <span className="px-2.5 py-0.5 text-xs font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
+                      {unifiedEmailThread.length} {unifiedEmailThread.length === 1 ? 'Message' : 'Messages'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsDirectMailOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                  >
+                    <Send className="h-3.5 w-3.5" /> Send Email
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {emailReplies.map((reply) => (
-                    <div key={reply.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-bold text-slate-800">{reply.fromEmail}</p>
-                            <p className="text-xs text-slate-500 font-medium mt-0.5">
-                              Re: {reply.subject || reply.messageSend?.subject || 'Unknown Subject'}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap bg-white px-2 py-1 rounded-md border border-slate-200">
 
-                            {new Date(reply.receivedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        {reply.messageSend?.campaign?.name && (
-                          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold">
-                            <Send className="h-3 w-3" />
-                            Campaign: {reply.messageSend.campaign.name}
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white">
-                        {parseEmailBody(reply.body)}
-                      </div>
-                      <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-end">
-                        <a
-                          href={`mailto:${reply.fromEmail}?subject=Re: ${encodeURIComponent(reply.subject || '')}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                {unifiedEmailThread.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <Mail className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-slate-600">No emails sent or received yet.</p>
+                    <p className="text-xs text-slate-400 mt-1">Campaign emails and client replies will automatically appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {unifiedEmailThread.map((item) => {
+                      const isOutbound = item.type === 'OUTBOUND';
+                      return (
+                        <div
+                          key={item.id}
+                          className={`border rounded-xl overflow-hidden shadow-xs transition-all ${
+                            isOutbound
+                              ? 'bg-slate-50/70 border-slate-200'
+                              : 'bg-white border-emerald-200 ring-1 ring-emerald-500/10'
+                          }`}
                         >
-                          <Mail className="h-3.5 w-3.5" /> Reply back
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                          {/* Header */}
+                          <div className={`px-4 py-3 border-b flex flex-wrap items-start justify-between gap-2 ${
+                            isOutbound ? 'bg-slate-100/60 border-slate-200' : 'bg-emerald-50/50 border-emerald-100'
+                          }`}>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-md ${
+                                  isOutbound ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  {isOutbound ? 'Outbound Sent' : 'Inbound Reply'}
+                                </span>
+
+                                {item.campaignName && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                    Campaign: {item.campaignName}
+                                  </span>
+                                )}
+
+                                {isOutbound && item.status && (
+                                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                                    item.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-800' :
+                                    item.status === 'OPENED' ? 'bg-purple-100 text-purple-800' :
+                                    item.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-800' :
+                                    item.status === 'BOUNCED' ? 'bg-orange-100 text-orange-900' :
+                                    item.status === 'FAILED' ? 'bg-rose-100 text-rose-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {item.status}
+                                  </span>
+                                )}
+
+                                {isOutbound && item.openedAt && (
+                                  <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                    👁️ Seen: {new Date(item.openedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 className="text-sm font-bold text-slate-800 mt-2">
+                                {item.subject || (isOutbound ? 'Outgoing Email' : 'Email Reply')}
+                              </h4>
+                              {!isOutbound && item.fromEmail && (
+                                <p className="text-xs text-slate-500 font-medium">From: {item.fromEmail}</p>
+                              )}
+                            </div>
+
+                            <span className="text-xs font-medium text-slate-400 shrink-0">
+                              {new Date(item.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          {/* Body Content */}
+                          <div className="p-4 bg-white">
+                            {isOutbound ? (
+                              item.body && item.body.includes('<') ? (
+                                <div
+                                  className="text-xs text-slate-700 prose prose-sm max-w-none font-sans leading-relaxed overflow-x-auto"
+                                  dangerouslySetInnerHTML={{ __html: item.body }}
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                                  {item.body}
+                                </p>
+                              )
+                            ) : (
+                              <p className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                                {parseEmailBody(item.body)}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Reply Back Action Footer */}
+                          {!isOutbound && (
+                            <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 flex justify-end">
+                              <button
+                                onClick={() => setIsDirectMailOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                              >
+                                <Mail className="h-3.5 w-3.5" /> Reply Back
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* WhatsApp Tab */}
           {activeTab === 'whatsapp' && (
@@ -1096,14 +1230,38 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
             Edit Lead
           </button>
           <button
+            onClick={() => setIsDirectMailOpen(true)}
+            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-emerald-700 transition-colors"
+          >
+            <Mail className="h-4 w-4 mr-1.5" />
+            Email
+          </button>
+          <button
             onClick={onClose}
             className="inline-flex items-center justify-center rounded-lg bg-primary text-white px-6 py-2.5 text-sm font-semibold hover:bg-blue-600 transition-colors"
           >
             Close
-            <ArrowRight className="h-4 w-4 ml-1.5" />
           </button>
         </div>
 
+        {/* Direct Mail Composition Modal */}
+        {isDirectMailOpen && lead && (
+          <DirectMailModal
+            isOpen={isDirectMailOpen}
+            onClose={() => {
+              setIsDirectMailOpen(false);
+              // Refresh lead messages and replies
+              Promise.all([
+                apiClient.get(`/messages/leads/${lead.id}`).then(res => res.data.data).catch(() => []),
+                apiClient.get(`/messages/leads/${lead.id}/email-replies`).then(res => res.data.data).catch(() => [])
+              ]).then(([emailRes, repliesRes]) => {
+                setEmailLogs(emailRes);
+                setEmailReplies(repliesRes);
+              });
+            }}
+            lead={lead}
+          />
+        )}
       </div>
     </div>
   );

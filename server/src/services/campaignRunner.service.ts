@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import prisma from '../models/prismaClient';
 import { checkIMAPReplies } from './imap.service';
 import { messagingGateway } from './messagingGateway.service';
+import { getEmailPriorityRank, isValidEmail } from '../controllers/campaign.controller';
 
 const BATCH_LIMIT = 50; // Max leads processed per minute per campaign
 
@@ -49,6 +50,16 @@ export const startCampaignRunner = () => {
       for (const campaign of activeCampaigns) {
         const channels = campaign.channels as string[] || [];
         if (channels.length === 0) continue;
+
+        // Priority Sort Leads: 1) Valid @gmail.com, 2) Other valid emails, 3) Invalid/empty emails last
+        campaign.leads.sort((a, b) => {
+          const emailA = a.email || a.scrapedEmail;
+          const emailB = b.email || b.scrapedEmail;
+          const rankA = getEmailPriorityRank(emailA);
+          const rankB = getEmailPriorityRank(emailB);
+          if (rankA !== rankB) return rankA - rankB;
+          return (emailA || '').toLowerCase().localeCompare((emailB || '').toLowerCase());
+        });
 
         let processedCount = 0;
         let limitReached = false;
@@ -109,13 +120,49 @@ export const startCampaignRunner = () => {
 
             if (channel === 'EMAIL') {
               template = campaign.emailTemplate;
-              recipient = lead.email || '';
+              recipient = lead.email || lead.scrapedEmail || '';
+
+              // Email validation check
+              if (!isValidEmail(recipient)) {
+                if (existingSend) {
+                  await prisma.messageSend.update({
+                    where: { id: existingSend.id },
+                    data: { status: 'BOUNCED' }
+                  });
+                  await prisma.engagementEvent.create({
+                    data: {
+                      messageSendId: existingSend.id,
+                      eventType: 'BOUNCED',
+                      metadataJson: { error: 'INVALID_OR_EMPTY_EMAIL', recipient },
+                    }
+                  });
+                } else {
+                  const msg = await prisma.messageSend.create({
+                    data: {
+                      campaignId: campaign.id,
+                      leadId: lead.id,
+                      channel: channel,
+                      subject: 'Bounced - Invalid or Empty Email',
+                      status: 'BOUNCED',
+                      providerMessageId: `bounce-invalid-${Date.now()}`
+                    }
+                  });
+                  await prisma.engagementEvent.create({
+                    data: {
+                      messageSendId: msg.id,
+                      eventType: 'BOUNCED',
+                      metadataJson: { error: 'INVALID_OR_EMPTY_EMAIL', recipient },
+                    }
+                  });
+                }
+                continue;
+              }
             } else if (channel === 'WHATSAPP') {
               template = campaign.whatsappTemplate;
-              recipient = lead.phone || '';
+              recipient = lead.phone || lead.scrapedPhone || '';
             } else if (channel === 'SMS') {
               template = campaign.smsTemplate;
-              recipient = lead.phone || '';
+              recipient = lead.phone || lead.scrapedPhone || '';
             }
 
             if (!template || !recipient) {
@@ -183,10 +230,15 @@ export const startCampaignRunner = () => {
               }
             }
 
-            processedCount++;
+              processedCount++;
+
+              // Pacing: add a 1.5s delay between consecutive email dispatches to prevent SMTP rate-limit / spam flags
+              if (channel === 'EMAIL') {
+                await new Promise(r => setTimeout(r, 1500));
+              }
+            }
           }
         }
-      }
     } catch (error) {
       console.error('[CampaignRunner] Error running campaign job:', error);
     }

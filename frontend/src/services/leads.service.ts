@@ -92,7 +92,7 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; bounced?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
@@ -154,6 +154,25 @@ export const leadsService = {
 
   getLeadMessages: async (id: number) => {
     const res = await apiClient.get(`/leads/${id}/messages`);
+    return res.data;
+  },
+
+  rescrapeBouncedLeads: async (leadIds?: number[]): Promise<{
+    message: string;
+    data: {
+      totalBounced: number;
+      rescrapedCount: number;
+      newEmailsFoundCount: number;
+      updatedLeads: Array<{
+        id: number;
+        name: string;
+        oldEmail: string;
+        newEmail: string;
+        source: string;
+      }>;
+    };
+  }> => {
+    const res = await apiClient.post('/leads/rescrape-bounced', { leadIds });
     return res.data;
   },
 };

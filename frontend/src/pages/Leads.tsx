@@ -27,7 +27,8 @@ import {
   KanbanSquare,
   Save,
   Bookmark,
-  Filter
+  Filter,
+  Globe
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { leadsService } from '../services/leads.service';
@@ -199,6 +200,62 @@ export const Leads: React.FC = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSavedViews, setShowSavedViews] = useState(false);
 
+  // Rescrape Bounced Leads State
+  const [isRescraping, setIsRescraping] = useState(false);
+  const [rescrapeReport, setRescrapeReport] = useState<{
+    isOpen: boolean;
+    data: {
+      totalBounced: number;
+      rescrapedCount: number;
+      newEmailsFoundCount: number;
+      updatedLeads: Array<{
+        id: number;
+        name: string;
+        oldEmail: string;
+        newEmail: string;
+        source: string;
+      }>;
+    } | null;
+  }>({ isOpen: false, data: null });
+
+  const handleRescrapeBounced = async () => {
+    setIsRescraping(true);
+    const toastId = toast.loading('Scraping Google & domain pages for bounced lead email alternatives...');
+    try {
+      const response: any = await leadsService.rescrapeBouncedLeads(selectedLeadIds.length > 0 ? selectedLeadIds : undefined);
+      toast.dismiss(toastId);
+      
+      const reportData = response?.data || {
+        totalBounced: response?.processedCount || 0,
+        rescrapedCount: response?.processedCount || 0,
+        newEmailsFoundCount: response?.updatedCount || 0,
+        updatedLeads: (response?.updatedLeads || []).map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          oldEmail: u.oldEmail || u.bouncedEmail || 'N/A',
+          newEmail: u.newEmail,
+          source: u.source
+        }))
+      };
+
+      if (reportData.newEmailsFoundCount > 0) {
+        toast.success(`🎉 Found ${reportData.newEmailsFoundCount} new alternative email(s)!`);
+      } else {
+        toast.success('Rescrape process complete for bounced leads.');
+      }
+      setRescrapeReport({
+        isOpen: true,
+        data: reportData
+      });
+      await fetchLeads();
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(err.response?.data?.message || err.message || 'Failed to rescrape bounced leads');
+    } finally {
+      setIsRescraping(false);
+    }
+  };
+
 
 
   // Fetch team members for bulk assign
@@ -244,6 +301,7 @@ export const Leads: React.FC = () => {
 
   const initialFilter = location.state?.unifiedStatus || 'All';
   const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
+  const [bouncedFilter, setBouncedFilter] = useState(location.state?.bouncedFilter || 'All');
   const [typeFilter, setTypeFilter] = useState(location.state?.typeFilter || 'All');
   const [stateFilter, setStateFilter] = useState(location.state?.stateFilter || 'All');
   const [cityFilter, setCityFilter] = useState(location.state?.cityFilter || 'All');
@@ -256,6 +314,7 @@ export const Leads: React.FC = () => {
   useEffect(() => {
     if (location.state) {
       setUnifiedStatusFilter(location.state.unifiedStatus || 'All');
+      setBouncedFilter(location.state.bouncedFilter || 'All');
       setTypeFilter(location.state.typeFilter || 'All');
       setStateFilter(location.state.stateFilter || 'All');
       setCityFilter(location.state.cityFilter || 'All');
@@ -400,6 +459,7 @@ export const Leads: React.FC = () => {
         limit: PAGE_SIZE,
         search: searchQuery || undefined,
         unifiedStatus: unifiedStatusFilter === 'All' ? undefined : unifiedStatusFilter,
+        bounced: bouncedFilter === 'All' ? undefined : bouncedFilter,
         type: typeFilter === 'All' ? undefined : typeFilter,
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
@@ -425,12 +485,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -518,7 +578,7 @@ export const Leads: React.FC = () => {
     if (!name) return;
     const newView = {
       name,
-      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
+      filters: { stateFilter, cityFilter, unifiedStatusFilter, bouncedFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
     };
     const newSavedViews = [...savedViews, newView];
     setSavedViews(newSavedViews);
@@ -530,6 +590,7 @@ export const Leads: React.FC = () => {
     setStateFilter(filters.stateFilter || 'All');
     setCityFilter(filters.cityFilter || 'All');
     setUnifiedStatusFilter(filters.unifiedStatusFilter || 'All');
+    setBouncedFilter(filters.bouncedFilter || 'All');
     setTypeFilter(filters.typeFilter || 'All');
     setWebsiteStatusFilter(filters.websiteStatusFilter || 'All');
     setAlgoTradingFilter(filters.algoTradingFilter || 'All');
@@ -544,7 +605,7 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
-  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || bouncedFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
 
   return (
     <div className="relative flex gap-6 pb-24 sm:pb-20">
@@ -601,6 +662,27 @@ export const Leads: React.FC = () => {
 
         {/* Filter Bar & Saved Views */}
         <div className="glass-panel rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 mx-1 sm:mx-0">
+          {(bouncedFilter === 'BOUNCED' || unifiedStatusFilter === 'BOUNCED') && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200/80 rounded-xl p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-orange-500 text-white rounded-lg shadow-sm">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800">Showing Bounced Leads Filter</span>
+                  <p className="text-[11px] text-slate-600 font-medium">Auto-search Google & web domains for secondary emails to recover these bounced leads.</p>
+                </div>
+              </div>
+              <button
+                onClick={handleRescrapeBounced}
+                disabled={isRescraping}
+                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
+              >
+                {isRescraping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                <span>{isRescraping ? 'Scraping...' : 'Scrap Bounced Leads'}</span>
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -691,11 +773,23 @@ export const Leads: React.FC = () => {
                 </select>
 
                 <select
+                  value={bouncedFilter}
+                  onChange={(e) => setBouncedFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full font-bold text-slate-800 border-orange-300 bg-orange-50/40 focus:border-orange-500"
+                >
+                  <option value="All">All Bounce Status</option>
+                  <option value="BOUNCED">🛑 Bounced Leads</option>
+                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
+                </select>
+
+                <select
                   value={unifiedStatusFilter}
                   onChange={(e) => setUnifiedStatusFilter(e.target.value)}
                   className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
                 >
                   <option value="All">All Statuses</option>
+                  <option value="BOUNCED">🛑 Bounced Leads</option>
+                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
                   <option value="IMPORTED">Imported</option>
                   <option value="UNVERIFIED">Unverified</option>
                   <option value="NEW">New (Verified)</option>
@@ -912,6 +1006,11 @@ export const Leads: React.FC = () => {
                               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${stageColorClasses(lead.salesStage)}`}>
                                 {lead.salesStage || 'New'}
                               </span>
+                              {lead.engagementStatus === 'Bounced' && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
+                                  🛑 Bounced
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 mt-2.5">
@@ -1059,6 +1158,11 @@ export const Leads: React.FC = () => {
                                   >
                                     {lead.name}
                                   </a>
+                                  {lead.engagementStatus === 'Bounced' && (
+                                     <span className="inline-flex items-center gap-1 mt-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
+                                       🛑 Bounced
+                                     </span>
+                                   )}
                                   {lead.user ? (
                                     <div className="flex items-center gap-1.5 mt-1" title={`Assigned to ${lead.user.name}`}>
                                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">
@@ -1842,6 +1946,146 @@ export const Leads: React.FC = () => {
                 </button>
               </div>
             </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bounced Leads Rescrape Report Modal */}
+      {rescrapeReport.isOpen && rescrapeReport.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 my-6">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-5 mb-6">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3.5 bg-gradient-to-tr from-orange-500 via-amber-500 to-yellow-400 text-white rounded-2xl shadow-lg shadow-orange-500/20">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-800">Bounced Leads Re-Scrape Report</h3>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                      Auto-Recovered
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Search results & alternative contact email discovery breakdown
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRescrapeReport({ isOpen: false, data: null })}
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-2xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Summary Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+                <div className="p-2.5 bg-slate-200/70 text-slate-700 rounded-xl">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Checked</p>
+                  <p className="text-2xl font-black text-slate-800">{rescrapeReport.data.totalBounced} <span className="text-xs text-slate-400 font-normal">leads</span></p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Scraped & Processed</p>
+                  <p className="text-2xl font-black text-blue-900">{rescrapeReport.data.rescrapedCount} <span className="text-xs text-blue-500 font-normal">processed</span></p>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+                <div className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-md shadow-emerald-500/20">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">New Emails Found</p>
+                  <p className="text-2xl font-black text-emerald-600">+{rescrapeReport.data.newEmailsFoundCount} <span className="text-xs text-emerald-600 font-bold">recovered</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* List / Table of Updated Leads */}
+            {rescrapeReport.data.updatedLeads.length > 0 ? (
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Discovered Alternative Emails ({rescrapeReport.data.updatedLeads.length})
+                  </h4>
+                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                    Primary Email Updated & Status Reset to Active
+                  </span>
+                </div>
+
+                <div className="max-h-[380px] overflow-y-auto space-y-2.5 pr-1.5 scrollbar-thin scrollbar-thumb-slate-200">
+                  {rescrapeReport.data.updatedLeads.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 bg-slate-50/70 hover:bg-emerald-50/40 border border-slate-200/80 hover:border-emerald-200 rounded-2xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs"
+                    >
+                      {/* Left: Name & Email Transition */}
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-800 text-sm truncate">{item.name}</span>
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-200/60 px-1.5 py-0.5 rounded">ID: #{item.id}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                          <span className="text-red-500 bg-red-50 border border-red-100 line-through px-2 py-0.5 rounded-lg text-[11px]">
+                            {item.oldEmail}
+                          </span>
+                          <span className="text-slate-400 font-bold">➔</span>
+                          <span className="text-emerald-800 bg-emerald-100 border border-emerald-200 font-bold px-2.5 py-0.5 rounded-lg text-xs shadow-xs flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            {item.newEmail}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Badges */}
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 bg-white text-slate-700 border border-slate-200 rounded-xl shadow-xs">
+                          {item.source}
+                        </span>
+                        <span className="text-[10px] font-bold px-2.5 py-1 bg-emerald-500 text-white rounded-xl shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          Active Lead
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 bg-slate-50 rounded-3xl border border-slate-200/70 text-center mb-6 space-y-2">
+                <AlertCircle className="w-10 h-10 text-slate-400 mx-auto" />
+                <p className="text-base font-bold text-slate-700">No new alternative emails found</p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Checked secondary email fields and domain web pages. No additional public email addresses were discovered for the selected leads.
+                </p>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
+              <div className="text-xs text-slate-400 font-medium">
+                {rescrapeReport.data.updatedLeads.length} lead(s) updated in database & active campaign queue
+              </div>
+              <button
+                onClick={() => setRescrapeReport({ isOpen: false, data: null })}
+                className="btn-primary !px-8 !py-2.5 text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all"
+              >
+                Done & Return to Leads
+              </button>
             </div>
           </div>
         </div>
