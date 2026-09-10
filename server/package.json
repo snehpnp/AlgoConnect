@@ -78,8 +78,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  }
+  "type": "commonjs"
 }
