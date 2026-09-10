@@ -57,37 +57,24 @@ export const checkAndIncrementEmailLimit = async () => {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
         // ── Active limit config ──
-        // Support old `dailyLimit` field and new `emailLimit` field.
-        // If `emailLimit` is explicitly set, prefer it; otherwise fall back to `dailyLimit`.
         const limitType: string = setting.limitType || 'DAILY';
         const activeLimit: number | null =
           setting.emailLimit ?? setting.dailyLimit ?? null;
 
-        // ── Determine current counters, resetting stale periods ──
-        let sentThisHour: number = setting.emailsSentThisHour || 0;
-        let sentToday: number = setting.emailsSentToday || 0;
-        let sentThisMonth: number = setting.emailsSentThisMonth || 0;
+        // ── Query real-time actual sent counts directly from MessageSend database table ──
+        const [sentThisHour, sentToday, sentThisMonth] = await Promise.all([
+          tx.messageSend.count({
+            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: hourStart } }
+          }),
+          tx.messageSend.count({
+            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: todayStart } }
+          }),
+          tx.messageSend.count({
+            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: monthStart } }
+          }),
+        ]);
 
-        const lastSent: Date | null = setting.lastEmailSentDate
-          ? new Date(setting.lastEmailSentDate)
-          : null;
-        const periodStart: Date | null = setting.currentPeriodStart
-          ? new Date(setting.currentPeriodStart)
-          : null;
-
-        // Reset hourly counter if we're in a new hour
-        const needsHourReset = !lastSent || lastSent < hourStart;
-        if (needsHourReset) sentThisHour = 0;
-
-        // Reset daily counter if we're in a new day
-        const needsDayReset = !lastSent || lastSent < todayStart;
-        if (needsDayReset) sentToday = 0;
-
-        // Reset monthly counter if we're in a new calendar month
-        const needsMonthReset = !periodStart || periodStart < monthStart;
-        if (needsMonthReset) sentThisMonth = 0;
-
-        // ── Enforce the active limit ──
+        // ── Enforce active limit against actual DB count ──
         if (activeLimit !== null && activeLimit > 0) {
           if (limitType === 'HOURLY' && sentThisHour >= activeLimit) {
             throw new AppError(
@@ -109,31 +96,28 @@ export const checkAndIncrementEmailLimit = async () => {
           }
         }
 
-        // ── Atomic optimistic update using updateMany with condition ──
-        // We match on all counters so a concurrent transaction that already
-        // incremented will cause count === 0, triggering a retry.
-        const updated = await tx.integrationSetting.updateMany({
-          where: {
-            type: 'EMAIL',
-            emailsSentThisHour: setting.emailsSentThisHour ?? 0,
-            emailsSentToday: setting.emailsSentToday,
-            emailsSentThisMonth: setting.emailsSentThisMonth,
-          },
+        // ── Update DB setting counters with real-time increment ──
+        const nextHourCount = sentThisHour + 1;
+        const nextTodayCount = sentToday + 1;
+        const nextMonthCount = sentThisMonth + 1;
+
+        await tx.integrationSetting.update({
+          where: { type: 'EMAIL' },
           data: {
-            emailsSentThisHour: needsHourReset ? 1 : sentThisHour + 1,
-            emailsSentToday: needsDayReset ? 1 : sentToday + 1,
-            emailsSentThisMonth: needsMonthReset ? 1 : sentThisMonth + 1,
+            emailsSentThisHour: nextHourCount,
+            emailsSentToday: nextTodayCount,
+            emailsSentThisMonth: nextMonthCount,
             lastEmailSentDate: now,
-            currentPeriodStart: needsMonthReset ? monthStart : (periodStart ?? monthStart),
+            currentPeriodStart: monthStart,
           },
         });
 
-        if (updated.count === 0) {
-          // Another concurrent transaction modified the counters — retry
-          throw new Error('__CONCURRENT_UPDATE__');
-        }
-
-        return setting;
+        return {
+          ...setting,
+          emailsSentThisHour: nextHourCount,
+          emailsSentToday: nextTodayCount,
+          emailsSentThisMonth: nextMonthCount,
+        };
       });
 
       return result;

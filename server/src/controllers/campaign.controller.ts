@@ -34,6 +34,116 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
 });
 
+// ─── Segment Helpers ─────────────────────────────────────────────────────────
+
+export const buildWhereClauseFromSegmentRules = (rules: any): any => {
+  if (!rules || typeof rules !== 'object') return {};
+
+  const whereClause: any = {};
+  
+  if (rules.entityType && rules.entityType !== 'All') whereClause.type = rules.entityType;
+  if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
+  if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
+  if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
+  
+  if (rules.websiteStatus === 'NoWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ website: null }, { website: '' }] });
+  } else if (rules.websiteStatus === 'HasWebsite') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ website: { not: null }, NOT: { website: '' } });
+  }
+
+  if (rules.algoStatus === 'HasAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } });
+  } else if (rules.algoStatus === 'NoAlgo') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ sellsAlgoTrading: null }, { sellsAlgoTrading: '' }, { sellsAlgoTrading: { contains: 'No', mode: 'insensitive' } }] });
+  }
+
+  if (rules.exchangeName && rules.exchangeName !== 'All') {
+    whereClause.exchangeName = rules.exchangeName;
+  }
+  
+  if (rules.otherListings === 'Yes') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ otherListings: { not: null }, NOT: { otherListings: '' } });
+  } else if (rules.otherListings === 'No') {
+    if (!whereClause.AND) whereClause.AND = [];
+    whereClause.AND.push({ OR: [{ otherListings: null }, { otherListings: '' }] });
+  }
+
+  return whereClause;
+};
+
+export const getLeadsForSegments = async (segments: any[]): Promise<{ id: number }[]> => {
+  if (!segments || segments.length === 0) return [];
+
+  const orClauses: any[] = [];
+  let matchAllLeads = false;
+
+  for (const segment of segments) {
+    const rules = segment.rules as any || {};
+    const whereClause = buildWhereClauseFromSegmentRules(rules);
+    if (Object.keys(whereClause).length === 0) {
+      matchAllLeads = true;
+      break;
+    } else {
+      orClauses.push(whereClause);
+    }
+  }
+
+  if (matchAllLeads) {
+    return await prisma.lead.findMany({ select: { id: true } });
+  } else if (orClauses.length > 0) {
+    return await prisma.lead.findMany({
+      where: { OR: orClauses },
+      select: { id: true }
+    });
+  }
+  return [];
+};
+
+export const isLeadInSegment = (lead: any, rules: any): boolean => {
+  if (!rules || typeof rules !== 'object' || Object.keys(rules).length === 0) return true;
+
+  if (rules.entityType && rules.entityType !== 'All') {
+    if (lead.type !== rules.entityType) return false;
+  }
+  if (rules.region && rules.region !== 'All') {
+    if (!lead.state || lead.state.toLowerCase() !== rules.region.toLowerCase()) return false;
+  }
+  if (rules.city && rules.city !== 'All') {
+    if (!lead.city || lead.city.toLowerCase() !== rules.city.toLowerCase()) return false;
+  }
+  if (rules.activityStatus && rules.activityStatus !== 'All') {
+    if (lead.verificationStatus !== rules.activityStatus) return false;
+  }
+  if (rules.websiteStatus === 'NoWebsite') {
+    if (lead.website && lead.website.trim() !== '') return false;
+  } else if (rules.websiteStatus === 'HasWebsite') {
+    if (!lead.website || lead.website.trim() === '') return false;
+  }
+  if (rules.algoStatus === 'HasAlgo') {
+    if (!lead.sellsAlgoTrading || !lead.sellsAlgoTrading.toLowerCase().includes('yes')) return false;
+  } else if (rules.algoStatus === 'NoAlgo') {
+    if (lead.sellsAlgoTrading && lead.sellsAlgoTrading.toLowerCase().includes('yes')) return false;
+  }
+  if (rules.exchangeName && rules.exchangeName !== 'All') {
+    if (lead.exchangeName !== rules.exchangeName) return false;
+  }
+  if (rules.otherListings === 'Yes') {
+    if (!lead.otherListings || lead.otherListings.trim() === '') return false;
+  } else if (rules.otherListings === 'No') {
+    if (lead.otherListings && lead.otherListings.trim() !== '') return false;
+  }
+
+  return true;
+};
+
+// ─── Connected Leads ──────────────────────────────────────────────────────────
+
 export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const campaignId = parseInt(id as string);
@@ -41,6 +151,7 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
+      segments: true,
       leads: {
         select: {
           id: true,
@@ -49,6 +160,14 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
           phone: true,
           scrapedEmail: true,
           scrapedPhone: true,
+          type: true,
+          state: true,
+          city: true,
+          verificationStatus: true,
+          website: true,
+          sellsAlgoTrading: true,
+          exchangeName: true,
+          otherListings: true,
           messageSends: {
             where: { campaignId },
             orderBy: { createdAt: 'desc' },
@@ -76,10 +195,8 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
   const formattedLeads = campaign.leads.map(lead => {
     const lastMessageSend = lead.messageSends[0];
     const lastEvent = lastMessageSend?.events[0];
-    // latestReply is from EmailReply for emails
     let latestReply: any = lastMessageSend?.replies?.[0] || null;
     
-    // For WhatsApp, the reply is an EngagementEvent with eventType = 'REPLY'
     if (lastEvent?.eventType === 'REPLY' && lastEvent?.metadataJson) {
       const meta = lastEvent.metadataJson as any;
       if (meta.text) {
@@ -96,7 +213,7 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
        status = 'REPLIED';
     } else if (lastEvent) {
        if (lastEvent.eventType === 'LIMIT_REACHED') {
-         status = 'PENDING (Limit Exceeded - Next Month)';
+         status = 'PENDING (Limit Exceeded)';
        } else {
          status = lastEvent.eventType;
        }
@@ -104,12 +221,18 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
        status = lastMessageSend.status;
     }
 
+    const matchingSegmentNames = (campaign.segments || [])
+      .filter((seg: any) => isLeadInSegment(lead, seg.rules))
+      .map((seg: any) => seg.name);
+
     return {
       id: lead.id,
       name: lead.name,
       email: lead.email || lead.scrapedEmail,
       phone: lead.phone || lead.scrapedPhone,
       status: status,
+      segments: matchingSegmentNames.length > 0 ? matchingSegmentNames : (campaign.segments?.map(s => s.name) || []),
+      segmentDisplay: matchingSegmentNames.length > 0 ? matchingSegmentNames.join(', ') : (campaign.segments && campaign.segments.length > 0 ? campaign.segments.map(s => s.name).join(', ') : 'Manual Selection'),
       latestReply: latestReply || null,
       lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
     };
@@ -144,32 +267,11 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
     });
     
     if (segments.length > 0) {
-      // Connect segments to campaign
       data.segments = {
         connect: segments.map(s => ({ id: s.id }))
       };
 
-      // Combine where clauses for all selected segments using OR
-      const orClauses: any[] = [];
-
-      for (const segment of segments) {
-        const rules = segment.rules as any || {};
-        const whereClause: any = {};
-        
-        if (rules.entityType && rules.entityType !== 'All') whereClause.type = rules.entityType;
-        if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
-        if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
-        if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
-
-        if (Object.keys(whereClause).length > 0) {
-          orClauses.push(whereClause);
-        }
-      }
-
-      const matchingLeads = await prisma.lead.findMany({
-        where: orClauses.length > 0 ? { OR: orClauses } : {},
-        select: { id: true }
-      });
+      const matchingLeads = await getLeadsForSegments(segments);
 
       const allLeadIds = new Set<number>();
       matchingLeads.forEach(l => allLeadIds.add(l.id));
@@ -184,7 +286,6 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
       }
     }
   } else if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
-    // If only leadIds are provided (no segments)
     data.leads = {
       connect: leadIds.map(id => ({ id: parseInt(id as any) }))
     };
@@ -218,30 +319,11 @@ export const updateCampaign = asyncHandler(async (req: Request, res: Response) =
       });
       
       if (segments.length > 0) {
-        // Sync segments
         dataToUpdate.segments = {
           set: segments.map(s => ({ id: s.id }))
         };
 
-        const orClauses: any[] = [];
-        for (const segment of segments) {
-          const rules = segment.rules as any || {};
-          const whereClause: any = {};
-          
-          if (rules.entityType && rules.entityType !== 'All') whereClause.type = rules.entityType;
-          if (rules.region && rules.region !== 'All') whereClause.state = { equals: rules.region, mode: 'insensitive' };
-          if (rules.city && rules.city !== 'All') whereClause.city = { equals: rules.city, mode: 'insensitive' };
-          if (rules.activityStatus && rules.activityStatus !== 'All') whereClause.verificationStatus = rules.activityStatus;
-
-          if (Object.keys(whereClause).length > 0) {
-            orClauses.push(whereClause);
-          }
-        }
-
-        const matchingLeads = await prisma.lead.findMany({
-          where: orClauses.length > 0 ? { OR: orClauses } : {},
-          select: { id: true }
-        });
+        const matchingLeads = await getLeadsForSegments(segments);
 
         const allLeadIds = new Set<number>();
         matchingLeads.forEach(l => allLeadIds.add(l.id));
@@ -254,7 +336,6 @@ export const updateCampaign = asyncHandler(async (req: Request, res: Response) =
         };
       }
     } else {
-      // Clear segments and handle leadIds if provided alone
       dataToUpdate.segments = { set: [] };
       if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
         dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id as any) })) };
@@ -263,7 +344,6 @@ export const updateCampaign = asyncHandler(async (req: Request, res: Response) =
       }
     }
   } else if (leadIds !== undefined) {
-    // If only leadIds are updated
     if (Array.isArray(leadIds) && leadIds.length > 0) {
       dataToUpdate.leads = { set: leadIds.map(id => ({ id: parseInt(id as any) })) };
     } else {

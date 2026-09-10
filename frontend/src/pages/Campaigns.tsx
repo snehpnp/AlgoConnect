@@ -32,6 +32,9 @@ export const Campaigns: React.FC = () => {
   const [isConnectedLeadsModalOpen, setIsConnectedLeadsModalOpen] = useState(false);
   const [connectedLeads, setConnectedLeads] = useState<any[]>([]);
   const [connectedLeadsLoading, setConnectedLeadsLoading] = useState(false);
+  const [connectedSearch, setConnectedSearch] = useState('');
+  const [connectedStatusFilter, setConnectedStatusFilter] = useState('ALL');
+  const [connectedSegmentFilter, setConnectedSegmentFilter] = useState('ALL');
 
   // Reply Modal
   const [replyModalOpen, setReplyModalOpen] = useState(false);
@@ -193,6 +196,9 @@ export const Campaigns: React.FC = () => {
     setCurrentCampaign(campaign);
     setIsConnectedLeadsModalOpen(true);
     setConnectedLeadsLoading(true);
+    setConnectedSearch('');
+    setConnectedStatusFilter('ALL');
+    setConnectedSegmentFilter('ALL');
     try {
       const res = await campaignService.getCampaignConnectedLeads(campaign.id);
       setConnectedLeads(res.data || []);
@@ -616,7 +622,7 @@ export const Campaigns: React.FC = () => {
       {/* Connected Leads Modal */}
       {isConnectedLeadsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-scale-up">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col animate-scale-up">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
@@ -635,58 +641,173 @@ export const Campaigns: React.FC = () => {
               ) : connectedLeads.length === 0 ? (
                 <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-2 mb-2">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {connectedLeads.map((lead) => (
-                        <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="py-4 px-6 font-semibold text-slate-800">{lead.name}</td>
-                          <td className="py-4 px-6 text-sm text-slate-600">
-                            <div className="font-medium">{lead.email || 'No email'}</div>
-                            <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                                lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
-                                  lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
-                                    lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
-                                      lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                (() => {
+                  const uniqueSegments = Array.from(new Set(
+                    connectedLeads.flatMap(l => l.segments && l.segments.length > 0 ? l.segments : (l.segmentDisplay ? l.segmentDisplay.split(', ') : ['Manual Selection']))
+                  ));
+
+                  const filteredConnectedLeads = connectedLeads.filter((lead) => {
+                    const query = connectedSearch.toLowerCase().trim();
+                    const segList: string[] = lead.segments && lead.segments.length > 0
+                      ? lead.segments
+                      : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
+                    
+                    const matchesSearch = !query || 
+                      lead.name.toLowerCase().includes(query) ||
+                      (lead.email && lead.email.toLowerCase().includes(query)) ||
+                      (lead.phone && lead.phone.includes(query)) ||
+                      segList.some(s => s.toLowerCase().includes(query));
+
+                    const matchesStatus = connectedStatusFilter === 'ALL' || lead.status === connectedStatusFilter;
+                    const matchesSegment = connectedSegmentFilter === 'ALL' || segList.includes(connectedSegmentFilter);
+
+                    return matchesSearch && matchesStatus && matchesSegment;
+                  });
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Search & Filter Toolbar */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="relative flex-1 w-full">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            value={connectedSearch}
+                            onChange={(e) => setConnectedSearch(e.target.value)}
+                            placeholder="Search lead by name, email, phone..."
+                            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                          {/* Segment Filter */}
+                          <select
+                            value={connectedSegmentFilter}
+                            onChange={(e) => setConnectedSegmentFilter(e.target.value)}
+                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
+                          >
+                            <option value="ALL">All Segments ({uniqueSegments.length})</option>
+                            {uniqueSegments.map((segName) => (
+                              <option key={segName} value={segName}>{segName}</option>
+                            ))}
+                          </select>
+
+                          {/* Status Filter */}
+                          <select
+                            value={connectedStatusFilter}
+                            onChange={(e) => setConnectedStatusFilter(e.target.value)}
+                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
+                          >
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="SENT">SENT</option>
+                            <option value="DELIVERED">DELIVERED</option>
+                            <option value="OPENED">OPENED</option>
+                            <option value="CLICKED">CLICKED</option>
+                            <option value="REPLIED">REPLIED</option>
+                            <option value="FAILED">FAILED</option>
+                          </select>
+
+                          {(connectedSearch || connectedStatusFilter !== 'ALL' || connectedSegmentFilter !== 'ALL') && (
+                            <button
+                              onClick={() => {
+                                setConnectedSearch('');
+                                setConnectedStatusFilter('ALL');
+                                setConnectedSegmentFilter('ALL');
+                              }}
+                              className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors"
+                            >
+                              Clear Filters
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Results count banner */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                        <span>Showing <strong>{filteredConnectedLeads.length}</strong> of <strong>{connectedLeads.length}</strong> connected leads</span>
+                      </div>
+
+                      {/* Table */}
+                      {filteredConnectedLeads.length === 0 ? (
+                        <div className="py-12 text-center text-slate-500 font-medium bg-slate-50 rounded-xl border border-slate-200">
+                          No matching leads found for applied search/filter criteria.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                          <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center w-16">No.</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Target Segment</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {filteredConnectedLeads.map((lead, index) => {
+                                const segList: string[] = lead.segments && lead.segments.length > 0
+                                  ? lead.segments
+                                  : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
+                                return (
+                                  <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="py-4 px-4 text-xs font-bold text-slate-400 text-center">{index + 1}</td>
+                                    <td className="py-4 px-6 font-semibold text-slate-800">{lead.name}</td>
+                                    <td className="py-4 px-6 text-sm">
+                                      <div className="flex flex-wrap gap-1">
+                                        {segList.map((segName: string, idx: number) => (
+                                          <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                            {segName}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-6 text-sm text-slate-600">
+                                      <div className="font-medium">{lead.email || 'No email'}</div>
+                                      <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${
+                                        lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                                        lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                                        lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                                        lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                        lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                                        lead.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
                                         'bg-slate-100 text-slate-700'
-                              }`}>
-                              {lead.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-sm font-medium text-slate-500">
-                            {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            {lead.status === 'REPLIED' && lead.latestReply && (
-                              <button
-                                onClick={() => {
-                                  setCurrentReply(lead.latestReply);
-                                  setReplyModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
-                              >
-                                <Mail className="w-4 h-4" />
-                                View Reply
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                                      }`}>
+                                        {lead.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 px-6 text-sm font-medium text-slate-500">
+                                      {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                                    </td>
+                                    <td className="py-4 px-6 text-right">
+                                      {lead.status === 'REPLIED' && lead.latestReply && (
+                                        <button
+                                          onClick={() => {
+                                            setCurrentReply(lead.latestReply);
+                                            setReplyModalOpen(true);
+                                          }}
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
+                                        >
+                                          <Mail className="w-4 h-4" />
+                                          View Reply
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               )}
             </div>
 

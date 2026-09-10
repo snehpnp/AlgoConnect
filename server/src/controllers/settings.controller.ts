@@ -15,43 +15,37 @@ const sanitizeSettingCounters = async (setting: any) => {
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
-  const lastSent = setting.lastEmailSentDate ? new Date(setting.lastEmailSentDate) : null;
-  const periodStart = setting.currentPeriodStart ? new Date(setting.currentPeriodStart) : null;
+  // Count actual emails sent in MessageSend table for precise real-time accuracy
+  const [sentThisHour, sentToday, sentThisMonth] = await Promise.all([
+    prisma.messageSend.count({
+      where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: hourStart } }
+    }),
+    prisma.messageSend.count({
+      where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: todayStart } }
+    }),
+    prisma.messageSend.count({
+      where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: monthStart } }
+    }),
+  ]);
 
-  const needsHourReset = !lastSent || lastSent < hourStart;
-  const needsDayReset = !lastSent || lastSent < todayStart;
-  const needsMonthReset = !periodStart || periodStart < monthStart;
+  setting.emailsSentThisHour = sentThisHour;
+  setting.emailsSentToday = sentToday;
+  setting.emailsSentThisMonth = sentThisMonth;
 
-  let changed = false;
+  try {
+    await prisma.integrationSetting.update({
+      where: { id: setting.id },
+      data: {
+        emailsSentThisHour: sentThisHour,
+        emailsSentToday: sentToday,
+        emailsSentThisMonth: sentThisMonth,
+        currentPeriodStart: monthStart,
+      },
+    });
+  } catch (e) {
+    // non-critical
+  }
 
-  if (needsHourReset && setting.emailsSentThisHour !== 0) {
-    setting.emailsSentThisHour = 0;
-    changed = true;
-  }
-  if (needsDayReset && setting.emailsSentToday !== 0) {
-    setting.emailsSentToday = 0;
-    changed = true;
-  }
-  if (needsMonthReset && setting.emailsSentThisMonth !== 0) {
-    setting.emailsSentThisMonth = 0;
-    changed = true;
-  }
-
-  if (changed || needsMonthReset) {
-    try {
-      await (prisma as any).integrationSetting.update({
-        where: { id: setting.id },
-        data: {
-          emailsSentThisHour: setting.emailsSentThisHour,
-          emailsSentToday: setting.emailsSentToday,
-          emailsSentThisMonth: setting.emailsSentThisMonth,
-          currentPeriodStart: needsMonthReset ? monthStart : setting.currentPeriodStart,
-        },
-      });
-    } catch (e) {
-      // non-critical
-    }
-  }
   return setting;
 };
 
