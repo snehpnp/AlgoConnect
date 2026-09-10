@@ -36,6 +36,12 @@ export const Campaigns: React.FC = () => {
   const [connectedStatusFilter, setConnectedStatusFilter] = useState('ALL');
   const [connectedSegmentFilter, setConnectedSegmentFilter] = useState('ALL');
 
+  const connectedStatusCounts = connectedLeads.reduce((acc: Record<string, number>, lead) => {
+    const st = (lead.status || 'PENDING').toUpperCase();
+    acc[st] = (acc[st] || 0) + 1;
+    return acc;
+  }, {});
+
   // Reply Modal
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [currentReply, setCurrentReply] = useState<any>(null);
@@ -623,104 +629,141 @@ export const Campaigns: React.FC = () => {
       {isConnectedLeadsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col animate-scale-up">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
-                <p className="text-sm text-slate-500 mt-1">{currentCampaign?.name}</p>
+            <div className="p-6 border-b border-slate-100">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">{currentCampaign?.name}</p>
+                </div>
+                <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Status Count Pills / Quick Filter */}
+              {!connectedLeadsLoading && connectedLeads.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  {[
+                    { key: 'ALL', label: 'ALL', count: connectedLeads.length, bg: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200' },
+                    { key: 'PENDING', label: 'PENDING', count: connectedStatusCounts['PENDING'] || 0, bg: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' },
+                    { key: 'SENT', label: 'SENT', count: connectedStatusCounts['SENT'] || 0, bg: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' },
+                    { key: 'DELIVERED', label: 'DELIVERED', count: connectedStatusCounts['DELIVERED'] || 0, bg: 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200' },
+                    { key: 'OPENED', label: 'OPENED', count: connectedStatusCounts['OPENED'] || 0, bg: 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' },
+                    { key: 'CLICKED', label: 'CLICKED', count: connectedStatusCounts['CLICKED'] || 0, bg: 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200' },
+                    { key: 'REPLIED', label: 'REPLIED', count: connectedStatusCounts['REPLIED'] || 0, bg: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200' },
+                    { key: 'BOUNCED', label: 'BOUNCED', count: connectedStatusCounts['BOUNCED'] || 0, bg: 'bg-orange-100 text-orange-900 border-orange-300 hover:bg-orange-200' },
+                    { key: 'FAILED', label: 'FAILED', count: connectedStatusCounts['FAILED'] || 0, bg: 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200' },
+                  ].map((badge) => {
+                    const isSelected = connectedStatusFilter === badge.key;
+                    return (
+                      <button
+                        key={badge.key}
+                        onClick={() => setConnectedStatusFilter(badge.key)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${badge.bg} ${
+                          isSelected ? 'ring-2 ring-primary ring-offset-1 shadow-sm scale-105' : ''
+                        }`}
+                        title={`Filter by ${badge.label}`}
+                      >
+                        <span>{badge.label}</span>
+                        <span className="px-1.5 py-0.5 rounded-full text-[11px] font-extrabold bg-white/90 shadow-xs border border-slate-200/50">
+                          {badge.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            <div className="p-6 overflow-y-auto">
-              {connectedLeadsLoading ? (
-                <div className="py-12 flex justify-center text-slate-500">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : connectedLeads.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
-              ) : (
-                (() => {
-                  const uniqueSegments = Array.from(new Set(
-                    connectedLeads.flatMap(l => l.segments && l.segments.length > 0 ? l.segments : (l.segmentDisplay ? l.segmentDisplay.split(', ') : ['Manual Selection']))
-                  ));
+              <div className="p-6 overflow-y-auto">
+                {connectedLeadsLoading ? (
+                  <div className="py-12 flex justify-center text-slate-500">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : connectedLeads.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
+                ) : (
+                  (() => {
+                    const uniqueSegments = Array.from(new Set(
+                      connectedLeads.flatMap(l => l.segments && l.segments.length > 0 ? l.segments : (l.segmentDisplay ? l.segmentDisplay.split(', ') : ['Manual Selection']))
+                    ));
 
-                  const filteredConnectedLeads = connectedLeads.filter((lead) => {
-                    const query = connectedSearch.toLowerCase().trim();
-                    const segList: string[] = lead.segments && lead.segments.length > 0
-                      ? lead.segments
-                      : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
-                    
-                    const matchesSearch = !query || 
-                      lead.name.toLowerCase().includes(query) ||
-                      (lead.email && lead.email.toLowerCase().includes(query)) ||
-                      (lead.phone && lead.phone.includes(query)) ||
-                      segList.some(s => s.toLowerCase().includes(query));
+                    const filteredConnectedLeads = connectedLeads.filter((lead) => {
+                      const query = connectedSearch.toLowerCase().trim();
+                      const segList: string[] = lead.segments && lead.segments.length > 0
+                        ? lead.segments
+                        : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
+                      
+                      const matchesSearch = !query || 
+                        lead.name.toLowerCase().includes(query) ||
+                        (lead.email && lead.email.toLowerCase().includes(query)) ||
+                        (lead.phone && lead.phone.includes(query)) ||
+                        segList.some(s => s.toLowerCase().includes(query));
 
-                    const matchesStatus = connectedStatusFilter === 'ALL' || lead.status === connectedStatusFilter;
-                    const matchesSegment = connectedSegmentFilter === 'ALL' || segList.includes(connectedSegmentFilter);
+                      const matchesStatus = connectedStatusFilter === 'ALL' || lead.status === connectedStatusFilter;
+                      const matchesSegment = connectedSegmentFilter === 'ALL' || segList.includes(connectedSegmentFilter);
 
-                    return matchesSearch && matchesStatus && matchesSegment;
-                  });
+                      return matchesSearch && matchesStatus && matchesSegment;
+                    });
 
-                  return (
-                    <div className="space-y-4">
-                      {/* Search & Filter Toolbar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div className="relative flex-1 w-full">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                          <input
-                            type="text"
-                            value={connectedSearch}
-                            onChange={(e) => setConnectedSearch(e.target.value)}
-                            placeholder="Search lead by name, email, phone..."
-                            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                          {/* Segment Filter */}
-                          <select
-                            value={connectedSegmentFilter}
-                            onChange={(e) => setConnectedSegmentFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
-                          >
-                            <option value="ALL">All Segments ({uniqueSegments.length})</option>
-                            {uniqueSegments.map((segName) => (
-                              <option key={segName} value={segName}>{segName}</option>
-                            ))}
-                          </select>
-
-                          {/* Status Filter */}
-                          <select
-                            value={connectedStatusFilter}
-                            onChange={(e) => setConnectedStatusFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
-                          >
-                            <option value="ALL">All Statuses</option>
-                            <option value="PENDING">PENDING</option>
-                            <option value="SENT">SENT</option>
-                            <option value="DELIVERED">DELIVERED</option>
-                            <option value="OPENED">OPENED</option>
-                            <option value="CLICKED">CLICKED</option>
-                            <option value="REPLIED">REPLIED</option>
-                            <option value="FAILED">FAILED</option>
-                          </select>
-
-                          {(connectedSearch || connectedStatusFilter !== 'ALL' || connectedSegmentFilter !== 'ALL') && (
-                            <button
-                              onClick={() => {
-                                setConnectedSearch('');
-                                setConnectedStatusFilter('ALL');
-                                setConnectedSegmentFilter('ALL');
-                              }}
-                              className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors"
+                    return (
+                      <div className="space-y-4">
+                        {/* Search & Filter Toolbar */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <div className="relative flex-1 w-full">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                            <input
+                              type="text"
+                              value={connectedSearch}
+                              onChange={(e) => setConnectedSearch(e.target.value)}
+                              placeholder="Search lead by name, email, phone..."
+                              className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                            {/* Segment Filter */}
+                            <select
+                              value={connectedSegmentFilter}
+                              onChange={(e) => setConnectedSegmentFilter(e.target.value)}
+                              className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
                             >
-                              Clear Filters
-                            </button>
-                          )}
+                              <option value="ALL">All Segments ({uniqueSegments.length})</option>
+                              {uniqueSegments.map((segName) => (
+                                <option key={segName} value={segName}>{segName}</option>
+                              ))}
+                            </select>
+
+                            {/* Status Filter */}
+                            <select
+                              value={connectedStatusFilter}
+                              onChange={(e) => setConnectedStatusFilter(e.target.value)}
+                              className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
+                            >
+                              <option value="ALL">All Statuses ({connectedLeads.length})</option>
+                              <option value="PENDING">PENDING ({connectedStatusCounts['PENDING'] || 0})</option>
+                              <option value="SENT">SENT ({connectedStatusCounts['SENT'] || 0})</option>
+                              <option value="DELIVERED">DELIVERED ({connectedStatusCounts['DELIVERED'] || 0})</option>
+                              <option value="OPENED">OPENED ({connectedStatusCounts['OPENED'] || 0})</option>
+                              <option value="CLICKED">CLICKED ({connectedStatusCounts['CLICKED'] || 0})</option>
+                              <option value="REPLIED">REPLIED ({connectedStatusCounts['REPLIED'] || 0})</option>
+                              <option value="BOUNCED">BOUNCED ({connectedStatusCounts['BOUNCED'] || 0})</option>
+                              <option value="FAILED">FAILED ({connectedStatusCounts['FAILED'] || 0})</option>
+                            </select>
+
+                            {(connectedSearch || connectedStatusFilter !== 'ALL' || connectedSegmentFilter !== 'ALL') && (
+                              <button
+                                onClick={() => {
+                                  setConnectedSearch('');
+                                  setConnectedStatusFilter('ALL');
+                                  setConnectedSegmentFilter('ALL');
+                                }}
+                                className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors"
+                              >
+                                Clear Filters
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
                       {/* Results count banner */}
                       <div className="flex items-center justify-between text-xs text-slate-500 px-1">
@@ -774,6 +817,7 @@ export const Campaigns: React.FC = () => {
                                         lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
                                         lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
                                         lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                        lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
                                         lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
                                         lead.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
                                         'bg-slate-100 text-slate-700'

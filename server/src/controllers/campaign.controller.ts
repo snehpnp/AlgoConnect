@@ -34,6 +34,20 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
 });
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const isValidEmail = (email: string | null | undefined): boolean => {
+  if (!email || typeof email !== 'string' || email.trim() === '') return false;
+  return EMAIL_REGEX.test(email.trim());
+};
+
+export const getEmailPriorityRank = (email: string | null | undefined): number => {
+  if (!isValidEmail(email)) return 3; // Rank 3: Invalid or Empty Email (Last)
+  const trimmed = email!.trim().toLowerCase();
+  if (trimmed.endsWith('@gmail.com')) return 1; // Rank 1: Valid @gmail.com (First)
+  return 2; // Rank 2: Other valid email domains (@yahoo.com, custom domain, etc.)
+};
+
 // ─── Segment Helpers ─────────────────────────────────────────────────────────
 
 export const buildWhereClauseFromSegmentRules = (rules: any): any => {
@@ -77,7 +91,7 @@ export const buildWhereClauseFromSegmentRules = (rules: any): any => {
   return whereClause;
 };
 
-export const getLeadsForSegments = async (segments: any[]): Promise<{ id: number }[]> => {
+export const getLeadsForSegments = async (segments: any[]): Promise<{ id: number; email?: string | null; scrapedEmail?: string | null }[]> => {
   if (!segments || segments.length === 0) return [];
 
   const orClauses: any[] = [];
@@ -94,15 +108,28 @@ export const getLeadsForSegments = async (segments: any[]): Promise<{ id: number
     }
   }
 
+  let leads: { id: number; email: string | null; scrapedEmail: string | null }[] = [];
+
   if (matchAllLeads) {
-    return await prisma.lead.findMany({ select: { id: true } });
+    leads = await prisma.lead.findMany({ select: { id: true, email: true, scrapedEmail: true } });
   } else if (orClauses.length > 0) {
-    return await prisma.lead.findMany({
+    leads = await prisma.lead.findMany({
       where: { OR: orClauses },
-      select: { id: true }
+      select: { id: true, email: true, scrapedEmail: true }
     });
   }
-  return [];
+
+  // Priority Sort: 1) Valid @gmail.com, 2) Other valid emails, 3) Invalid/empty emails (at the end)
+  leads.sort((a, b) => {
+    const rankA = getEmailPriorityRank(a.email || a.scrapedEmail);
+    const rankB = getEmailPriorityRank(b.email || b.scrapedEmail);
+    if (rankA !== rankB) return rankA - rankB;
+    const emailA = (a.email || a.scrapedEmail || '').toLowerCase();
+    const emailB = (b.email || b.scrapedEmail || '').toLowerCase();
+    return emailA.localeCompare(emailB);
+  });
+
+  return leads;
 };
 
 export const isLeadInSegment = (lead: any, rules: any): boolean => {
@@ -236,6 +263,14 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
       latestReply: latestReply || null,
       lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
     };
+  });
+
+  // Priority Sort: 1) Valid @gmail.com, 2) Other valid email, 3) Invalid/empty email (at the end)
+  formattedLeads.sort((a, b) => {
+    const rankA = getEmailPriorityRank(a.email);
+    const rankB = getEmailPriorityRank(b.email);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.email || '').toLowerCase().localeCompare((b.email || '').toLowerCase());
   });
 
   res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
