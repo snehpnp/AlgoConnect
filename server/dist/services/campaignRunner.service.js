@@ -219,6 +219,10 @@ const startCampaignRunner = () => {
                             }
                         }
                         processedCount++;
+                        // Pacing: add a 1.5s delay between consecutive email dispatches to prevent SMTP rate-limit / spam flags
+                        if (channel === 'EMAIL') {
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
                     }
                 }
             }

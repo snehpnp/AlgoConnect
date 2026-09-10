@@ -64,13 +64,13 @@ export const checkAndIncrementEmailLimit = async () => {
         // ── Query real-time actual sent counts directly from MessageSend database table ──
         const [sentThisHour, sentToday, sentThisMonth] = await Promise.all([
           tx.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: hourStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: hourStart } }
           }),
           tx.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: todayStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: todayStart } }
           }),
           tx.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: monthStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: monthStart } }
           }),
         ]);
 

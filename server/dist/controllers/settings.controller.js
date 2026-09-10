@@ -19,13 +19,13 @@ const sanitizeSettingCounters = async (setting) => {
     // Count actual emails sent in MessageSend table for precise real-time accuracy
     const [sentThisHour, sentToday, sentThisMonth] = await Promise.all([
         prismaClient_1.default.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: hourStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: hourStart } }
         }),
         prismaClient_1.default.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: todayStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: todayStart } }
         }),
         prismaClient_1.default.messageSend.count({
-            where: { channel: 'EMAIL', status: 'SENT', sentAt: { gte: monthStart } }
+            where: { channel: 'EMAIL', sentAt: { gte: monthStart } }
         }),
     ]);
     setting.emailsSentThisHour = sentThisHour;
