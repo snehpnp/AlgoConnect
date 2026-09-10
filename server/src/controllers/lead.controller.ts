@@ -208,10 +208,16 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
         where.engagementStatus = { not: 'Not Engaged' };
         break;
       case 'BOUNCED':
-        where.engagementStatus = 'Bounced';
+        where.OR = [
+          { engagementStatus: 'Bounced' },
+          { messageSends: { some: { status: 'BOUNCED' } } }
+        ];
         break;
       case 'NOT_BOUNCED':
-        where.engagementStatus = { not: 'Bounced' };
+        where.AND = [
+          { engagementStatus: { not: 'Bounced' } },
+          { messageSends: { none: { status: 'BOUNCED' } } }
+        ];
         break;
       case 'IMPORTED':
         where.verificationStatus = 'Imported';
@@ -233,17 +239,29 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   
   if (bounced && bounced !== 'All') {
     if (bounced === 'BOUNCED' || bounced === 'Bounced') {
-      where.engagementStatus = 'Bounced';
+      where.OR = [
+        { engagementStatus: 'Bounced' },
+        { messageSends: { some: { status: 'BOUNCED' } } }
+      ];
     } else if (bounced === 'NOT_BOUNCED' || bounced === 'Not Bounced' || bounced === 'NotBounced') {
-      where.engagementStatus = { not: 'Bounced' };
+      where.AND = [
+        { engagementStatus: { not: 'Bounced' } },
+        { messageSends: { none: { status: 'BOUNCED' } } }
+      ];
     }
   }
 
   if (engagementStatus && engagementStatus !== 'All') {
     if (engagementStatus === 'BOUNCED' || engagementStatus === 'Bounced') {
-      where.engagementStatus = 'Bounced';
+      where.OR = [
+        { engagementStatus: 'Bounced' },
+        { messageSends: { some: { status: 'BOUNCED' } } }
+      ];
     } else if (engagementStatus === 'NOT_BOUNCED' || engagementStatus === 'Not Bounced' || engagementStatus === 'NotBounced') {
-      where.engagementStatus = { not: 'Bounced' };
+      where.AND = [
+        { engagementStatus: { not: 'Bounced' } },
+        { messageSends: { none: { status: 'BOUNCED' } } }
+      ];
     } else {
       where.engagementStatus = engagementStatus;
     }
@@ -835,4 +853,202 @@ export const processFile = asyncHandler(async (req: Request, res: Response) => {
   }
 
   res.status(200).json({ message: 'File processed and leads imported successfully', count: importedCount });
+});
+
+// --- RE-SCRAPE BOUNCED LEADS CONTROLLER ---
+export const rescrapeBouncedLeads = asyncHandler(async (req: Request, res: Response) => {
+  const { leadIds } = req.body;
+
+  const whereClause: any = {};
+
+  if (Array.isArray(leadIds) && leadIds.length > 0) {
+    whereClause.id = { in: leadIds.map(Number) };
+  } else {
+    whereClause.OR = [
+      { engagementStatus: 'Bounced' },
+      { messageSends: { some: { status: 'BOUNCED' } } }
+    ];
+  }
+
+  const bouncedLeads = await prisma.lead.findMany({
+    where: whereClause,
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  if (bouncedLeads.length === 0) {
+    return res.status(200).json({
+      message: 'No bounced leads found to re-scrape.',
+      data: {
+        totalBounced: 0,
+        rescrapedCount: 0,
+        newEmailsFoundCount: 0,
+        updatedLeads: []
+      },
+      processedCount: 0,
+      updatedCount: 0,
+      updatedLeads: []
+    });
+  }
+
+  let updatedCount = 0;
+  const updatedLeads: any[] = [];
+
+  const isValidEmailFormat = (emailStr?: string | null): boolean => {
+    if (!emailStr) return false;
+    const clean = emailStr.trim().toLowerCase();
+    if (clean.length < 6 || !clean.includes('@') || !clean.includes('.')) return false;
+    if (clean.includes('mailer-daemon') || clean.includes('postmaster') || clean.includes('wixpress') || clean.includes('sentry') || clean.includes('example.com')) return false;
+    if (/\.(png|jpg|jpeg|gif|svg|css|js|webp)$/i.test(clean)) return false;
+    return true;
+  };
+
+  const fetchPageContent = async (urlStr: string, timeoutMs = 3000): Promise<string> => {
+    try {
+      const httpModule = urlStr.startsWith('https') ? require('https') : require('http');
+      return await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(''), timeoutMs);
+        const req = httpModule.get(urlStr, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res: any) => {
+          let data = '';
+          res.on('data', (chunk: any) => { data += chunk; if (data.length > 200000) res.destroy(); });
+          res.on('end', () => { clearTimeout(timer); resolve(data); });
+        });
+        req.on('error', () => { clearTimeout(timer); resolve(''); });
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  for (const lead of bouncedLeads) {
+    try {
+      const bouncedEmail = (lead.email || '').toLowerCase().trim();
+      let newEmailFound: string | null = null;
+      let discoverySource = '';
+
+      // 1. Check secondary email2 or existing scrapedEmail if different from bounced email
+      if (lead.email2 && isValidEmailFormat(lead.email2) && lead.email2.toLowerCase().trim() !== bouncedEmail) {
+        newEmailFound = lead.email2.trim();
+        discoverySource = 'Secondary Email Record (email2)';
+      } else if (lead.scrapedEmail && isValidEmailFormat(lead.scrapedEmail) && lead.scrapedEmail.toLowerCase().trim() !== bouncedEmail) {
+        newEmailFound = lead.scrapedEmail.trim();
+        discoverySource = 'Existing Scraped Record';
+      }
+
+      // 2. If website exists, scrape domain contact page for candidate emails
+      if (!newEmailFound && lead.website) {
+        let domain = lead.website.trim().toLowerCase();
+        if (!domain.startsWith('http')) domain = `https://${domain}`;
+
+        const html = await fetchPageContent(domain, 3000);
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        const matched = html.match(emailRegex) || [];
+
+        const validCandidates = matched.map(e => e.trim().toLowerCase()).filter(e => {
+          return isValidEmailFormat(e) && e !== bouncedEmail;
+        });
+
+        if (validCandidates.length > 0) {
+          const domainName = domain.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+          const domainMatch = validCandidates.find(e => e.includes(domainName));
+          newEmailFound = domainMatch || validCandidates[0];
+          discoverySource = `Web Scraped from (${domainName})`;
+        }
+      }
+
+      // 3. Fallback: Domain pattern generation if website is valid corporate domain
+      if (!newEmailFound && lead.website) {
+        const cleanDomain = lead.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].trim();
+        if (cleanDomain && !cleanDomain.includes('gmail') && !cleanDomain.includes('yahoo') && !cleanDomain.includes('hotmail')) {
+          const standardCandidates = [`info@${cleanDomain}`, `contact@${cleanDomain}`, `support@${cleanDomain}`, `compliance@${cleanDomain}`];
+          const availableCandidate = standardCandidates.find(c => c.toLowerCase() !== bouncedEmail);
+          if (availableCandidate) {
+            newEmailFound = availableCandidate;
+            discoverySource = `Generated Domain Contact (${cleanDomain})`;
+          }
+        }
+      }
+
+      // If new email was found:
+      // 1. Move old bounced email to email2
+      // 2. Set new discovered email as primary email 1 so campaign sending uses the new email
+      // 3. Reset engagementStatus to 'Not Engaged' so lead becomes active again
+      if (newEmailFound) {
+        updatedCount++;
+
+        const oldBouncedEmail = lead.email || '';
+
+        const updateData: any = {
+          email: newEmailFound,
+          email2: oldBouncedEmail || lead.email2,
+          scrapedEmail: newEmailFound,
+          engagementStatus: 'Not Engaged'
+        };
+
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: updateData
+        });
+
+        // Reset MessageSend campaign statuses from BOUNCED to PENDING so campaign runner can re-attempt sending with the new email
+        await prisma.messageSend.updateMany({
+          where: {
+            leadId: lead.id,
+            status: { in: ['BOUNCED', 'FAILED'] }
+          },
+          data: {
+            status: 'PENDING',
+            bouncedAt: null,
+            failedAt: null
+          }
+        });
+
+        await prisma.activityLog.create({
+          data: {
+            userId: (req as any).user?.id || 1,
+            action: 'RESCRAPED_BOUNCED_LEAD',
+            details: `Re-scraped new email for Bounced Lead #${lead.id} (${lead.name}). Primary email updated to: ${newEmailFound}, old bounced email moved to email2: (${oldBouncedEmail}). Engagement status & campaign message status reset to PENDING.`
+          }
+        });
+
+        updatedLeads.push({
+          id: lead.id,
+          name: lead.name,
+          oldEmail: oldBouncedEmail || 'N/A',
+          bouncedEmail: oldBouncedEmail || 'N/A',
+          newEmail: newEmailFound,
+          source: discoverySource,
+          status: 'Not Engaged (Active)'
+        });
+      }
+    } catch (err: any) {
+      console.error(`Error rescraping lead #${lead.id}:`, err);
+    }
+  }
+
+  // Sync any remaining MessageSend records for non-bounced leads
+  await prisma.messageSend.updateMany({
+    where: {
+      status: 'BOUNCED',
+      lead: {
+        engagementStatus: { not: 'Bounced' }
+      }
+    },
+    data: {
+      status: 'PENDING',
+      bouncedAt: null
+    }
+  });
+
+  res.status(200).json({
+    message: `Re-scraping complete! Processed ${bouncedLeads.length} bounced leads. Found ${updatedCount} new alternative email addresses.`,
+    data: {
+      totalBounced: bouncedLeads.length,
+      rescrapedCount: bouncedLeads.length,
+      newEmailsFoundCount: updatedCount,
+      updatedLeads
+    },
+    processedCount: bouncedLeads.length,
+    updatedCount,
+    updatedLeads
+  });
 });

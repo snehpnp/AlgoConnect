@@ -30,8 +30,9 @@ router.post('/:id/send-message', authenticate, sendDirectMessage);
 router.get('/:id/messages', authenticate, getLeadMessageHistory);
 
 // Chunked File Upload endpoints
-import { uploadChunk, processFile, getFilterOptions } from '../controllers/lead.controller';
+import { uploadChunk, processFile, getFilterOptions, rescrapeBouncedLeads } from '../controllers/lead.controller';
 router.get('/filters/options', authenticate, getFilterOptions);
+router.post('/rescrape-bounced', authenticate, rescrapeBouncedLeads);
 router.post('/upload-chunk', authenticate, upload.single('chunk'), uploadChunk);
 router.post('/process-file', authenticate, processFile);
 

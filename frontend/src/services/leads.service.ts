@@ -156,4 +156,23 @@ export const leadsService = {
     const res = await apiClient.get(`/leads/${id}/messages`);
     return res.data;
   },
+
+  rescrapeBouncedLeads: async (leadIds?: number[]): Promise<{
+    message: string;
+    data: {
+      totalBounced: number;
+      rescrapedCount: number;
+      newEmailsFoundCount: number;
+      updatedLeads: Array<{
+        id: number;
+        name: string;
+        oldEmail: string;
+        newEmail: string;
+        source: string;
+      }>;
+    };
+  }> => {
+    const res = await apiClient.post('/leads/rescrape-bounced', { leadIds });
+    return res.data;
+  },
 };
