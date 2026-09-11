@@ -173,7 +173,8 @@ export const messagingGateway = {
           where: { id: msgId },
           data: {
             status: finalStatus,
-            providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`
+            providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`,
+            sentAt: isLimitError ? null : undefined
           }
         });
 
