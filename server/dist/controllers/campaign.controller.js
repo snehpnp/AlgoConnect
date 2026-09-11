@@ -594,7 +594,7 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
                     metadataJson: { isManual: true, error: err.message }
                 }
             });
-            throw new Error(`Failed to send email: ${err.message}`);
+          
         }
     }
     else {

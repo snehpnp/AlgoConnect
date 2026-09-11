@@ -224,7 +224,7 @@ export const Leads: React.FC = () => {
     try {
       const response: any = await leadsService.rescrapeBouncedLeads(selectedLeadIds.length > 0 ? selectedLeadIds : undefined);
       toast.dismiss(toastId);
-      
+
       const reportData = response?.data || {
         totalBounced: response?.processedCount || 0,
         rescrapedCount: response?.processedCount || 0,
@@ -309,6 +309,7 @@ export const Leads: React.FC = () => {
   const [algoTradingFilter, setAlgoTradingFilter] = useState(location.state?.algoTradingFilter || 'All');
   const [exchangeNameFilter, setExchangeNameFilter] = useState(location.state?.exchangeNameFilter || 'All');
   const [otherListingsFilter, setOtherListingsFilter] = useState(location.state?.otherListingsFilter || 'All');
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState(location.state?.campaignStatusFilter || 'All');
 
   // Sync state if navigation occurs (e.g. clicking dashboard cards again)
   useEffect(() => {
@@ -322,6 +323,7 @@ export const Leads: React.FC = () => {
       setAlgoTradingFilter(location.state.algoTradingFilter || 'All');
       setExchangeNameFilter(location.state.exchangeNameFilter || 'All');
       setOtherListingsFilter(location.state.otherListingsFilter || 'All');
+      setCampaignStatusFilter(location.state.campaignStatusFilter || 'All');
     }
   }, [location.state]);
   const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[], exchanges: string[] }>({ states: [], cities: [], types: [], exchanges: [] });
@@ -467,6 +469,7 @@ export const Leads: React.FC = () => {
         sellsAlgoTrading: algoTradingFilter === 'All' ? undefined : algoTradingFilter,
         exchangeName: exchangeNameFilter === 'All' ? undefined : exchangeNameFilter,
         otherListings: otherListingsFilter === 'All' ? undefined : otherListingsFilter,
+        campaignStatus: campaignStatusFilter === 'All' ? undefined : campaignStatusFilter,
         sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
         order: scoreSort !== 'none' ? scoreSort : undefined
       });
@@ -485,12 +488,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -605,7 +608,7 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
-  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || bouncedFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All';
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || bouncedFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All' || campaignStatusFilter !== 'All';
 
   return (
     <div className="relative flex gap-6 pb-24 sm:pb-20">
@@ -788,8 +791,7 @@ export const Leads: React.FC = () => {
                   className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
                 >
                   <option value="All">All Statuses</option>
-                  <option value="BOUNCED">🛑 Bounced Leads</option>
-                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
+
                   <option value="IMPORTED">Imported</option>
                   <option value="UNVERIFIED">Unverified</option>
                   <option value="NEW">New (Verified)</option>
@@ -845,6 +847,22 @@ export const Leads: React.FC = () => {
                   <option value="All">Other Listings (All)</option>
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
+                </select>
+
+                <select
+                  value={campaignStatusFilter}
+                  onChange={(e) => setCampaignStatusFilter(e.target.value)}
+                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
+                >
+                  <option value="All">All Campaign Status</option>
+                  <option value="QUEUED">Pending / Queued</option>
+                  <option value="SENT">Sent</option>
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="OPENED">Opened</option>
+                  <option value="REPLIED">Replied</option>
+                  <option value="CLICKED">Clicked</option>
+                  <option value="BOUNCED">Bounced</option>
+                  <option value="FAILED">Failed</option>
                 </select>
 
                 <button
@@ -1011,6 +1029,16 @@ export const Leads: React.FC = () => {
                                   🛑 Bounced
                                 </span>
                               )}
+                              {lead.messageSends && lead.messageSends.length > 0 && (
+                                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${lead.messageSends[0].status === 'SENT' ? 'bg-blue-50 text-blue-700 ring-blue-700/20' :
+                                    lead.messageSends[0].status === 'OPENED' ? 'bg-amber-50 text-amber-700 ring-amber-700/20' :
+                                      lead.messageSends[0].status === 'REPLIED' ? 'bg-emerald-50 text-emerald-700 ring-emerald-700/20' :
+                                        lead.messageSends[0].status === 'BOUNCED' ? 'bg-orange-50 text-orange-700 ring-orange-700/20' :
+                                          'bg-slate-50 text-slate-700 ring-slate-700/20'
+                                  }`}>
+                                  {lead.messageSends[0].status.charAt(0).toUpperCase() + lead.messageSends[0].status.slice(1).toLowerCase()}
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 mt-2.5">
@@ -1077,6 +1105,7 @@ export const Leads: React.FC = () => {
                       <th className="py-4 px-4 w-[100px]">Type</th>
                       <th className="py-4 px-4 w-[120px]">Reg No.</th>
                       <th className="py-4 px-4 w-[150px] text-center">Stage (Edit)</th>
+                      <th className="py-4 px-4 w-[120px] text-center">Campaign Status</th>
                       <th
                         onClick={() => {
                           setScoreSort(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none');
@@ -1159,10 +1188,10 @@ export const Leads: React.FC = () => {
                                     {lead.name}
                                   </a>
                                   {lead.engagementStatus === 'Bounced' && (
-                                     <span className="inline-flex items-center gap-1 mt-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
-                                       🛑 Bounced
-                                     </span>
-                                   )}
+                                    <span className="inline-flex items-center gap-1 mt-1 rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-extrabold text-orange-800 border border-orange-300">
+                                      🛑 Bounced
+                                    </span>
+                                  )}
                                   {lead.user ? (
                                     <div className="flex items-center gap-1.5 mt-1" title={`Assigned to ${lead.user.name}`}>
                                       <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">
@@ -1250,6 +1279,22 @@ export const Leads: React.FC = () => {
                                   <option key={stage} value={stage}>{stage}</option>
                                 ))}
                               </select>
+                            </td>
+
+                            {/* Campaign Status */}
+                            <td className="py-4 px-6 text-center">
+                              {lead.messageSends && lead.messageSends.length > 0 ? (
+                                <span className={`inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-bold ring-1 ring-inset ${lead.messageSends[0].status === 'SENT' ? 'bg-blue-50 text-blue-700 ring-blue-700/20' :
+                                    lead.messageSends[0].status === 'OPENED' ? 'bg-amber-50 text-amber-700 ring-amber-700/20' :
+                                      lead.messageSends[0].status === 'REPLIED' ? 'bg-emerald-50 text-emerald-700 ring-emerald-700/20' :
+                                        lead.messageSends[0].status === 'BOUNCED' ? 'bg-orange-50 text-orange-700 ring-orange-700/20' :
+                                          'bg-slate-50 text-slate-700 ring-slate-700/20'
+                                  }`}>
+                                  {lead.messageSends[0].status.charAt(0).toUpperCase() + lead.messageSends[0].status.slice(1).toLowerCase()}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-xs font-medium">—</span>
+                              )}
                             </td>
 
                             {/* Lead Score */}
@@ -1480,472 +1525,472 @@ export const Leads: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8">
               <form onSubmit={handleSaveLead} className="space-y-8">
-              {/* Basic Details */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-primary" /> Basic Details
-                </h3>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name || ''}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    placeholder="Enter full name"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Basic Details */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-primary" /> Basic Details
+                  </h3>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
-                    <input
-                      type="email"
-                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
-                      title="Enter a valid email address"
-                      value={formData.email || ''}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. john@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email 2</label>
-                    <input
-                      type="email"
-                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
-                      title="Enter a valid email address"
-                      value={formData.email2 || ''}
-                      onChange={(e) => setFormData({ ...formData, email2: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Secondary email"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone</label>
-                    <input
-                      type="tel"
-                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
-                      title="Enter a valid phone number (min 7 digits)"
-                      value={formData.phone || ''}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. +91 9876543210"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone 2</label>
-                    <input
-                      type="tel"
-                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
-                      title="Enter a valid phone number (min 7 digits)"
-                      value={formData.phone2 || ''}
-                      onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Secondary phone"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Person</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Name *</label>
                     <input
                       type="text"
-                      value={formData.contactPerson || ''}
-                      onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                      required
+                      value={formData.name || ''}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Name of contact person"
+                      placeholder="Enter full name"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Website</label>
-                    <input
-                      type="url"
-                      pattern="https?://.+"
-                      title="Include http:// or https://"
-                      value={formData.website || ''}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="https://example.com"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              {/* Status & Segmentation */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" /> Status & Segment
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sales Stage</label>
-                    <select
-                      value={formData.salesStage || 'New'}
-                      onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    >
-                      {SALES_STAGES.map(stage => (
-                        <option key={stage} value={stage}>{stage}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
+                      <input
+                        type="email"
+                        pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                        title="Enter a valid email address"
+                        value={formData.email || ''}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. john@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Email 2</label>
+                      <input
+                        type="email"
+                        pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                        title="Enter a valid email address"
+                        value={formData.email2 || ''}
+                        onChange={(e) => setFormData({ ...formData, email2: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Secondary email"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Verification</label>
-                    <select
-                      value={formData.verificationStatus || 'Unverified'}
-                      onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    >
-                      <option value="Imported">Imported</option>
-                      <option value="Enrichment Pending">Enrichment Pending</option>
-                      <option value="Active">Active</option>
-                      <option value="Likely Inactive">Likely Inactive</option>
-                      <option value="Unverified">Unverified</option>
-                      <option value="Duplicate">Duplicate</option>
-                    </select>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone</label>
+                      <input
+                        type="tel"
+                        pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                        title="Enter a valid phone number (min 7 digits)"
+                        value={formData.phone || ''}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. +91 9876543210"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Phone 2</label>
+                      <input
+                        type="tel"
+                        pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                        title="Enter a valid phone number (min 7 digits)"
+                        value={formData.phone2 || ''}
+                        onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Secondary phone"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Person</label>
+                      <input
+                        type="text"
+                        value={formData.contactPerson || ''}
+                        onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Name of contact person"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Website</label>
+                      <input
+                        type="url"
+                        pattern="https?://.+"
+                        title="Include http:// or https://"
+                        value={formData.website || ''}
+                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="https://example.com"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Engagement</label>
-                    <select
-                      value={formData.engagementStatus || 'Not Engaged'}
-                      onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    >
-                      <option value="Not Engaged">Not Engaged</option>
-                      <option value="Sent">Sent</option>
-                      <option value="Delivered">Delivered</option>
-                      <option value="Opened">Opened</option>
-                      <option value="Clicked">Clicked</option>
-                      <option value="Replied">Replied</option>
-                      <option value="Demo Requested">Demo Requested</option>
-                    </select>
+                {/* Status & Segmentation */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" /> Status & Segment
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sales Stage</label>
+                      <select
+                        value={formData.salesStage || 'New'}
+                        onChange={(e) => setFormData({ ...formData, salesStage: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                      >
+                        {SALES_STAGES.map(stage => (
+                          <option key={stage} value={stage}>{stage}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Verification</label>
+                      <select
+                        value={formData.verificationStatus || 'Unverified'}
+                        onChange={(e) => setFormData({ ...formData, verificationStatus: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                      >
+                        <option value="Imported">Imported</option>
+                        <option value="Enrichment Pending">Enrichment Pending</option>
+                        <option value="Active">Active</option>
+                        <option value="Likely Inactive">Likely Inactive</option>
+                        <option value="Unverified">Unverified</option>
+                        <option value="Duplicate">Duplicate</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Consent</label>
-                    <select
-                      value={formData.consentStatus || 'Unknown'}
-                      onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    >
-                      <option value="Unknown">Unknown</option>
-                      <option value="Opted In">Opted In</option>
-                      <option value="Opted Out">Opted Out</option>
-                      <option value="Implied B2B">Implied B2B</option>
-                    </select>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Engagement</label>
+                      <select
+                        value={formData.engagementStatus || 'Not Engaged'}
+                        onChange={(e) => setFormData({ ...formData, engagementStatus: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                      >
+                        <option value="Not Engaged">Not Engaged</option>
+                        <option value="Sent">Sent</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Opened">Opened</option>
+                        <option value="Clicked">Clicked</option>
+                        <option value="Replied">Replied</option>
+                        <option value="Demo Requested">Demo Requested</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Consent</label>
+                      <select
+                        value={formData.consentStatus || 'Unknown'}
+                        onChange={(e) => setFormData({ ...formData, consentStatus: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                      >
+                        <option value="Unknown">Unknown</option>
+                        <option value="Opted In">Opted In</option>
+                        <option value="Opted Out">Opted Out</option>
+                        <option value="Implied B2B">Implied B2B</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Type</label>
+                      <select
+                        value={formData.type || 'Manual'}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                      >
+                        <option value="Manual">Manual</option>
+                        <option value="IA">IA</option>
+                        <option value="Sub Broker">Sub Broker</option>
+                        <option value="RA">RA</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Source</label>
+                      <input
+                        type="text"
+                        value={formData.source || ''}
+                        onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. Website Signup"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Type</label>
-                    <select
-                      value={formData.type || 'Manual'}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    >
-                      <option value="Manual">Manual</option>
-                      <option value="IA">IA</option>
-                      <option value="Sub Broker">Sub Broker</option>
-                      <option value="RA">RA</option>
-                    </select>
+                {/* Company & Registration */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-primary" /> Company & Registration
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Registration No</label>
+                      <input
+                        type="text"
+                        pattern="^[A-Za-z0-9\s\-]{3,25}$"
+                        title="Enter a valid registration number"
+                        value={formData.registrationNo || ''}
+                        onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. REG12345"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Validity</label>
+                      <input
+                        type="text"
+                        value={formData.validity || ''}
+                        onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. 2025-12-31"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Source</label>
-                    <input
-                      type="text"
-                      value={formData.source || ''}
-                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. Website Signup"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Trade Name</label>
+                      <input
+                        type="text"
+                        value={formData.tradeName || ''}
+                        onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. AlgoTech Solutions"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Exchange Name</label>
+                      <input
+                        type="text"
+                        value={formData.exchangeName || ''}
+                        onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. NSE, BSE"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Company & Registration */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-primary" /> Company & Registration
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Location */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" /> Location
+                  </h3>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Registration No</label>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Address</label>
                     <input
                       type="text"
-                      pattern="^[A-Za-z0-9\s\-]{3,25}$"
-                      title="Enter a valid registration number"
-                      value={formData.registrationNo || ''}
-                      onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+                      value={formData.address || ''}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. REG12345"
+                      placeholder="Full street address"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Validity</label>
-                    <input
-                      type="text"
-                      value={formData.validity || ''}
-                      onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. 2025-12-31"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">City</label>
+                      <input
+                        type="text"
+                        value={formData.city || ''}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">State</label>
+                      <input
+                        type="text"
+                        value={formData.state || ''}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="State"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Pincode</label>
+                      <input
+                        type="text"
+                        pattern="^[0-9A-Za-z\s\-]{3,10}$"
+                        title="Enter a valid pincode/zipcode"
+                        value={formData.pincode || ''}
+                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Pincode"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Fax</label>
+                      <input
+                        type="tel"
+                        pattern="^\+?[0-9\s\-\(\)]{7,15}$"
+                        title="Enter a valid fax number"
+                        value={formData.fax || ''}
+                        onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Fax number"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Trade Name</label>
-                    <input
-                      type="text"
-                      value={formData.tradeName || ''}
-                      onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. AlgoTech Solutions"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Exchange Name</label>
-                    <input
-                      type="text"
-                      value={formData.exchangeName || ''}
-                      onChange={(e) => setFormData({ ...formData, exchangeName: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. NSE, BSE"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              {/* Location */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary" /> Location
-                </h3>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Address</label>
-                  <input
-                    type="text"
-                    value={formData.address || ''}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                    placeholder="Full street address"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">City</label>
-                    <input
-                      type="text"
-                      value={formData.city || ''}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="City"
-                    />
+                {/* Socials */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <Link className="h-4 w-4 text-primary" /> Social Links
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">LinkedIn</label>
+                      <input
+                        type="url"
+                        pattern="https?://.+"
+                        title="Include http:// or https://"
+                        value={formData.linkedin || ''}
+                        onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="https://linkedin.com/in/..."
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Twitter</label>
+                      <input
+                        type="url"
+                        pattern="https?://.+"
+                        title="Include http:// or https://"
+                        value={formData.twitter || ''}
+                        onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="https://twitter.com/..."
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Facebook</label>
+                      <input
+                        type="url"
+                        pattern="https?://.+"
+                        title="Include http:// or https://"
+                        value={formData.facebook || ''}
+                        onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="https://facebook.com/..."
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">State</label>
-                    <input
-                      type="text"
-                      value={formData.state || ''}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="State"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Pincode</label>
-                    <input
-                      type="text"
-                      pattern="^[0-9A-Za-z\s\-]{3,10}$"
-                      title="Enter a valid pincode/zipcode"
-                      value={formData.pincode || ''}
-                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Pincode"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Fax</label>
-                    <input
-                      type="tel"
-                      pattern="^\+?[0-9\s\-\(\)]{7,15}$"
-                      title="Enter a valid fax number"
-                      value={formData.fax || ''}
-                      onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Fax number"
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Other Listings / URLs</label>
+                    <textarea
+                      value={formData.otherListings || ''}
+                      onChange={(e) => setFormData({ ...formData, otherListings: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
+                      placeholder="Enter multiple URLs (e.g. separated by commas or lines) of platforms you work with..."
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Socials */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <Link className="h-4 w-4 text-primary" /> Social Links
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Enrichment Data */}
+                <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
+                  <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-primary" /> Enrichment Data
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</label>
+                      <input
+                        type="text"
+                        value={formData.sellsAlgoTrading || ''}
+                        onChange={(e) => setFormData({ ...formData, sellsAlgoTrading: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="Yes / No"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Broker Partner</label>
+                      <input
+                        type="text"
+                        value={formData.brokerPartner || ''}
+                        onChange={(e) => setFormData({ ...formData, brokerPartner: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. Zerodha, AngelOne"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Company Size</label>
+                      <input
+                        type="text"
+                        value={formData.companySizeEstimate || ''}
+                        onChange={(e) => setFormData({ ...formData, companySizeEstimate: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="e.g. 10-50 employees"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Logo URL</label>
+                      <input
+                        type="url"
+                        pattern="https?://.+"
+                        title="Include http:// or https://"
+                        value={formData.logoUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">LinkedIn</label>
-                    <input
-                      type="url"
-                      pattern="https?://.+"
-                      title="Include http:// or https://"
-                      value={formData.linkedin || ''}
-                      onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="https://linkedin.com/in/..."
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Products Offered</label>
+                    <textarea
+                      value={formData.productsOffered || ''}
+                      onChange={(e) => setFormData({ ...formData, productsOffered: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
+                      placeholder="List of products..."
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Twitter</label>
-                    <input
-                      type="url"
-                      pattern="https?://.+"
-                      title="Include http:// or https://"
-                      value={formData.twitter || ''}
-                      onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="https://twitter.com/..."
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Services Summary</label>
+                    <textarea
+                      value={formData.servicesSummary || ''}
+                      onChange={(e) => setFormData({ ...formData, servicesSummary: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
+                      placeholder="Brief description of services..."
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Facebook</label>
-                    <input
-                      type="url"
-                      pattern="https?://.+"
-                      title="Include http:// or https://"
-                      value={formData.facebook || ''}
-                      onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="https://facebook.com/..."
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Enrichment Notes</label>
+                    <textarea
+                      value={formData.enrichmentNotes || ''}
+                      onChange={(e) => setFormData({ ...formData, enrichmentNotes: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
+                      placeholder="Additional notes from enrichment..."
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Other Listings / URLs</label>
-                  <textarea
-                    value={formData.otherListings || ''}
-                    onChange={(e) => setFormData({ ...formData, otherListings: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
-                    placeholder="Enter multiple URLs (e.g. separated by commas or lines) of platforms you work with..."
-                  />
-                </div>
-              </div>
 
-              {/* Enrichment Data */}
-              <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-6 sm:p-8 space-y-6 transition-all hover:border-primary/30 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-200 group-hover:bg-primary transition-colors"></div>
-                <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
-                  <Briefcase className="h-4 w-4 text-primary" /> Enrichment Data
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Sells Algo Trading?</label>
-                    <input
-                      type="text"
-                      value={formData.sellsAlgoTrading || ''}
-                      onChange={(e) => setFormData({ ...formData, sellsAlgoTrading: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="Yes / No"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Broker Partner</label>
-                    <input
-                      type="text"
-                      value={formData.brokerPartner || ''}
-                      onChange={(e) => setFormData({ ...formData, brokerPartner: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. Zerodha, AngelOne"
-                    />
-                  </div>
+                <div className="flex items-center justify-end gap-3 pt-6 mt-4 border-t border-slate-200/60 sticky bottom-0 bg-slate-50 py-4 px-6 sm:px-8 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 z-10 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
+                  <button
+                    type="button"
+                    onClick={() => setIsFormOpen(false)}
+                    className="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="btn-primary !px-8 !py-2.5 text-sm font-bold shadow-md hover:shadow-lg rounded-xl"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Lead'}
+                  </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Company Size</label>
-                    <input
-                      type="text"
-                      value={formData.companySizeEstimate || ''}
-                      onChange={(e) => setFormData({ ...formData, companySizeEstimate: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="e.g. 10-50 employees"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Logo URL</label>
-                    <input
-                      type="url"
-                      pattern="https?://.+"
-                      title="Include http:// or https://"
-                      value={formData.logoUrl || ''}
-                      onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300"
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Products Offered</label>
-                  <textarea
-                    value={formData.productsOffered || ''}
-                    onChange={(e) => setFormData({ ...formData, productsOffered: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
-                    placeholder="List of products..."
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Services Summary</label>
-                  <textarea
-                    value={formData.servicesSummary || ''}
-                    onChange={(e) => setFormData({ ...formData, servicesSummary: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
-                    placeholder="Brief description of services..."
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-slate-500 uppercase tracking-wider">Enrichment Notes</label>
-                  <textarea
-                    value={formData.enrichmentNotes || ''}
-                    onChange={(e) => setFormData({ ...formData, enrichmentNotes: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 hover:border-slate-300 min-h-[100px] resize-none"
-                    placeholder="Additional notes from enrichment..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-6 mt-4 border-t border-slate-200/60 sticky bottom-0 bg-slate-50 py-4 px-6 sm:px-8 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 z-10 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn-primary !px-8 !py-2.5 text-sm font-bold shadow-md hover:shadow-lg rounded-xl"
-                >
-                  {isSubmitting ? 'Saving...' : 'Save Lead'}
-                </button>
-              </div>
-            </form>
+              </form>
             </div>
           </div>
         </div>
@@ -1955,7 +2000,7 @@ export const Leads: React.FC = () => {
       {rescrapeReport.isOpen && rescrapeReport.data && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 my-6">
-            
+
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-5 mb-6">
               <div className="flex items-center gap-3.5">

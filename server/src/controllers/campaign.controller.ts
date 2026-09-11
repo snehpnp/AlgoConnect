@@ -624,7 +624,7 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
           metadataJson: { isManual: true, error: err.message }
         }
       });
-      throw new Error(`Failed to send email: ${err.message}`);
+     
     }
   } else {
     // For SMS/Whatsapp, ensure phone exists

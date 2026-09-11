@@ -83,6 +83,29 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
     usersService.getUsers().then(res => setTeamMembers(res.data)).catch(console.error);
   }, []);
 
+  const [isScrapingContactInfo, setIsScrapingContactInfo] = useState(false);
+  const handleScrapeContactInfo = async () => {
+    if (!lead) return;
+    setIsScrapingContactInfo(true);
+    const toastId = toast.loading('Scraping website for contact info...');
+    try {
+      const response = await leadsService.scrapeLead(lead.id);
+      toast.dismiss(toastId);
+      
+      if (response.emailFound || response.phoneFound) {
+        toast.success(`🎉 ${response.message}`);
+        onEdit(response.data);
+      } else {
+        toast.error(response.message || 'No new contact info found.');
+      }
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(err.response?.data?.message || err.message || 'Failed to scrape contact info');
+    } finally {
+      setIsScrapingContactInfo(false);
+    }
+  };
+
   const updateStatus = async (newStatus: string) => {
     if (!lead) return;
     setIsUpdatingStatus(true);
@@ -807,7 +830,19 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                   <div className="flex items-start gap-3">
                     <Mail className="h-4 w-4 text-slate-400 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Email</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Email</p>
+                        {(!lead.email && lead.website) && (
+                          <button
+                            onClick={handleScrapeContactInfo}
+                            disabled={isScrapingContactInfo}
+                            className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {isScrapingContactInfo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                            Scrape Email
+                          </button>
+                        )}
+                      </div>
                       <p className="text-sm font-medium text-slate-900 truncate mt-0.5">{lead.email || '—'}</p>
                       {lead.email2 && <p className="text-sm font-medium text-slate-900 truncate mt-1">{lead.email2}</p>}
                     </div>
@@ -816,7 +851,19 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                   <div className="flex items-start gap-3">
                     <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Phone</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Phone</p>
+                        {(!lead.phone && lead.website) && (
+                          <button
+                            onClick={handleScrapeContactInfo}
+                            disabled={isScrapingContactInfo}
+                            className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {isScrapingContactInfo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                            Scrape Phone
+                          </button>
+                        )}
+                      </div>
                       <p className="text-sm font-medium text-slate-900 mt-0.5">{lead.phone || '—'}</p>
                       {lead.phone2 && <p className="text-sm font-medium text-slate-900 mt-1">{lead.phone2}</p>}
                     </div>

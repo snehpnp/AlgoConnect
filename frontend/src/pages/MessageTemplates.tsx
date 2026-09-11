@@ -47,7 +47,7 @@ export const MessageTemplates = () => {
                 <div class="gmail-to">to me <span style="font-size: 10px; margin-left: 4px; color: #555;">▼</span></div>
               </div>
             </div>
-            <div class="gmail-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (0 minutes ago)</div>
+            <div class="gmail-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (0 minutes ago)</div>
           </div>
           <div class="gmail-content">
             ${content}
@@ -144,7 +144,7 @@ export const MessageTemplates = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-gray-500 text-xs line-clamp-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
                   {template.type === 'EMAIL'
                     ? template.content.replace(new RegExp('<[^>]*>?', 'gm'), '') // Strip HTML
@@ -187,7 +187,7 @@ export const MessageTemplates = () => {
                 <th className="p-4 font-medium">Name</th>
                 <th className="p-4 font-medium">Type</th>
                 <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium">Content Preview</th>
+
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
@@ -223,11 +223,7 @@ export const MessageTemplates = () => {
                         {template.status}
                       </span>
                     </td>
-                    <td className="p-4 text-gray-500 text-sm max-w-xs truncate">
-                      {template.type === 'EMAIL'
-                        ? template.content.replace(new RegExp('<[^>]*>?', 'gm'), '') // Strip HTML for plain text preview in table
-                        : template.content}
-                    </td>
+
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button

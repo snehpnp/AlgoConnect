@@ -49,6 +49,7 @@ export interface Lead {
   enrichmentNotes?: string | null;
   logoUrl?: string | null;
   otherListings?: string | null;
+  messageSends?: Array<{ status: string; channel: string; createdAt: string }>;
 }
 
 export const getUnifiedStatus = (lead: Lead): string => {
@@ -92,7 +93,7 @@ export interface ImportLeadsResponse {
 }
 
 export const leadsService = {
-  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; bounced?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; }): Promise<GetLeadsResponse> => {
+  getLeads: async (params?: { page?: number; limit?: number; search?: string; salesStage?: string; verificationStatus?: string; engagementStatus?: string; consentStatus?: string; unifiedStatus?: string; bounced?: string; type?: string; sortBy?: string; order?: 'asc' | 'desc'; state?: string; city?: string; websiteStatus?: string; sellsAlgoTrading?: string; exchangeName?: string; otherListings?: string; campaignStatus?: string; }): Promise<GetLeadsResponse> => {
     const response = await apiClient.get<GetLeadsResponse>('/leads', { params });
     return response.data;
   },
@@ -173,6 +174,11 @@ export const leadsService = {
     };
   }> => {
     const res = await apiClient.post('/leads/rescrape-bounced', { leadIds });
+    return res.data;
+  },
+
+  scrapeLead: async (id: number): Promise<{ message: string; data: Lead; emailFound: string | null; phoneFound: string | null; }> => {
+    const res = await apiClient.post(`/leads/${id}/scrape`);
     return res.data;
   },
 };

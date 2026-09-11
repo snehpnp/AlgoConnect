@@ -494,7 +494,7 @@ export const TemplateEditor = () => {
           <div className={`${CARD} flex flex-1 flex-col overflow-hidden`}>
             {formData.type === 'EMAIL' ? (
               showHtml ? (
-                <div className="flex h-full flex-1 flex-col">
+                <div className="flex h-full flex-1 flex-col overflow-y-auto custom-scrollbar">
                   <div className="flex flex-shrink-0 justify-end gap-1.5 border-b border-slate-200 bg-slate-50 p-2">
                     <button
                       type="button"
@@ -521,7 +521,7 @@ export const TemplateEditor = () => {
                   </div>
 
                   {isPreviewingHtml ? (
-                    <div className="relative w-full flex-1 bg-[#f6f8fc]">
+                    <div className="relative w-full flex-1 bg-[#f6f8fc] min-h-[300px]">
                       <iframe
                         title="HTML preview"
                         srcDoc={generateGmailPreview(formData.content, formData.subject)}
@@ -534,13 +534,13 @@ export const TemplateEditor = () => {
                       required
                       value={formData.content}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="custom-scrollbar w-full flex-1 resize-none bg-slate-900 p-4 font-mono text-sm text-slate-100 outline-none"
+                      className="custom-scrollbar w-full flex-1 resize-none bg-slate-900 p-4 font-mono text-sm text-slate-100 outline-none min-h-[300px]"
                       placeholder="<h1>Hello {{name}}</h1>"
                       spellCheck={false}
                     />
                   )}
                   {/* Attachments Section for EMAIL */}
-                  <div className="border-t border-slate-200 p-4 bg-white mt-auto">
+                  <div className="flex-shrink-0 border-t border-slate-200 p-4 bg-white mt-auto">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5">
                         <Paperclip className="w-4 h-4" />
@@ -585,7 +585,7 @@ export const TemplateEditor = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex h-full w-full flex-1 flex-col">
+                <div className="flex h-full w-full flex-1 flex-col overflow-y-auto custom-scrollbar">
                   <div className="flex-1 p-4 pb-0 flex flex-col">
                     <ReactQuill 
                       theme="snow" 
@@ -596,7 +596,7 @@ export const TemplateEditor = () => {
                     />
                   </div>
                   {/* Attachments Section for EMAIL */}
-                  <div className="border-t border-slate-100 p-4 bg-slate-50 mt-4">
+                  <div className="flex-shrink-0 border-t border-slate-100 p-4 bg-slate-50 mt-4">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5">
                         <Paperclip className="w-4 h-4" />

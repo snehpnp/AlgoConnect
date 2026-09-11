@@ -77,10 +77,10 @@ export const checkAndIncrementEmailLimit = async () => {
         // ── Enforce active limit against actual DB count ──
         if (activeLimit !== null && activeLimit > 0) {
           if (limitType === 'HOURLY' && sentThisHour >= activeLimit) {
-            throw new AppError(
-              `Hourly email limit of ${activeLimit} reached. Try again next hour.`,
-              429
-            );
+            // throw new AppError(
+            //   `Hourly email limit of ${activeLimit} reached. Try again next hour.`,
+            //   429
+            // );
           }
           if (limitType === 'DAILY' && sentToday >= activeLimit) {
             throw new AppError(
