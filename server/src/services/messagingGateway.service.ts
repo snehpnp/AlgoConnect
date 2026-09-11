@@ -174,7 +174,7 @@ export const messagingGateway = {
           data: {
             status: finalStatus,
             providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`,
-            sentAt: isLimitError ? null : undefined
+            sentAt: null
           }
         });
 
