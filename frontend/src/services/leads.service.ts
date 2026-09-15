@@ -48,6 +48,8 @@ export interface Lead {
   companySizeEstimate?: string | null;
   enrichmentNotes?: string | null;
   logoUrl?: string | null;
+  scrapedEmail?: string | null;
+  scrapedPhone?: string | null;
   otherListings?: string | null;
   messageSends?: Array<{ status: string; channel: string; createdAt: string }>;
 }
@@ -177,8 +179,14 @@ export const leadsService = {
     return res.data;
   },
 
-  scrapeLead: async (id: number): Promise<{ message: string; data: Lead; emailFound: string | null; phoneFound: string | null; }> => {
-    const res = await apiClient.post(`/leads/${id}/scrape`);
+  scrapeLead: async (id: number): Promise<{
+    message: string;
+    data: Lead;
+    emailFound: string | null;
+    phoneFound: string | null;
+    websiteFound?: string | null;
+  }> => {
+    const res = await apiClient.post(`/leads/${id}/scrape`, {}, { timeout: 60000 });
     return res.data;
   },
 };

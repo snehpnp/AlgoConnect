@@ -210,7 +210,7 @@ export const startCampaignRunner = () => {
 
             // Dispatch
             try {
-              await messagingGateway.sendMessage({
+              const sendResult = await messagingGateway.sendMessage({
                 campaignId: campaign.id,
                 leadId: lead.id,
                 templateId: template.id,
@@ -222,12 +222,14 @@ export const startCampaignRunner = () => {
                 attachments,
                 messageSendId: existingSend?.id
               });
-            } catch (error: any) {
-              if (error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'))) {
+
+              if (sendResult && sendResult.limitReached) {
                 console.log(`[CampaignRunner] Limit reached for ${channel}. Aborting campaign batch.`);
                 limitReached = true;
                 break; // Break the channel loop, outer loop will also break due to limitReached
               }
+            } catch (error: any) {
+              console.error(`[CampaignRunner] Unexpected error sending ${channel}:`, error);
             }
 
               processedCount++;

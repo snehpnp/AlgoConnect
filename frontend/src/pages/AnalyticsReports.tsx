@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart, PieChart as PieChartIcon,
-  TrendingUp, Users, Target, Activity, RefreshCw, Loader2
+  TrendingUp, Users, Target, Activity, RefreshCw, Loader2, Mail
 } from 'lucide-react';
 import { dashboardService, type DashboardResponse } from '../services/dashboard.service';
 import toast from 'react-hot-toast';
@@ -147,6 +147,61 @@ export const AnalyticsReports = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Email Engagement */}
+        {data.emailEngagement && (
+          <div className="card h-full">
+            <h2 className="text-base sm:text-lg font-black text-slate-800 mb-5 sm:mb-6 flex items-center gap-2">
+              <Mail className="h-5 w-5 text-indigo-500 shrink-0" /> Email Performance
+            </h2>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-semibold text-slate-600">Total Sent</span>
+                <span className="font-black text-slate-900">{data.emailEngagement.sent}</span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: '100%' }} />
+              </div>
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-semibold text-slate-600">Opened (Unique)</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded">
+                    {data.emailEngagement.sent > 0 ? Math.round((data.emailEngagement.opened / data.emailEngagement.sent) * 100) : 0}%
+                  </span>
+                  <span className="font-black text-slate-900">{data.emailEngagement.opened}</span>
+                </div>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                <div className="h-full bg-emerald-400 transition-all duration-1000" style={{ width: data.emailEngagement.sent ? `${(data.emailEngagement.opened / data.emailEngagement.sent) * 100}%` : '0%' }} />
+              </div>
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-semibold text-slate-600">Replied</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">
+                    {data.emailEngagement.sent > 0 ? Math.round((data.emailEngagement.replied / data.emailEngagement.sent) * 100) : 0}%
+                  </span>
+                  <span className="font-black text-slate-900">{data.emailEngagement.replied}</span>
+                </div>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                <div className="h-full bg-purple-500 transition-all duration-1000" style={{ width: data.emailEngagement.sent ? `${(data.emailEngagement.replied / data.emailEngagement.sent) * 100}%` : '0%' }} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-3">
+                <div className="border border-red-100 bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider mb-1">Bounced</p>
+                  <p className="text-lg font-black text-red-700">{data.emailEngagement.bounced}</p>
+                </div>
+                <div className="border border-amber-100 bg-amber-50 rounded-lg p-3 text-center">
+                  <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider mb-1">Failed</p>
+                  <p className="text-lg font-black text-amber-700">{data.emailEngagement.failed}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}

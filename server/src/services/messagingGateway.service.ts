@@ -163,9 +163,12 @@ export const messagingGateway = {
       return { success: true, messageId: sentEvent.id };
 
     } catch (error: any) {
-      console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
-
       const isLimitError = error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'));
+      
+      if (!isLimitError) {
+        console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
+      }
+
       const finalStatus = isLimitError ? 'PENDING' : 'FAILED';
 
       if (msgId) {
@@ -187,9 +190,8 @@ export const messagingGateway = {
         });
       }
 
-      // If it's a limit error, throw it so the campaign runner can catch it and abort the batch
       if (isLimitError) {
-        throw error;
+        return { success: false, limitReached: true, error };
       }
 
       return { success: false, error };

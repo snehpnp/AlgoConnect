@@ -20,6 +20,7 @@ interface Lead360DrawerProps {
   onClose: () => void;
   lead: Lead | null;
   onEdit: (lead: Lead) => void;
+  onLeadUpdated?: (lead: Lead) => void;
 }
 
 const formatDate = (dateString?: string) => {
@@ -49,7 +50,10 @@ const parseEmailBody = (body: string) => {
   return cleanText.trim();
 };
 
-export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerProps) => {
+export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit, onLeadUpdated }: Lead360DrawerProps) => {
+  const applyLeadUpdate = (updated: Lead) => {
+    onLeadUpdated?.(updated);
+  };
   const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes' | 'emails' | 'whatsapp'>('data');
   const [dataView, setDataView] = useState<'sebi' | 'scraped' | 'all'>('sebi');
   const [logs, setLogs] = useState<any[]>([]);
@@ -87,14 +91,16 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
   const handleScrapeContactInfo = async () => {
     if (!lead) return;
     setIsScrapingContactInfo(true);
-    const toastId = toast.loading('Scraping website for contact info...');
+    const toastId = toast.loading('Scraping this lead for website, email and phone...');
     try {
       const response = await leadsService.scrapeLead(lead.id);
       toast.dismiss(toastId);
-      
-      if (response.emailFound || response.phoneFound) {
-        toast.success(`🎉 ${response.message}`);
-        onEdit(response.data);
+
+      if (response.data) applyLeadUpdate(response.data);
+      setDataView('scraped');
+
+      if (response.emailFound || response.phoneFound || response.websiteFound) {
+        toast.success(response.message || 'Scraping successful.');
       } else {
         toast.error(response.message || 'No new contact info found.');
       }
@@ -111,7 +117,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
     setIsUpdatingStatus(true);
     try {
       const updatedLead = await leadsService.updateLead(lead.id, { status: newStatus });
-      onEdit(updatedLead);
+      applyLeadUpdate(updatedLead);
     } catch (error) {
       console.error('Failed to update status', error);
     } finally {
@@ -126,7 +132,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
       const res = await leadsService.updateLead(lead!.id, { userId: newUserId } as any);
       toast.success('Lead assigned successfully');
       // Opt: update local lead state or trigger onEdit
-      onEdit((res as any).data || res);
+      applyLeadUpdate((res as any).data || res);
     } catch (err) {
       console.error(err);
       toast.error('Failed to assign lead');
@@ -197,7 +203,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
         nextFollowUpAt: followUpDate || null,
         followUpNotes: followUpNote
       });
-      onEdit({ ...lead, ...res.data.data } as any);
+      applyLeadUpdate({ ...lead, ...res.data.data } as any);
       toast.success('Follow-up saved!');
       setShowFollowUpForm(false);
     } catch {
@@ -215,7 +221,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
         nextFollowUpAt: null,
         followUpNotes: ''
       });
-      onEdit({ ...lead, ...res.data.data } as any);
+      applyLeadUpdate({ ...lead, ...res.data.data } as any);
       toast.success('Follow-up cleared!');
       setShowFollowUpForm(false);
       setFollowUpDate('');
@@ -254,7 +260,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
       setCallOutcome('Interested');
 
       // we need to notify parent to refetch
-      onEdit({ ...lead, salesStage: callOutcome === 'Interested' ? 'Contacted' : lead.salesStage } as any);
+      applyLeadUpdate({ ...lead, salesStage: callOutcome === 'Interested' ? 'Contacted' : lead.salesStage } as any);
 
     } catch (err) {
       toast.error('Failed to log call');
@@ -385,6 +391,14 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg text-xs font-bold transition-colors"
             >
               <PhoneCall className="h-3.5 w-3.5" /> Log Call
+            </button>
+            <button
+              onClick={handleScrapeContactInfo}
+              disabled={isScrapingContactInfo}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+            >
+              {isScrapingContactInfo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+              Scrape Data
             </button>
           </div>
 
@@ -832,7 +846,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Email</p>
-                        {(!lead.email && lead.website) && (
+                        {(!lead.email) && (
                           <button
                             onClick={handleScrapeContactInfo}
                             disabled={isScrapingContactInfo}
@@ -853,7 +867,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Phone</p>
-                        {(!lead.phone && lead.website) && (
+                        {(!lead.phone) && (
                           <button
                             onClick={handleScrapeContactInfo}
                             disabled={isScrapingContactInfo}
@@ -979,11 +993,19 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
               {/* Enrichment Tab */}
               {dataView === 'scraped' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${lead.isEnriched ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
                       {lead.isEnriched ? '✓ Data Enriched' : '⏳ Pending Enrichment'}
                     </span>
+                    <button
+                      onClick={handleScrapeContactInfo}
+                      disabled={isScrapingContactInfo}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    >
+                      {isScrapingContactInfo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                      Scrape Data
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-6 bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
@@ -998,22 +1020,22 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit }: Lead360DrawerPr
                       </div>
                     )}
 
-                    {(lead as any).scrapedEmail && (
+                    {lead.scrapedEmail && (
                       <div className="flex items-start gap-3">
                         <Mail className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Scraped Email</p>
-                          <a href={`mailto:${(lead as any).scrapedEmail}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{(lead as any).scrapedEmail}</a>
+                          <a href={`mailto:${lead.scrapedEmail}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 break-all block">{lead.scrapedEmail}</a>
                         </div>
                       </div>
                     )}
 
-                    {(lead as any).scrapedPhone && (
+                    {lead.scrapedPhone && (
                       <div className="flex items-start gap-3">
                         <PhoneIcon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Scraped Phone</p>
-                          <a href={`tel:${(lead as any).scrapedPhone}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 block">{(lead as any).scrapedPhone}</a>
+                          <a href={`tel:${lead.scrapedPhone}`} className="text-sm font-medium text-blue-600 hover:underline mt-0.5 block">{lead.scrapedPhone}</a>
                         </div>
                       </div>
                     )}

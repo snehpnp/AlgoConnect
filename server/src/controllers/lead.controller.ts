@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { messagingGateway } from '../services/messagingGateway.service';
 import { SocketService } from '../services/socket.service';
 import { RoutingService } from '../services/routing.service';
+import { findWebsiteFromSearch, scrapeWebsiteContactInfo } from '../services/leadScrape.service';
 
 export const sendDirectMessage = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -1077,97 +1078,82 @@ export const scrapeLeadContactInfo = asyncHandler(async (req: Request, res: Resp
     return res.status(404).json({ message: 'Lead not found' });
   }
 
-  if (!lead.website) {
-    return res.status(400).json({ message: 'Lead does not have a website to scrape.' });
-  }
-
-  let domain = lead.website.trim().toLowerCase();
-  if (!domain.startsWith('http')) domain = `https://${domain}`;
-
-  const fetchPageContent = async (urlStr: string, timeoutMs = 3000): Promise<string> => {
-    try {
-      const httpModule = urlStr.startsWith('https') ? require('https') : require('http');
-      return await new Promise((resolve) => {
-        const timer = setTimeout(() => resolve(''), timeoutMs);
-        const req = httpModule.get(urlStr, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res: any) => {
-          let data = '';
-          res.on('data', (chunk: any) => { data += chunk; if (data.length > 200000) res.destroy(); });
-          res.on('end', () => { clearTimeout(timer); resolve(data); });
-        });
-        req.on('error', () => { clearTimeout(timer); resolve(''); });
-      });
-    } catch {
-      return '';
-    }
-  };
-
-  const html = await fetchPageContent(domain, 4000);
-  if (!html) {
-    return res.status(500).json({ message: 'Failed to fetch website content or website is unreachable.' });
-  }
-
-  let emailFound = null;
-  let phoneFound = null;
   const updateData: any = {};
+  let website = (lead.website || '').trim();
+  let websiteDiscovered = false;
 
-  // Try to find email if missing
-  if (!lead.email) {
-    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const matchedEmails = html.match(emailRegex) || [];
-    
-    const isValidEmailFormat = (emailStr: string): boolean => {
-      const clean = emailStr.trim().toLowerCase();
-      if (clean.length < 6 || !clean.includes('@') || !clean.includes('.')) return false;
-      if (clean.includes('example.com') || /\.(png|jpg|jpeg|gif|svg|css|js|webp)$/i.test(clean)) return false;
-      return true;
-    };
-
-    const validEmails = matchedEmails.map(e => e.trim().toLowerCase()).filter(isValidEmailFormat);
-    if (validEmails.length > 0) {
-      const domainName = domain.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-      const domainMatch = validEmails.find(e => e.includes(domainName));
-      emailFound = domainMatch || validEmails[0];
-      updateData.email = emailFound;
-      updateData.scrapedEmail = emailFound;
+  if (!website) {
+    const discovered = await findWebsiteFromSearch(lead.name, lead.registrationNo);
+    if (discovered) {
+      website = discovered;
+      websiteDiscovered = true;
+      updateData.website = discovered;
+      updateData.hasOwnWebsite = true;
     }
   }
 
-  // Try to find phone if missing
-  if (!lead.phone) {
-    // Regex for basic phone matching (Indian format / general)
-    const phoneRegex = /(?:\+91[\s-]?)?[6789]\d{9}/g;
-    const matchedPhones = html.match(phoneRegex) || [];
-    if (matchedPhones.length > 0 && matchedPhones[0]) {
-      phoneFound = matchedPhones[0].trim();
-      updateData.phone = phoneFound;
-      updateData.scrapedPhone = phoneFound;
-    }
-  }
-
-  if (Object.keys(updateData).length > 0) {
-    const updatedLead = await prisma.lead.update({
-      where: { id: leadId },
-      data: updateData
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        userId: req.user?.id || 1,
-        action: 'SCRAPED_CONTACT_INFO',
-        details: `Scraped website for Lead #${lead.id}. ${emailFound ? 'Found email: ' + emailFound + '. ' : ''}${phoneFound ? 'Found phone: ' + phoneFound + '.' : ''}`
-      }
-    });
-
-    return res.status(200).json({ 
-      message: 'Scraping successful.',
-      data: updatedLead,
-      emailFound,
-      phoneFound
-    });
-  } else {
-    return res.status(200).json({ 
-      message: 'Scraped website but no new contact info was found.',
-      data: lead
+  if (!website) {
+    return res.status(400).json({
+      message: 'No website on this lead, and website search did not find one. Add a website and try again.',
+      data: lead,
+      emailFound: null,
+      phoneFound: null,
+      websiteFound: null,
     });
   }
+
+  const { htmlFound, emailFound, phoneFound } = await scrapeWebsiteContactInfo(website);
+
+  if (!htmlFound && !websiteDiscovered) {
+    return res.status(500).json({
+      message: 'Failed to fetch website content or website is unreachable.',
+      data: lead,
+      emailFound: null,
+      phoneFound: null,
+      websiteFound: null,
+    });
+  }
+
+  if (emailFound) {
+    updateData.scrapedEmail = emailFound;
+    if (!lead.email) updateData.email = emailFound;
+  }
+  if (phoneFound) {
+    updateData.scrapedPhone = phoneFound;
+    if (!lead.phone) updateData.phone = phoneFound;
+  }
+  if (emailFound || phoneFound || websiteDiscovered) {
+    updateData.isEnriched = true;
+  }
+
+  const foundAnything = Object.keys(updateData).length > 0;
+  const updatedLead = foundAnything
+    ? await prisma.lead.update({ where: { id: leadId }, data: updateData })
+    : lead;
+
+  const parts = [
+    websiteDiscovered ? `Website: ${website}.` : '',
+    emailFound ? `Email: ${emailFound}.` : '',
+    phoneFound ? `Phone: ${phoneFound}.` : '',
+  ].filter(Boolean);
+
+  await prisma.activityLog.create({
+    data: {
+      userId: req.user?.id || 1,
+      action: 'SCRAPED_CONTACT_INFO',
+      details: `Scraped Lead #${lead.id}. ${parts.join(' ') || 'No new contact info found.'}`,
+    },
+  });
+
+  const message = parts.length
+    ? `Scraping successful. ${parts.join(' ')}`
+    : 'Scraped website but no new contact info was found.';
+
+  return res.status(200).json({
+    message,
+    data: updatedLead,
+    emailFound,
+    phoneFound,
+    websiteFound: websiteDiscovered ? website : null,
+  });
 });

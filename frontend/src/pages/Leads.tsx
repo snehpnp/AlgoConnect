@@ -1490,6 +1490,10 @@ export const Leads: React.FC = () => {
           setIsFormOpen(true);
           handleCloseDrawer();
         }}
+        onLeadUpdated={(updated) => {
+          setSelectedLead(updated);
+          setLeads(prev => prev.map(l => l.id === updated.id ? { ...l, ...updated } : l));
+        }}
       />
 
       <DirectMailModal

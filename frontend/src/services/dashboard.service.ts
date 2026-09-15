@@ -70,6 +70,13 @@ export interface DashboardResponse {
       conversionRate: number;
     }[];
     averageTimeToClose?: number;
+    emailEngagement?: {
+      sent: number;
+      opened: number;
+      replied: number;
+      bounced: number;
+      failed: number;
+    };
   };
 }
 

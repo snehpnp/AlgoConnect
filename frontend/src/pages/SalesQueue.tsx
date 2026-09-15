@@ -298,6 +298,10 @@ export const SalesQueue = () => {
           setSelectedLead(updated);
           fetchData();
         }}
+        onLeadUpdated={(updated) => {
+          setSelectedLead(updated);
+          fetchData();
+        }}
       />
     </div>
   );

@@ -190,6 +190,21 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
     };
   }).sort((a, b) => b.score - a.score).slice(0, 10); // Top 10
 
+  // 10. Email Engagement Stats
+  const emailStatsRaw = await prisma.messageSend.groupBy({
+    by: ['status'],
+    where: { channel: 'EMAIL' },
+    _count: { id: true }
+  });
+
+  const emailEngagement = {
+    sent: emailStatsRaw.reduce((acc, curr) => ['SENT', 'OPENED', 'CLICKED', 'REPLIED', 'BOUNCED', 'DELIVERED'].includes(curr.status) ? acc + curr._count.id : acc, 0),
+    opened: emailStatsRaw.reduce((acc, curr) => ['OPENED', 'CLICKED', 'REPLIED'].includes(curr.status) ? acc + curr._count.id : acc, 0),
+    replied: emailStatsRaw.reduce((acc, curr) => curr.status === 'REPLIED' ? acc + curr._count.id : acc, 0),
+    bounced: emailStatsRaw.reduce((acc, curr) => curr.status === 'BOUNCED' ? acc + curr._count.id : acc, 0),
+    failed: emailStatsRaw.reduce((acc, curr) => curr.status === 'FAILED' ? acc + curr._count.id : acc, 0),
+  };
+
   res.status(200).json({
     data: {
       stats: {
@@ -212,7 +227,8 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
       recentCommunications,
       leaderboard,
       todaysFollowUps,
-      overdueFollowUpsCount
+      overdueFollowUpsCount,
+      emailEngagement
     },
     message: 'Dashboard stats retrieved successfully'
   });
