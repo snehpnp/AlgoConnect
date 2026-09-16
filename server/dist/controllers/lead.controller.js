@@ -36,12 +36,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rescrapeBouncedLeads = exports.processFile = exports.uploadChunk = exports.getFilterOptions = exports.getLeadLogs = exports.deleteLead = exports.updateLead = exports.getLeadById = exports.createLead = exports.getLeads = exports.importLeads = exports.getLeadMessageHistory = exports.sendDirectMessage = void 0;
+exports.scrapeLeadContactInfo = exports.rescrapeBouncedLeads = exports.processFile = exports.uploadChunk = exports.getFilterOptions = exports.getLeadLogs = exports.deleteLead = exports.updateLead = exports.getLeadById = exports.createLead = exports.getLeads = exports.importLeads = exports.getLeadMessageHistory = exports.sendDirectMessage = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const messagingGateway_service_1 = require("../services/messagingGateway.service");
 const socket_service_1 = require("../services/socket.service");
 const routing_service_1 = require("../services/routing.service");
+const leadScrape_service_1 = require("../services/leadScrape.service");
 exports.sendDirectMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
     const { channel = 'EMAIL', subject, body, templateId, recipientEmail } = req.body;
@@ -183,7 +184,8 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const sellsAlgoTrading = req.query.sellsAlgoTrading || 'All';
     const exchangeName = req.query.exchangeName || 'All';
     const otherListings = req.query.otherListings || 'All';
-    const bounced = req.query.bounced || req.query.bouncedFilter || 'All';
+    const campaignStatus = req.query.campaignStatus || 'All';
+    const dataFilter = req.query.dataFilter || 'All';
     const skip = (page - 1) * limit;
     const where = {};
     if (salesStage && salesStage !== 'All')
@@ -252,20 +254,6 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     }
     if (verificationStatus && verificationStatus !== 'All')
         where.verificationStatus = verificationStatus;
-    if (bounced && bounced !== 'All') {
-        if (bounced === 'BOUNCED' || bounced === 'Bounced') {
-            where.OR = [
-                { engagementStatus: 'Bounced' },
-                { messageSends: { some: { status: 'BOUNCED' } } }
-            ];
-        }
-        else if (bounced === 'NOT_BOUNCED' || bounced === 'Not Bounced' || bounced === 'NotBounced') {
-            where.AND = [
-                { engagementStatus: { not: 'Bounced' } },
-                { messageSends: { none: { status: 'BOUNCED' } } }
-            ];
-        }
-    }
     if (engagementStatus && engagementStatus !== 'All') {
         if (engagementStatus === 'BOUNCED' || engagementStatus === 'Bounced') {
             where.OR = [
@@ -291,23 +279,37 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         where.state = state;
     if (city && city !== 'All')
         where.city = city;
-    if (websiteStatus === 'NoWebsite') {
+    if (dataFilter === 'NoWebsite') {
         if (!where.AND)
             where.AND = [];
         where.AND.push({
-            OR: [
-                { website: null },
-                { website: '' }
-            ]
+            OR: [{ website: null }, { website: '' }]
         });
     }
-    else if (websiteStatus === 'HasWebsite') {
+    else if (dataFilter === 'HasWebsite') {
         if (!where.AND)
             where.AND = [];
         where.AND.push({
             website: { not: null },
             NOT: { website: '' }
         });
+    }
+    else if (dataFilter === 'MissingEmail') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({ OR: [{ email: null }, { email: '' }] });
+        where.AND.push({ OR: [{ scrapedEmail: null }, { scrapedEmail: '' }] });
+    }
+    else if (dataFilter === 'MissingEmail2') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({ OR: [{ email2: null }, { email2: '' }] });
+    }
+    else if (dataFilter === 'MissingPhone') {
+        if (!where.AND)
+            where.AND = [];
+        where.AND.push({ OR: [{ phone: null }, { phone: '' }] });
+        where.AND.push({ OR: [{ scrapedPhone: null }, { scrapedPhone: '' }] });
     }
     if (sellsAlgoTrading === 'Yes') {
         if (!where.AND)
@@ -346,6 +348,14 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             ]
         });
     }
+    if (campaignStatus && campaignStatus !== 'All') {
+        if (campaignStatus === 'PENDING' || campaignStatus === 'QUEUED') {
+            where.messageSends = { some: { status: 'QUEUED' } };
+        }
+        else {
+            where.messageSends = { some: { status: campaignStatus } };
+        }
+    }
     if (search) {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
@@ -370,7 +380,12 @@ exports.getLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             skip,
             take: limit,
             include: {
-                user: { select: { id: true, name: true } }
+                user: { select: { id: true, name: true } },
+                messageSends: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { status: true, channel: true, createdAt: true }
+                }
             }
         }),
         prismaClient_1.default.lead.count({ where })
@@ -992,5 +1007,84 @@ exports.rescrapeBouncedLeads = (0, asyncHandler_1.asyncHandler)(async (req, res)
         processedCount: bouncedLeads.length,
         updatedCount,
         updatedLeads
+    });
+});
+// --- SCRAPE INDIVIDUAL LEAD CONTACT INFO ---
+exports.scrapeLeadContactInfo = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const leadId = parseInt(id);
+    const lead = await prismaClient_1.default.lead.findUnique({ where: { id: leadId } });
+    if (!lead) {
+        return res.status(404).json({ message: 'Lead not found' });
+    }
+    const updateData = {};
+    let website = (lead.website || '').trim();
+    let websiteDiscovered = false;
+    if (!website) {
+        const discovered = await (0, leadScrape_service_1.findWebsiteFromSearch)(lead.name, lead.registrationNo);
+        if (discovered) {
+            website = discovered;
+            websiteDiscovered = true;
+            updateData.website = discovered;
+            updateData.hasOwnWebsite = true;
+        }
+    }
+    if (!website) {
+        return res.status(400).json({
+            message: 'No website on this lead, and website search did not find one. Add a website and try again.',
+            data: lead,
+            emailFound: null,
+            phoneFound: null,
+            websiteFound: null,
+        });
+    }
+    const { htmlFound, emailFound, phoneFound } = await (0, leadScrape_service_1.scrapeWebsiteContactInfo)(website);
+    if (!htmlFound && !websiteDiscovered) {
+        return res.status(500).json({
+            message: 'Failed to fetch website content or website is unreachable.',
+            data: lead,
+            emailFound: null,
+            phoneFound: null,
+            websiteFound: null,
+        });
+    }
+    if (emailFound) {
+        updateData.scrapedEmail = emailFound;
+        if (!lead.email)
+            updateData.email = emailFound;
+    }
+    if (phoneFound) {
+        updateData.scrapedPhone = phoneFound;
+        if (!lead.phone)
+            updateData.phone = phoneFound;
+    }
+    if (emailFound || phoneFound || websiteDiscovered) {
+        updateData.isEnriched = true;
+    }
+    const foundAnything = Object.keys(updateData).length > 0;
+    const updatedLead = foundAnything
+        ? await prismaClient_1.default.lead.update({ where: { id: leadId }, data: updateData })
+        : lead;
+    const parts = [
+        websiteDiscovered ? `Website: ${website}.` : '',
+        emailFound ? `Email: ${emailFound}.` : '',
+        phoneFound ? `Phone: ${phoneFound}.` : '',
+    ].filter(Boolean);
+    await prismaClient_1.default.activityLog.create({
+        data: {
+            userId: req.user?.id || 1,
+            action: 'SCRAPED_CONTACT_INFO',
+            details: `Scraped Lead #${lead.id}. ${parts.join(' ') || 'No new contact info found.'}`,
+        },
+    });
+    const message = parts.length
+        ? `Scraping successful. ${parts.join(' ')}`
+        : 'Scraped website but no new contact info was found.';
+    return res.status(200).json({
+        message,
+        data: updatedLead,
+        emailFound,
+        phoneFound,
+        websiteFound: websiteDiscovered ? website : null,
     });
 });

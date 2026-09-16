@@ -124,26 +124,26 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const openManageLeads = async (campaign: Campaign) => {
-    setOpenMenuId(null);
-    setIsLeadsModalOpen(true);
-    setModalSearch('');
-    setModalSalesStage('');
+  // const openManageLeads = async (campaign: Campaign) => {
+  //   setOpenMenuId(null);
+  //   setIsLeadsModalOpen(true);
+  //   setModalSearch('');
+  //   setModalSalesStage('');
 
-    // Fetch full campaign details to get already connected leads
-    try {
-      setLeadsLoading(true);
-      const campRes = await campaignService.getCampaignById(campaign.id);
-      setCurrentCampaign(campRes.data);
-      const existingLeadIds = campRes.data.leads?.map((l: any) => l.id) || [];
-      setSelectedLeadIds(new Set(existingLeadIds));
-    } catch (error) {
-      toast.error('Failed to load campaign details');
-      setSelectedLeadIds(new Set());
-    }
+  //   // Fetch full campaign details to get already connected leads
+  //   try {
+  //     setLeadsLoading(true);
+  //     const campRes = await campaignService.getCampaignById(campaign.id);
+  //     setCurrentCampaign(campRes.data);
+  //     const existingLeadIds = campRes.data.leads?.map((l: any) => l.id) || [];
+  //     setSelectedLeadIds(new Set(existingLeadIds));
+  //   } catch (error) {
+  //     toast.error('Failed to load campaign details');
+  //     setSelectedLeadIds(new Set());
+  //   }
 
-    await fetchModalLeads();
-  };
+  //   await fetchModalLeads();
+  // };
 
   // Debounced search for Modal
   useEffect(() => {
@@ -390,9 +390,9 @@ export const Campaigns: React.FC = () => {
                             {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                           </button>
                         )}
-                        <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        {/* <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                           <Users className="h-4 w-4" /> Add Leads
-                        </button>
+                        </button> */}
                         <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                           <Edit2 className="h-4 w-4" /> Edit
                         </button>
@@ -511,9 +511,9 @@ export const Campaigns: React.FC = () => {
                               {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                             </button>
                           )}
-                          <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                          {/* <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Users className="h-4 w-4" /> Add Leads
-                          </button>
+                          </button> */}
                           <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
@@ -893,13 +893,13 @@ export const Campaigns: React.FC = () => {
                                     </td>
                                     <td className="py-4 px-6">
                                       <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                                          lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
-                                            lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
-                                              lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
-                                                lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
-                                                  lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                                                    lead.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                                      'bg-slate-100 text-slate-700'
+                                        lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                                          lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                                            lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                              lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
+                                                lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                                                  lead.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-slate-100 text-slate-700'
                                         }`}>
                                         {lead.status}
                                       </span>

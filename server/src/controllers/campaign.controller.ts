@@ -21,7 +21,7 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   const campaign = await prisma.campaign.findUnique({
     where: { id: parseInt(id as string) },
     include: {
-      segments: { select: { id: true, name: true } },
+      segments: { select: { id: true, name: true, rules: true } },
       automations: true,
       leads: { select: { id: true, name: true, email: true, phone: true } },
       _count: { select: { leads: true } }
@@ -31,7 +31,17 @@ export const getCampaignById = asyncHandler(async (req: Request, res: Response) 
   if (!campaign) {
     throw new Error('Campaign not found');
   }
-  res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
+  
+  const segmentLeads = await getLeadsForSegments(campaign.segments);
+  const segmentLeadIds = new Set(segmentLeads.map(l => l.id));
+  const manualLeads = campaign.leads.filter(l => !segmentLeadIds.has(l.id));
+  
+  const responseData = {
+    ...campaign,
+    manualLeads
+  };
+
+  res.status(200).json({ data: responseData, message: 'Campaign retrieved successfully' });
 });
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

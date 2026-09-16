@@ -32,6 +32,7 @@ router.get('/:id/messages', auth_middleware_1.authenticate, lead_controller_1.ge
 const lead_controller_2 = require("../controllers/lead.controller");
 router.get('/filters/options', auth_middleware_1.authenticate, lead_controller_2.getFilterOptions);
 router.post('/rescrape-bounced', auth_middleware_1.authenticate, lead_controller_2.rescrapeBouncedLeads);
+router.post('/:id/scrape', auth_middleware_1.authenticate, lead_controller_2.scrapeLeadContactInfo);
 router.post('/upload-chunk', auth_middleware_1.authenticate, upload.single('chunk'), lead_controller_2.uploadChunk);
 router.post('/process-file', auth_middleware_1.authenticate, lead_controller_2.processFile);
 router.get('/:id/logs', auth_middleware_1.authenticate, lead_controller_1.getLeadLogs);

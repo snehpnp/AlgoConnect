@@ -17,6 +17,8 @@ export const getEngineState = () => {
   return isEngineRunning;
 };
 
+let isProcessingCampaigns = false;
+
 export const startCampaignRunner = () => {
   // Run IMAP checker every 1 minute
   cron.schedule('*/1 * * * *', async () => {
@@ -26,9 +28,10 @@ export const startCampaignRunner = () => {
 
   // Run campaign processor every 5 minutes
   cron.schedule('*/5 * * * *', async () => {
-    if (!isEngineRunning) {
+    if (!isEngineRunning || isProcessingCampaigns) {
       return;
     }
+    isProcessingCampaigns = true;
 
     try {
 
@@ -249,9 +252,33 @@ export const startCampaignRunner = () => {
               }
             }
           }
+
+        // Check for completion
+        const pendingCount = await prisma.messageSend.count({
+          where: {
+            campaignId: campaign.id,
+            status: { in: ['PENDING', 'QUEUED'] }
+          }
+        });
+
+        if (pendingCount === 0) {
+          await prisma.campaign.update({
+            where: { id: campaign.id },
+            data: { status: 'COMPLETED' }
+          });
+          
+          await prisma.campaignRun.updateMany({
+            where: { campaignId: campaign.id, status: 'PENDING' },
+            data: { status: 'COMPLETED' }
+          });
+          console.log(`[CampaignRunner] Campaign ${campaign.id} completed.`);
         }
+      }
+
     } catch (error) {
       console.error('[CampaignRunner] Error running campaign job:', error);
+    } finally {
+      isProcessingCampaigns = false;
     }
   });
 

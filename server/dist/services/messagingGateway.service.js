@@ -14,6 +14,10 @@ exports.messagingGateway = {
         try {
             // 1. Create or Update the MessageSend record first so we have the ID for tracking
             if (msgId) {
+                const existing = await prismaClient_1.default.messageSend.findUnique({ where: { id: msgId } });
+                if (existing && existing.status === 'SENT') {
+                    return { success: true, messageId: existing.id, alreadySent: true };
+                }
                 await prismaClient_1.default.messageSend.update({
                     where: { id: msgId },
                     data: {
@@ -38,14 +42,6 @@ exports.messagingGateway = {
                 });
                 msgId = msg.id;
             }
-            // Save the actual content sent so it can be viewed in history
-            await prismaClient_1.default.engagementEvent.create({
-                data: {
-                    messageSendId: msgId,
-                    eventType: 'SENT',
-                    metadataJson: { text: options.content }
-                }
-            });
             // Update Lead engagementStatus if it's currently 'Not Engaged'
             const lead = await prismaClient_1.default.lead.findUnique({ where: { id: options.leadId } });
             if (lead && lead.engagementStatus === 'Not Engaged') {
@@ -59,11 +55,12 @@ exports.messagingGateway = {
             if (options.channel === 'EMAIL') {
                 const backendUrl = process.env.BACKEND_URL || 'http://localhost:7700';
                 // Rewrite links for click tracking
-                const hrefRegex = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"/gi;
+                const hrefRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi;
                 let match;
                 let modifiedHtmlContent = finalHtmlContent;
                 while ((match = hrefRegex.exec(finalHtmlContent)) !== null) {
-                    const originalUrl = match[1];
+                    const originalQuote = match[1];
+                    const originalUrl = match[2];
                     if (originalUrl.startsWith('mailto:') || originalUrl.startsWith('tel:') || originalUrl.startsWith('#'))
                         continue;
                     // Create tracking string
@@ -76,7 +73,7 @@ exports.messagingGateway = {
                         }
                     });
                     const newUrl = `${backendUrl}/api/track/click/${trackingUrlId}`;
-                    modifiedHtmlContent = modifiedHtmlContent.replace(`href="${originalUrl}"`, `href="${newUrl}"`);
+                    modifiedHtmlContent = modifiedHtmlContent.replace(`href=${originalQuote}${originalUrl}${originalQuote}`, `href=${originalQuote}${newUrl}${originalQuote}`);
                 }
                 finalHtmlContent = modifiedHtmlContent;
                 const trackingPixel = `<img src="${backendUrl}/api/track/open/${providerMessageId}" width="1" height="1" style="display:none;" alt="" />`;
@@ -139,15 +136,18 @@ exports.messagingGateway = {
             return { success: true, messageId: sentEvent.id };
         }
         catch (error) {
-            console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
             const isLimitError = error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'));
+            if (!isLimitError) {
+                console.error(`[MessagingGateway] Failed to send ${options.channel}:`, error);
+            }
             const finalStatus = isLimitError ? 'PENDING' : 'FAILED';
             if (msgId) {
                 await prismaClient_1.default.messageSend.update({
                     where: { id: msgId },
                     data: {
                         status: finalStatus,
-                        providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`
+                        providerMessageId: isLimitError ? undefined : `fail-${Date.now()}`,
+                        sentAt: null
                     }
                 });
                 await prismaClient_1.default.engagementEvent.create({
@@ -158,9 +158,8 @@ exports.messagingGateway = {
                     }
                 });
             }
-            // If it's a limit error, throw it so the campaign runner can catch it and abort the batch
             if (isLimitError) {
-                throw error;
+                return { success: false, limitReached: true, error };
             }
             return { success: false, error };
         }

@@ -234,10 +234,24 @@ exports.testIntegration = testIntegration;
 // ─── GET /settings/message-logs ──────────────────────────────────────────────
 const getMessageLogs = async (req, res) => {
     try {
-        const { channel, status, dateFrom, dateTo, page = '1', limit = '50' } = req.query;
+        const { channel, status, dateFrom, dateTo, search, page = '1', limit = '50' } = req.query;
         const where = {};
         if (channel && channel !== 'ALL') {
             where.messageSend = { channel: channel };
+        }
+        if (search) {
+            const searchTerm = search.trim();
+            where.messageSend = {
+                ...where.messageSend,
+                lead: {
+                    OR: [
+                        { email: { contains: searchTerm, mode: 'insensitive' } },
+                        { scrapedEmail: { contains: searchTerm, mode: 'insensitive' } },
+                        { phone: { contains: searchTerm, mode: 'insensitive' } },
+                        { name: { contains: searchTerm, mode: 'insensitive' } }
+                    ]
+                }
+            };
         }
         if (status && status !== 'ALL') {
             if (status === 'REPLIED') {

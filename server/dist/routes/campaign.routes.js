@@ -18,4 +18,5 @@ router.delete('/:id', auth_middleware_1.authenticate, campaign_controller_1.dele
 router.post('/:id/leads', auth_middleware_1.authenticate, campaign_controller_1.addLeadsToCampaign);
 router.delete('/:id/leads/:leadId', auth_middleware_1.authenticate, campaign_controller_1.removeLeadFromCampaign);
 router.post('/:id/manual-message', auth_middleware_1.authenticate, campaign_controller_1.sendManualMessage);
+router.post('/:id/resend', auth_middleware_1.authenticate, campaign_controller_1.resendCampaign);
 exports.default = router;

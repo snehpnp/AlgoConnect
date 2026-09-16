@@ -19,6 +19,7 @@ export interface Campaign {
   whatsappTemplateId?: number | null;
   smsTemplateId?: number | null;
   leads?: { id: number; name: string; email?: string | null; phone?: string | null }[];
+  manualLeads?: { id: number; name: string; email?: string | null; phone?: string | null }[];
   _count?: { leads: number };
 }
 

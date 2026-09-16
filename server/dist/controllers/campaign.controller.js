@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendManualMessage = exports.getEngineLogs = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignLogs = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignConnectedLeads = exports.isLeadInSegment = exports.getLeadsForSegments = exports.buildWhereClauseFromSegmentRules = exports.getEmailPriorityRank = exports.isValidEmail = exports.getCampaignById = exports.getCampaigns = void 0;
+exports.resendCampaign = exports.sendManualMessage = exports.getEngineLogs = exports.toggleEngineStatus = exports.getEngineStatus = exports.getCampaignLogs = exports.getCampaignStats = exports.removeLeadFromCampaign = exports.addLeadsToCampaign = exports.deleteCampaign = exports.updateCampaign = exports.createCampaign = exports.getCampaignConnectedLeads = exports.isLeadInSegment = exports.getLeadsForSegments = exports.buildWhereClauseFromSegmentRules = exports.getEmailPriorityRank = exports.isValidEmail = exports.getCampaignById = exports.getCampaigns = void 0;
 const prismaClient_1 = __importDefault(require("../models/prismaClient"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const emailService_1 = require("../utils/emailService");
@@ -24,7 +24,7 @@ exports.getCampaignById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const campaign = await prismaClient_1.default.campaign.findUnique({
         where: { id: parseInt(id) },
         include: {
-            segments: { select: { id: true, name: true } },
+            segments: { select: { id: true, name: true, rules: true } },
             automations: true,
             leads: { select: { id: true, name: true, email: true, phone: true } },
             _count: { select: { leads: true } }
@@ -33,7 +33,14 @@ exports.getCampaignById = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     if (!campaign) {
         throw new Error('Campaign not found');
     }
-    res.status(200).json({ data: campaign, message: 'Campaign retrieved successfully' });
+    const segmentLeads = await (0, exports.getLeadsForSegments)(campaign.segments);
+    const segmentLeadIds = new Set(segmentLeads.map(l => l.id));
+    const manualLeads = campaign.leads.filter(l => !segmentLeadIds.has(l.id));
+    const responseData = {
+        ...campaign,
+        manualLeads
+    };
+    res.status(200).json({ data: responseData, message: 'Campaign retrieved successfully' });
 });
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (email) => {
@@ -193,10 +200,12 @@ exports.isLeadInSegment = isLeadInSegment;
 exports.getCampaignConnectedLeads = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { id } = req.params;
     const campaignId = parseInt(id);
+    const runId = req.query.runId ? parseInt(req.query.runId) : undefined;
     const campaign = await prismaClient_1.default.campaign.findUnique({
         where: { id: campaignId },
         include: {
             segments: true,
+            runs: true,
             leads: {
                 select: {
                     id: true,
@@ -214,7 +223,10 @@ exports.getCampaignConnectedLeads = (0, asyncHandler_1.asyncHandler)(async (req,
                     exchangeName: true,
                     otherListings: true,
                     messageSends: {
-                        where: { campaignId },
+                        where: {
+                            campaignId,
+                            ...(runId ? { campaignRunId: runId } : {})
+                        },
                         orderBy: { createdAt: 'desc' },
                         take: 1,
                         include: {
@@ -287,7 +299,7 @@ exports.getCampaignConnectedLeads = (0, asyncHandler_1.asyncHandler)(async (req,
             return rankA - rankB;
         return (a.email || '').toLowerCase().localeCompare((b.email || '').toLowerCase());
     });
-    res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
+    res.status(200).json({ data: formattedLeads, runs: campaign.runs, message: 'Connected leads retrieved successfully' });
 });
 exports.createCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { name, type, status, segmentIds, leadIds, description, channels, schedule, emailTemplateId, whatsappTemplateId, smsTemplateId } = req.body;
@@ -333,10 +345,19 @@ exports.createCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         };
     }
     const newCampaign = await prismaClient_1.default.campaign.create({
-        data,
+        data: {
+            ...data,
+            runs: {
+                create: {
+                    runNumber: 1,
+                    status: 'PENDING'
+                }
+            }
+        },
         include: {
             segments: { select: { id: true, name: true } },
-            _count: { select: { leads: true } }
+            _count: { select: { leads: true } },
+            runs: true
         }
     });
     res.status(201).json({ message: 'Campaign created successfully', data: newCampaign });
@@ -594,7 +615,6 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
                     metadataJson: { isManual: true, error: err.message }
                 }
             });
-          
         }
     }
     else {
@@ -623,4 +643,55 @@ exports.sendManualMessage = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         }
     });
     res.status(200).json({ message: 'Message sent successfully', data: msg });
+});
+exports.resendCampaign = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { id } = req.params;
+    const campaignId = parseInt(id);
+    const campaign = await prismaClient_1.default.campaign.findUnique({
+        where: { id: campaignId },
+        include: { runs: true }
+    });
+    if (!campaign)
+        throw new Error('Campaign not found');
+    const maxRunNumber = campaign.runs.length > 0
+        ? Math.max(...campaign.runs.map((r) => r.runNumber))
+        : 0;
+    const previousRun = campaign.runs.find((r) => r.runNumber === maxRunNumber);
+    const previousRunId = previousRun ? previousRun.id : undefined;
+    // We find leads from the previous run (or campaign generally if no runs)
+    // whose status in the last messageSend is NOT REPLIED, BOUNCED, FAILED
+    const recentMessages = await prismaClient_1.default.messageSend.findMany({
+        where: {
+            campaignId,
+            ...(previousRunId ? { campaignRunId: previousRunId } : {})
+        },
+        distinct: ['leadId'],
+        orderBy: { createdAt: 'desc' }
+    });
+    const leadsToResend = recentMessages
+        .filter((msg) => !['REPLIED', 'BOUNCED', 'FAILED'].includes(msg.status))
+        .map((msg) => msg.leadId);
+    if (leadsToResend.length === 0) {
+        return res.status(200).json({ message: 'No eligible leads found for resending' });
+    }
+    // Create new run
+    const newRun = await prismaClient_1.default.campaignRun.create({
+        data: {
+            campaignId,
+            runNumber: maxRunNumber + 1,
+            status: 'PENDING'
+        }
+    });
+    // Create new messageSends for this run (they will be picked up by the automation engine)
+    const newMessageSends = leadsToResend.map((leadId) => ({
+        campaignId,
+        campaignRunId: newRun.id,
+        leadId,
+        channel: campaign.channels ? campaign.channels[0] : 'EMAIL',
+        status: 'QUEUED'
+    }));
+    await prismaClient_1.default.messageSend.createMany({
+        data: newMessageSends
+    });
+    res.status(200).json({ message: 'Campaign resend scheduled successfully', data: newRun });
 });

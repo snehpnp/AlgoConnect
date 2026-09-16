@@ -20,6 +20,7 @@ const getEngineState = () => {
     return isEngineRunning;
 };
 exports.getEngineState = getEngineState;
+let isProcessingCampaigns = false;
 const startCampaignRunner = () => {
     // Run IMAP checker every 1 minute
     node_cron_1.default.schedule('*/1 * * * *', async () => {
@@ -29,9 +30,10 @@ const startCampaignRunner = () => {
     });
     // Run campaign processor every 5 minutes
     node_cron_1.default.schedule('*/5 * * * *', async () => {
-        if (!isEngineRunning) {
+        if (!isEngineRunning || isProcessingCampaigns) {
             return;
         }
+        isProcessingCampaigns = true;
         try {
             const activeCampaigns = await prismaClient_1.default.campaign.findMany({
                 where: { status: 'ACTIVE' },
@@ -45,6 +47,7 @@ const startCampaignRunner = () => {
             if (activeCampaigns.length === 0) {
                 return;
             }
+            const integrationSettings = await prismaClient_1.default.integrationSetting.findMany();
             for (const campaign of activeCampaigns) {
                 const channels = campaign.channels || [];
                 if (channels.length === 0)
@@ -70,15 +73,21 @@ const startCampaignRunner = () => {
                     }
                     // Check each channel
                     for (const channel of channels) {
+                        // If the integration for this channel is disabled, skip processing it (leave it QUEUED/PENDING)
+                        const setting = integrationSettings.find(s => s.type === channel);
+                        if (setting && !setting.isActive) {
+                            continue;
+                        }
                         // Check if already sent in this campaign
                         const existingSend = await prismaClient_1.default.messageSend.findFirst({
                             where: {
                                 campaignId: campaign.id,
                                 leadId: lead.id,
                                 channel: channel,
-                            }
+                            },
+                            orderBy: { createdAt: 'desc' }
                         });
-                        if (existingSend && existingSend.status !== 'PENDING') {
+                        if (existingSend && existingSend.status !== 'PENDING' && existingSend.status !== 'QUEUED') {
                             continue; // Already processed this channel for this lead
                         }
                         // Check Consent for this channel
@@ -198,7 +207,7 @@ const startCampaignRunner = () => {
                         }
                         // Dispatch
                         try {
-                            await messagingGateway_service_1.messagingGateway.sendMessage({
+                            const sendResult = await messagingGateway_service_1.messagingGateway.sendMessage({
                                 campaignId: campaign.id,
                                 leadId: lead.id,
                                 templateId: template.id,
@@ -210,13 +219,14 @@ const startCampaignRunner = () => {
                                 attachments,
                                 messageSendId: existingSend?.id
                             });
-                        }
-                        catch (error) {
-                            if (error.statusCode === 429 || (error.message && error.message.toLowerCase().includes('limit'))) {
+                            if (sendResult && sendResult.limitReached) {
                                 console.log(`[CampaignRunner] Limit reached for ${channel}. Aborting campaign batch.`);
                                 limitReached = true;
                                 break; // Break the channel loop, outer loop will also break due to limitReached
                             }
+                        }
+                        catch (error) {
+                            console.error(`[CampaignRunner] Unexpected error sending ${channel}:`, error);
                         }
                         processedCount++;
                         // Pacing: add a 1.5s delay between consecutive email dispatches to prevent SMTP rate-limit / spam flags
@@ -225,10 +235,31 @@ const startCampaignRunner = () => {
                         }
                     }
                 }
+                // Check for completion
+                const pendingCount = await prismaClient_1.default.messageSend.count({
+                    where: {
+                        campaignId: campaign.id,
+                        status: { in: ['PENDING', 'QUEUED'] }
+                    }
+                });
+                if (pendingCount === 0) {
+                    await prismaClient_1.default.campaign.update({
+                        where: { id: campaign.id },
+                        data: { status: 'COMPLETED' }
+                    });
+                    await prismaClient_1.default.campaignRun.updateMany({
+                        where: { campaignId: campaign.id, status: 'PENDING' },
+                        data: { status: 'COMPLETED' }
+                    });
+                    console.log(`[CampaignRunner] Campaign ${campaign.id} completed.`);
+                }
             }
         }
         catch (error) {
             console.error('[CampaignRunner] Error running campaign job:', error);
+        }
+        finally {
+            isProcessingCampaigns = false;
         }
     });
 };

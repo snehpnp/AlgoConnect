@@ -166,8 +166,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   const exchangeName = (req.query.exchangeName as string) || 'All';
   const otherListings = (req.query.otherListings as string) || 'All';
   const campaignStatus = (req.query.campaignStatus as string) || 'All';
-  
-  const bounced = (req.query.bounced as string) || (req.query.bouncedFilter as string) || 'All';
+  const dataFilter = (req.query.dataFilter as string) || 'All';
 
   const skip = (page - 1) * limit;
   const where: any = {};
@@ -239,19 +238,7 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   
   if (verificationStatus && verificationStatus !== 'All') where.verificationStatus = verificationStatus;
   
-  if (bounced && bounced !== 'All') {
-    if (bounced === 'BOUNCED' || bounced === 'Bounced') {
-      where.OR = [
-        { engagementStatus: 'Bounced' },
-        { messageSends: { some: { status: 'BOUNCED' } } }
-      ];
-    } else if (bounced === 'NOT_BOUNCED' || bounced === 'Not Bounced' || bounced === 'NotBounced') {
-      where.AND = [
-        { engagementStatus: { not: 'Bounced' } },
-        { messageSends: { none: { status: 'BOUNCED' } } }
-      ];
-    }
-  }
+
 
   if (engagementStatus && engagementStatus !== 'All') {
     if (engagementStatus === 'BOUNCED' || engagementStatus === 'Bounced') {
@@ -273,20 +260,28 @@ export const getLeads = asyncHandler(async (req: Request, res: Response) => {
   if (state && state !== 'All') where.state = state;
   if (city && city !== 'All') where.city = city;
   
-  if (websiteStatus === 'NoWebsite') {
+  if (dataFilter === 'NoWebsite') {
     if (!where.AND) where.AND = [];
     where.AND.push({
-      OR: [
-        { website: null },
-        { website: '' }
-      ]
+      OR: [{ website: null }, { website: '' }]
     });
-  } else if (websiteStatus === 'HasWebsite') {
+  } else if (dataFilter === 'HasWebsite') {
     if (!where.AND) where.AND = [];
     where.AND.push({
       website: { not: null },
       NOT: { website: '' }
     });
+  } else if (dataFilter === 'MissingEmail') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({ OR: [{ email: null }, { email: '' }] });
+    where.AND.push({ OR: [{ scrapedEmail: null }, { scrapedEmail: '' }] });
+  } else if (dataFilter === 'MissingEmail2') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({ OR: [{ email2: null }, { email2: '' }] });
+  } else if (dataFilter === 'MissingPhone') {
+    if (!where.AND) where.AND = [];
+    where.AND.push({ OR: [{ phone: null }, { phone: '' }] });
+    where.AND.push({ OR: [{ scrapedPhone: null }, { scrapedPhone: '' }] });
   }
   
   if (sellsAlgoTrading === 'Yes') {

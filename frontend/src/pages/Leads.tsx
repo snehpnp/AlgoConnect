@@ -301,29 +301,27 @@ export const Leads: React.FC = () => {
 
   const initialFilter = location.state?.unifiedStatus || 'All';
   const [unifiedStatusFilter, setUnifiedStatusFilter] = useState(initialFilter);
-  const [bouncedFilter, setBouncedFilter] = useState(location.state?.bouncedFilter || 'All');
   const [typeFilter, setTypeFilter] = useState(location.state?.typeFilter || 'All');
   const [stateFilter, setStateFilter] = useState(location.state?.stateFilter || 'All');
   const [cityFilter, setCityFilter] = useState(location.state?.cityFilter || 'All');
-  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(location.state?.websiteStatusFilter || 'All');
   const [algoTradingFilter, setAlgoTradingFilter] = useState(location.state?.algoTradingFilter || 'All');
   const [exchangeNameFilter, setExchangeNameFilter] = useState(location.state?.exchangeNameFilter || 'All');
   const [otherListingsFilter, setOtherListingsFilter] = useState(location.state?.otherListingsFilter || 'All');
   const [campaignStatusFilter, setCampaignStatusFilter] = useState(location.state?.campaignStatusFilter || 'All');
+  const [dataFilter, setDataFilter] = useState(location.state?.dataFilter || 'All');
 
   // Sync state if navigation occurs (e.g. clicking dashboard cards again)
   useEffect(() => {
     if (location.state) {
       setUnifiedStatusFilter(location.state.unifiedStatus || 'All');
-      setBouncedFilter(location.state.bouncedFilter || 'All');
       setTypeFilter(location.state.typeFilter || 'All');
       setStateFilter(location.state.stateFilter || 'All');
       setCityFilter(location.state.cityFilter || 'All');
-      setWebsiteStatusFilter(location.state.websiteStatusFilter || 'All');
       setAlgoTradingFilter(location.state.algoTradingFilter || 'All');
       setExchangeNameFilter(location.state.exchangeNameFilter || 'All');
       setOtherListingsFilter(location.state.otherListingsFilter || 'All');
       setCampaignStatusFilter(location.state.campaignStatusFilter || 'All');
+      setDataFilter(location.state.dataFilter || 'All');
     }
   }, [location.state]);
   const [filterOptions, setFilterOptions] = useState<{ states: string[], cities: string[], types: string[], exchanges: string[] }>({ states: [], cities: [], types: [], exchanges: [] });
@@ -461,15 +459,14 @@ export const Leads: React.FC = () => {
         limit: PAGE_SIZE,
         search: searchQuery || undefined,
         unifiedStatus: unifiedStatusFilter === 'All' ? undefined : unifiedStatusFilter,
-        bounced: bouncedFilter === 'All' ? undefined : bouncedFilter,
         type: typeFilter === 'All' ? undefined : typeFilter,
         state: stateFilter === 'All' ? undefined : stateFilter,
         city: cityFilter === 'All' ? undefined : cityFilter,
-        websiteStatus: websiteStatusFilter === 'All' ? undefined : websiteStatusFilter,
         sellsAlgoTrading: algoTradingFilter === 'All' ? undefined : algoTradingFilter,
         exchangeName: exchangeNameFilter === 'All' ? undefined : exchangeNameFilter,
         otherListings: otherListingsFilter === 'All' ? undefined : otherListingsFilter,
         campaignStatus: campaignStatusFilter === 'All' ? undefined : campaignStatusFilter,
+        dataFilter: dataFilter === 'All' ? undefined : dataFilter,
         sortBy: scoreSort !== 'none' ? 'leadScore' : undefined,
         order: scoreSort !== 'none' ? scoreSort : undefined
       });
@@ -488,12 +485,12 @@ export const Leads: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort]);
+  }, [page, searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort, dataFilter]);
 
   // Reset to page 1 on search, filter or sort change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, unifiedStatusFilter, bouncedFilter, typeFilter, stateFilter, cityFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort]);
+  }, [searchQuery, unifiedStatusFilter, typeFilter, stateFilter, cityFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter, campaignStatusFilter, scoreSort, dataFilter]);
 
   // Handle immediate page loading for scroll and debounced loading for search/filters
   useEffect(() => {
@@ -581,7 +578,7 @@ export const Leads: React.FC = () => {
     if (!name) return;
     const newView = {
       name,
-      filters: { stateFilter, cityFilter, unifiedStatusFilter, bouncedFilter, typeFilter, websiteStatusFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
+      filters: { stateFilter, cityFilter, unifiedStatusFilter, typeFilter, dataFilter, algoTradingFilter, exchangeNameFilter, otherListingsFilter }
     };
     const newSavedViews = [...savedViews, newView];
     setSavedViews(newSavedViews);
@@ -593,9 +590,8 @@ export const Leads: React.FC = () => {
     setStateFilter(filters.stateFilter || 'All');
     setCityFilter(filters.cityFilter || 'All');
     setUnifiedStatusFilter(filters.unifiedStatusFilter || 'All');
-    setBouncedFilter(filters.bouncedFilter || 'All');
     setTypeFilter(filters.typeFilter || 'All');
-    setWebsiteStatusFilter(filters.websiteStatusFilter || 'All');
+    setDataFilter(filters.dataFilter || 'All');
     setAlgoTradingFilter(filters.algoTradingFilter || 'All');
     setExchangeNameFilter(filters.exchangeNameFilter || 'All');
     setOtherListingsFilter(filters.otherListingsFilter || 'All');
@@ -608,7 +604,7 @@ export const Leads: React.FC = () => {
     localStorage.setItem('algoConnect_savedViews', JSON.stringify(newViews));
   };
 
-  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || bouncedFilter !== 'All' || typeFilter !== 'All' || websiteStatusFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All' || campaignStatusFilter !== 'All';
+  const hasActiveFilters = stateFilter !== 'All' || cityFilter !== 'All' || unifiedStatusFilter !== 'All' || typeFilter !== 'All' || dataFilter !== 'All' || algoTradingFilter !== 'All' || exchangeNameFilter !== 'All' || otherListingsFilter !== 'All' || campaignStatusFilter !== 'All';
 
   return (
     <div className="relative flex gap-6 pb-24 sm:pb-20">
@@ -665,7 +661,7 @@ export const Leads: React.FC = () => {
 
         {/* Filter Bar & Saved Views */}
         <div className="glass-panel rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 mx-1 sm:mx-0">
-          {(bouncedFilter === 'BOUNCED' || unifiedStatusFilter === 'BOUNCED') && (
+          {unifiedStatusFilter === 'BOUNCED' && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200/80 rounded-xl p-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-orange-500 text-white rounded-lg shadow-sm">
@@ -776,16 +772,6 @@ export const Leads: React.FC = () => {
                 </select>
 
                 <select
-                  value={bouncedFilter}
-                  onChange={(e) => setBouncedFilter(e.target.value)}
-                  className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full font-bold text-slate-800 border-orange-300 bg-orange-50/40 focus:border-orange-500"
-                >
-                  <option value="All">All Bounce Status</option>
-                  <option value="BOUNCED">🛑 Bounced Leads</option>
-                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
-                </select>
-
-                <select
                   value={unifiedStatusFilter}
                   onChange={(e) => setUnifiedStatusFilter(e.target.value)}
                   className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[150px] w-full"
@@ -806,16 +792,21 @@ export const Leads: React.FC = () => {
                   <option value="LOST">Client Lost</option>
                   <option value="DNC">Do Not Contact</option>
                   <option value="INVALID">Invalid/Inactive</option>
+                  <option value="BOUNCED">🛑 Bounced Leads</option>
+                  <option value="NOT_BOUNCED">🟢 Not Bounced</option>
                 </select>
 
                 <select
-                  value={websiteStatusFilter}
-                  onChange={(e) => setWebsiteStatusFilter(e.target.value)}
+                  value={dataFilter}
+                  onChange={(e) => setDataFilter(e.target.value)}
                   className="input-base !py-2 !text-xs !min-h-0 sm:max-w-[140px] w-full"
                 >
-                  <option value="All">All Websites</option>
+                  <option value="All">All Data</option>
+                  <option value="MissingEmail">Missing Email</option>
+                  <option value="MissingEmail2">Missing Email 2</option>
+                  <option value="MissingPhone">Missing Phone</option>
+                  <option value="NoWebsite">Missing Website</option>
                   <option value="HasWebsite">Has Website</option>
-                  <option value="NoWebsite">No Website</option>
                 </select>
 
                 <select
