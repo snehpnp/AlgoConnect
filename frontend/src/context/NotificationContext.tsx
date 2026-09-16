@@ -53,7 +53,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
 
       newSocket.on('connect', () => {
-        // console.log('[Socket] Connected to server');
+ 
         newSocket.emit('register', user.id);
       });
 

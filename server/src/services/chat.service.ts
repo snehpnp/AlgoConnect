@@ -79,6 +79,34 @@ Table "Campaign" (
   type VARCHAR,
   status VARCHAR
 )
+Table "MessageSend" (
+  id INT,
+  "campaignId" INT,
+  "leadId" INT,
+  channel VARCHAR,
+  status VARCHAR,
+  "sentAt" TIMESTAMP,
+  "createdAt" TIMESTAMP
+)
+Table "EmailReply" (
+  id INT,
+  "messageSendId" INT,
+  "leadId" INT,
+  "fromEmail" VARCHAR,
+  "receivedAt" TIMESTAMP
+)
+Table "EngagementEvent" (
+  id INT,
+  "messageSendId" INT,
+  "eventType" VARCHAR,
+  "eventTime" TIMESTAMP
+)
+Table "Segment" (
+  id INT,
+  name VARCHAR,
+  description VARCHAR,
+  "createdAt" TIMESTAMP
+)
 
 Rules:
 1. Return ONLY the raw SQL query. No markdown, no backticks, no explanations.
@@ -89,7 +117,7 @@ Rules:
 `;
 
     const response = await this.groq!.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       messages: [
         { role: 'system', content: schemaDetails },
         { role: 'user', content: userMessage }
@@ -133,7 +161,7 @@ Write a clear, concise, and helpful response to the user's question using ONLY t
 `;
 
     const response = await this.groq!.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       messages: [
         { role: 'user', content: prompt }
       ],

@@ -138,9 +138,9 @@ const getLeadScore = (lead: any): number => {
 };
 
 async function main() {
-  console.log('Fetching leads from database...');
+
   const leads = await prisma.lead.findMany();
-  console.log(`Found ${leads.length} leads. Calculating and updating scores...`);
+
 
   let updatedCount = 0;
 

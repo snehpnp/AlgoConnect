@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Fixing engagement statuses for existing leads...');
+ 
   
   // Update leads to 'Sent' if they have a SENT message and are currently Not Engaged
   const leadsWithSent = await prisma.lead.findMany({
@@ -14,7 +14,7 @@ async function main() {
   });
 
   if (leadsWithSent.length > 0) {
-    console.log(`Updating ${leadsWithSent.length} leads to 'Sent'`);
+  
     for (const lead of leadsWithSent) {
       await prisma.lead.update({
         where: { id: lead.id },
@@ -32,7 +32,7 @@ async function main() {
   });
 
   if (leadsWithOpened.length > 0) {
-    console.log(`Updating ${leadsWithOpened.length} leads to 'Opened'`);
+  
     for (const lead of leadsWithOpened) {
       await prisma.lead.update({
         where: { id: lead.id },
@@ -41,7 +41,7 @@ async function main() {
     }
   }
   
-  console.log('Done!');
+
 }
 
 main()

@@ -180,13 +180,27 @@ export const messagingGateway = {
           }
         });
 
-        await prisma.engagementEvent.create({
-          data: {
-            messageSendId: msgId,
-            eventType: isLimitError ? 'LIMIT_REACHED' : 'FAILED',
-            metadataJson: { error: error.message || 'Failed to dispatch' }
+        const newEventType = isLimitError ? 'LIMIT_REACHED' : 'FAILED';
+        let shouldCreateEvent = true;
+
+        if (newEventType === 'LIMIT_REACHED') {
+          const existingEvent = await prisma.engagementEvent.findFirst({
+            where: { messageSendId: msgId, eventType: 'LIMIT_REACHED' }
+          });
+          if (existingEvent) {
+            shouldCreateEvent = false;
           }
-        });
+        }
+
+        if (shouldCreateEvent) {
+          await prisma.engagementEvent.create({
+            data: {
+              messageSendId: msgId,
+              eventType: newEventType,
+              metadataJson: { error: error.message || 'Failed to dispatch' }
+            }
+          });
+        }
       }
 
       if (isLimitError) {

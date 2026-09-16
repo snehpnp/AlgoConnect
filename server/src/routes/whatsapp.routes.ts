@@ -5,7 +5,7 @@ import { getLeadWhatsAppHistory, sendWhatsAppMessage } from '../controllers/what
 
 const router = Router();
 
-console.log("----------------------------------")
+
 router.get('/leads/:leadId/chat', authenticate, getLeadWhatsAppHistory);
 router.post('/leads/:leadId/send', authenticate, sendWhatsAppMessage);
 router.get('/status', authenticate, (req, res) => {
