@@ -67,8 +67,14 @@ export const campaignService = {
     return response.data;
   },
 
-  getCampaignConnectedLeads: async (id: number): Promise<{ data: any[] }> => {
-    const response = await apiClient.get<{ data: any[] }>(`/campaigns/${id}/connected-leads`);
+  getCampaignConnectedLeads: async (id: number, runId?: number): Promise<{ data: any[], runs?: any[] }> => {
+    const url = runId ? `/campaigns/${id}/connected-leads?runId=${runId}` : `/campaigns/${id}/connected-leads`;
+    const response = await apiClient.get<{ data: any[], runs?: any[] }>(url);
+    return response.data;
+  },
+
+  resendCampaign: async (id: number): Promise<{ data: any, message?: string }> => {
+    const response = await apiClient.post<{ data: any, message?: string }>(`/campaigns/${id}/resend`);
     return response.data;
   },
 

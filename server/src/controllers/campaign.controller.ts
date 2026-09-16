@@ -174,11 +174,13 @@ export const isLeadInSegment = (lead: any, rules: any): boolean => {
 export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const campaignId = parseInt(id as string);
+  const runId = req.query.runId ? parseInt(req.query.runId as string) : undefined;
 
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
     include: {
       segments: true,
+      runs: true,
       leads: {
         select: {
           id: true,
@@ -196,7 +198,10 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
           exchangeName: true,
           otherListings: true,
           messageSends: {
-            where: { campaignId },
+            where: { 
+              campaignId,
+              ...(runId ? { campaignRunId: runId } : {})
+            },
             orderBy: { createdAt: 'desc' },
             take: 1,
             include: {
@@ -273,7 +278,7 @@ export const getCampaignConnectedLeads = asyncHandler(async (req: Request, res: 
     return (a.email || '').toLowerCase().localeCompare((b.email || '').toLowerCase());
   });
 
-  res.status(200).json({ data: formattedLeads, message: 'Connected leads retrieved successfully' });
+  res.status(200).json({ data: formattedLeads, runs: campaign.runs, message: 'Connected leads retrieved successfully' });
 });
 
 export const createCampaign = asyncHandler(async (req: Request, res: Response) => {
@@ -327,10 +332,19 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
   }
 
   const newCampaign = await prisma.campaign.create({
-    data,
+    data: {
+      ...data,
+      runs: {
+        create: {
+          runNumber: 1,
+          status: 'PENDING'
+        }
+      }
+    },
     include: {
       segments: { select: { id: true, name: true } },
-      _count: { select: { leads: true } }
+      _count: { select: { leads: true } },
+      runs: true
     }
   });
 
@@ -654,4 +668,66 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
   });
 
   res.status(200).json({ message: 'Message sent successfully', data: msg });
+});
+
+export const resendCampaign = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const campaignId = parseInt(id as string);
+
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { runs: true }
+  });
+
+  if (!campaign) throw new Error('Campaign not found');
+
+  const maxRunNumber = campaign.runs.length > 0 
+    ? Math.max(...campaign.runs.map((r: any) => r.runNumber)) 
+    : 0;
+  
+  const previousRun = campaign.runs.find((r: any) => r.runNumber === maxRunNumber);
+  const previousRunId = previousRun ? previousRun.id : undefined;
+
+  // We find leads from the previous run (or campaign generally if no runs)
+  // whose status in the last messageSend is NOT REPLIED, BOUNCED, FAILED
+  const recentMessages = await prisma.messageSend.findMany({
+    where: { 
+      campaignId,
+      ...(previousRunId ? { campaignRunId: previousRunId } : {}) 
+    },
+    distinct: ['leadId'],
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const leadsToResend = recentMessages
+    .filter((msg: any) => !['REPLIED', 'BOUNCED', 'FAILED'].includes(msg.status))
+    .map((msg: any) => msg.leadId);
+
+  if (leadsToResend.length === 0) {
+    return res.status(200).json({ message: 'No eligible leads found for resending' });
+  }
+
+  // Create new run
+  const newRun = await prisma.campaignRun.create({
+    data: {
+      campaignId,
+      runNumber: maxRunNumber + 1,
+      status: 'PENDING'
+    }
+  });
+
+  // Create new messageSends for this run (they will be picked up by the automation engine)
+  const newMessageSends = leadsToResend.map((leadId: number) => ({
+    campaignId,
+    campaignRunId: newRun.id,
+    leadId,
+    channel: campaign.channels ? (campaign.channels as any[])[0] : 'EMAIL',
+    status: 'QUEUED'
+  }));
+
+  await prisma.messageSend.createMany({
+    data: newMessageSends
+  });
+
+  res.status(200).json({ message: 'Campaign resend scheduled successfully', data: newRun });
 });

@@ -89,6 +89,21 @@ function buildChatThread(history: any[], channel: 'EMAIL' | 'SMS' | 'WHATSAPP'):
   );
 }
 
+const parseEmailBody = (body?: string) => {
+  if (!body) return '';
+  // Removes standard email reply headers and > quotes to make it cleaner
+  let cleanText = body;
+  const replyHeaderRegex = /On.*wrote:/i;
+  const match = cleanText.match(replyHeaderRegex);
+  if (match && match.index !== undefined) {
+    cleanText = cleanText.substring(0, match.index);
+  }
+  cleanText = cleanText.replace(/^>.*$/gm, '');
+  // Strip out tracking pixel to prevent false opens
+  cleanText = cleanText.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '');
+  return cleanText.trim();
+};
+
 function StatusTicks({ status, onLight = false }: { status?: string; onLight?: boolean }) {
   if (!status) return null;
   const s = status.toUpperCase();
@@ -132,8 +147,10 @@ function isHtmlDocument(text: string): boolean {
  * so it renders correctly and consistently inside the sandboxed iframe.
  */
 function toPreviewDoc(text: string): string {
-  const lower = text.toLowerCase();
-  if (lower.includes('<html')) return text;
+  // Strip out tracking pixel to prevent false opens
+  const safeText = text.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '');
+  const lower = safeText.toLowerCase();
+  if (lower.includes('<html')) return safeText;
   return `<!DOCTYPE html>
 <html>
   <head>
@@ -213,6 +230,7 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
   const { socket } = useNotifications();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [expandedBubbles, setExpandedBubbles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen && lead) {
@@ -307,6 +325,9 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
     return groups;
   }, [chatThread]);
 
+  const sentCount = useMemo(() => chatThread.filter(b => b.direction === 'OUTBOUND').length, [chatThread]);
+  const receivedCount = useMemo(() => chatThread.filter(b => b.direction === 'INBOUND').length, [chatThread]);
+
   // Auto-scroll to the latest message whenever the thread updates.
   useEffect(() => {
     if (scrollRef.current) {
@@ -385,7 +406,7 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh] lg:flex-row"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden flex flex-col max-h-[95vh] lg:flex-row"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left Side: Compose Area */}
@@ -564,13 +585,18 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Right Side: Message History — real chat-style thread */}
-        <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col h-[50vh] lg:h-auto">
+        <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col h-[50vh] lg:h-auto">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white z-10">
             <div>
               <h3 className="font-bold text-slate-800">Communication History</h3>
-              <p className={`text-xs font-semibold ${theme.accent}`}>
-                {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Email'} conversation
-              </p>
+              <div className="flex gap-3 mt-0.5">
+                <p className={`text-[11px] font-semibold ${theme.accent}`}>
+                  {channel === 'WHATSAPP' ? 'WhatsApp' : channel === 'SMS' ? 'SMS' : 'Email'} conversation
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium border-l border-slate-300 pl-3">
+                  Sent: <span className="font-bold text-slate-700">{sentCount}</span> | Replies: <span className="font-bold text-slate-700">{receivedCount}</span>
+                </p>
+              </div>
             </div>
             <button onClick={onClose} className="hidden lg:block p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
               <X className="h-5 w-5" />
@@ -639,10 +665,45 @@ export const DirectMailModal: React.FC<DirectMailModalProps> = ({ isOpen, onClos
                               />
                             </div>
                           ) : (
-                            <div
-                              className="whitespace-pre-wrap break-words pr-10"
-                              dangerouslySetInnerHTML={{ __html: bubble.text }}
-                            />
+                            <div className="flex flex-col">
+                              {channel === 'EMAIL' && !expandedBubbles.has(bubble.id) ? (
+                                <div>
+                                  <div
+                                    className="whitespace-pre-wrap break-words pr-10 line-clamp-3 text-slate-500/90 text-[13px]"
+                                    dangerouslySetInnerHTML={{ __html: parseEmailBody(bubble.text) }}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const next = new Set(expandedBubbles);
+                                      next.add(bubble.id);
+                                      setExpandedBubbles(next);
+                                    }}
+                                    className="text-[11px] font-bold text-blue-600 mt-1 hover:underline text-left inline-block"
+                                  >
+                                    Read More
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div
+                                    className="whitespace-pre-wrap break-words pr-10 text-[13px]"
+                                    dangerouslySetInnerHTML={{ __html: channel === 'EMAIL' ? parseEmailBody(bubble.text) : bubble.text }}
+                                  />
+                                  {channel === 'EMAIL' && (
+                                    <button
+                                      onClick={() => {
+                                        const next = new Set(expandedBubbles);
+                                        next.delete(bubble.id);
+                                        setExpandedBubbles(next);
+                                      }}
+                                      className="text-[11px] font-bold text-slate-500 mt-1.5 hover:underline text-left inline-block"
+                                    >
+                                      Show Less
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
 
                           <span

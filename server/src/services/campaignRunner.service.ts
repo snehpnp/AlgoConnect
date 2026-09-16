@@ -46,6 +46,8 @@ export const startCampaignRunner = () => {
         return;
       }
 
+      const integrationSettings = await prisma.integrationSetting.findMany();
+
 
       for (const campaign of activeCampaigns) {
         const channels = campaign.channels as string[] || [];
@@ -74,16 +76,23 @@ export const startCampaignRunner = () => {
 
           // Check each channel
           for (const channel of channels) {
+            // If the integration for this channel is disabled, skip processing it (leave it QUEUED/PENDING)
+            const setting = integrationSettings.find(s => s.type === channel);
+            if (setting && !setting.isActive) {
+              continue;
+            }
+
             // Check if already sent in this campaign
             const existingSend = await prisma.messageSend.findFirst({
               where: {
                 campaignId: campaign.id,
                 leadId: lead.id,
                 channel: channel,
-              }
+              },
+              orderBy: { createdAt: 'desc' }
             });
 
-            if (existingSend && existingSend.status !== 'PENDING') {
+            if (existingSend && existingSend.status !== 'PENDING' && existingSend.status !== 'QUEUED') {
               continue; // Already processed this channel for this lead
             }
 

@@ -127,6 +127,18 @@ model Campaign {
   smsTemplate        MessageTemplate?     @relation("CampaignSmsTemplate", fields: [smsTemplateId], references: [id])
   automations        CampaignAutomation[]
   messageSends       MessageSend[]
+  runs               CampaignRun[]
+}
+
+model CampaignRun {
+  id          Int           @id @default(autoincrement())
+  campaignId  Int
+  campaign    Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  runNumber   Int           @default(1)
+  status      String        @default("PENDING") // PENDING, COMPLETED
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  messageSends MessageSend[]
 }
 
 model MessageTemplate {
@@ -238,6 +250,8 @@ model MessageSend {
   id                Int       @id @default(autoincrement())
   campaignId        Int?
   campaign          Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignRunId     Int?
+  campaignRun       CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: Cascade)
   leadId            Int
   lead              Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
   channel           String    @default("EMAIL")

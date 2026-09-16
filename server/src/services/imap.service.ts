@@ -161,6 +161,17 @@ export const checkIMAPReplies = async () => {
             if (lastSend) {
               console.log(`[IMAP] Logging reply for MessageSend ID: ${lastSend.id}`);
 
+              const uniqueMsgId = mail.messageId || `imap-${id}`;
+              
+              const existingReply = await prisma.emailReply.findFirst({
+                where: { providerMessageId: uniqueMsgId }
+              });
+
+              if (existingReply) {
+                console.log(`[IMAP] Reply already exists in DB (UID: ${id}). Skipping.`);
+                continue;
+              }
+
               // Log the reply
               await prisma.emailReply.create({
                 data: {
@@ -169,7 +180,7 @@ export const checkIMAPReplies = async () => {
                   fromEmail: senderEmail,
                   subject: mail.subject || 'No Subject',
                   body: mail.text || 'No Body',
-                  providerMessageId: mail.messageId || `imap-${id}-${Date.now()}`
+                  providerMessageId: uniqueMsgId
                 }
               });
 

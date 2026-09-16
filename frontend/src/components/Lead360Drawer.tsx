@@ -47,6 +47,10 @@ const parseEmailBody = (body: string) => {
   // Optional: Also remove any trailing lines that start with ">"
   let cleanText = parts[0].trim();
   cleanText = cleanText.split('\n').filter(line => !line.trim().startsWith('>')).join('\n');
+  
+  // Strip out tracking pixel to prevent false opens when previewing
+  cleanText = cleanText.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '');
+  
   return cleanText.trim();
 };
 
@@ -82,6 +86,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit, onLeadUpdated }: 
   // Email Replies & History state
   const [emailReplies, setEmailReplies] = useState<any[]>([]);
   const [isDirectMailOpen, setIsDirectMailOpen] = useState(false);
+  const [expandedEmailIds, setExpandedEmailIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     usersService.getUsers().then(res => setTeamMembers(res.data)).catch(console.error);
@@ -277,7 +282,7 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit, onLeadUpdated }: 
       onClick={onClose}
     >
       <div
-        className="flex h-full w-full sm:w-[500px] md:w-[600px] max-w-2xl flex-col bg-slate-50/95 backdrop-blur-xl shadow-premium border-l border-white/50 transition-transform duration-300"
+        className="flex h-full w-full sm:w-[500px] md:w-[700px] lg:w-[850px] max-w-5xl flex-col bg-slate-50/95 backdrop-blur-xl shadow-premium border-l border-white/50 transition-transform duration-300"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -744,11 +749,6 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit, onLeadUpdated }: 
                                   </span>
                                 )}
 
-                                {isOutbound && item.openedAt && (
-                                  <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                                    👁️ Seen: {new Date(item.openedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                )}
                               </div>
 
                               <h4 className="text-sm font-bold text-slate-800 mt-2">
@@ -757,32 +757,65 @@ export const Lead360Drawer = ({ isOpen, onClose, lead, onEdit, onLeadUpdated }: 
                               {!isOutbound && item.fromEmail && (
                                 <p className="text-xs text-slate-500 font-medium">From: {item.fromEmail}</p>
                               )}
+                              {isOutbound && (
+                                <div className="mt-1.5 flex flex-col gap-1.5">
+                                  <p className="text-xs text-slate-500">
+                                    <span className="font-semibold text-slate-600">To:</span> {lead.name} {lead.email ? `<${lead.email}>` : ''}
+                                  </p>
+                                  {item.openedAt && (
+                                    <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 inline-flex w-fit items-center gap-1.5 shadow-sm">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                      Opened on {new Date(item.openedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
-                            <span className="text-xs font-medium text-slate-400 shrink-0">
-                              {new Date(item.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className="text-[11px] font-semibold text-slate-500 shrink-0 bg-white/60 px-2 py-0.5 rounded border border-slate-200">
+                                {isOutbound ? 'Sent:' : 'Received:'} {new Date(item.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const newSet = new Set(expandedEmailIds);
+                                  if (newSet.has(item.id)) newSet.delete(item.id);
+                                  else newSet.add(item.id);
+                                  setExpandedEmailIds(newSet);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                                title={expandedEmailIds.has(item.id) ? "Hide Content" : "View Full Email"}
+                              >
+                                {expandedEmailIds.has(item.id) ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
 
                           {/* Body Content */}
-                          <div className="p-4 bg-white">
-                            {isOutbound ? (
-                              item.body && item.body.includes('<') ? (
-                                <div
-                                  className="text-xs text-slate-700 prose prose-sm max-w-none font-sans leading-relaxed overflow-x-auto"
-                                  dangerouslySetInnerHTML={{ __html: item.body }}
-                                />
+                          {expandedEmailIds.has(item.id) && (
+                            <div className="p-4 bg-white animate-fade-in border-b border-slate-100">
+                              {isOutbound ? (
+                                item.body && item.body.includes('<') ? (
+                                  <div
+                                    className="text-xs text-slate-700 prose prose-sm max-w-none font-sans leading-relaxed overflow-x-auto"
+                                    dangerouslySetInnerHTML={{ __html: item.body.replace(/<img[^>]*api\/track\/open[^>]*>/gi, '') }}
+                                  />
+                                ) : (
+                                  <p className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                                    {item.body}
+                                  </p>
+                                )
                               ) : (
-                                <p className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
-                                  {item.body}
+                                <p className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                                  {parseEmailBody(item.body)}
                                 </p>
-                              )
-                            ) : (
-                              <p className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
-                                {parseEmailBody(item.body)}
-                              </p>
-                            )}
-                          </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Reply Back Action Footer */}
                           {!isOutbound && (

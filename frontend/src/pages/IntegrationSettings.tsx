@@ -23,7 +23,7 @@ export const IntegrationSettings = () => {
   // Email Limit Audit Log state
   const [limitLogs, setLimitLogs] = useState<EmailLimitAuditLog[]>([]);
   const [limitLogsLoading, setLimitLogsLoading] = useState(false);
-  
+
 
   // Message Logs State
   const [logs, setLogs] = useState<MessageLog[]>([]);
@@ -35,6 +35,7 @@ export const IntegrationSettings = () => {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Modal State
   const [selectedLog, setSelectedLog] = useState<any>(null);
@@ -44,7 +45,7 @@ export const IntegrationSettings = () => {
     fetchLogs();
     fetchWaStatus();
     fetchLimitLogs();
-    
+
     // Poll for QR code or connection status
     const interval = setInterval(() => {
       fetchWaStatus();
@@ -94,7 +95,7 @@ export const IntegrationSettings = () => {
       setLimitLogsLoading(true);
       const res = await settingsService.getEmailLimitLogs(1, 20);
       setLimitLogs(res.data || []);
-   
+
     } catch (err) {
       // silent — not critical
     } finally {
@@ -110,6 +111,7 @@ export const IntegrationSettings = () => {
         status: filterStatus,
         dateFrom: filterDateFrom || undefined,
         dateTo: filterDateTo || undefined,
+        search: filterSearch || undefined,
         page,
         limit: 15,
       });
@@ -122,7 +124,7 @@ export const IntegrationSettings = () => {
     } finally {
       setLogsLoading(false);
     }
-  }, [filterChannel, filterStatus, filterDateFrom, filterDateTo]);
+  }, [filterChannel, filterStatus, filterDateFrom, filterDateTo, filterSearch]);
 
   const handleApplyFilters = () => {
     setLogsPage(1);
@@ -134,6 +136,7 @@ export const IntegrationSettings = () => {
     setFilterStatus('ALL');
     setFilterDateFrom('');
     setFilterDateTo('');
+    setFilterSearch('');
     setTimeout(() => fetchLogs(1), 50);
   };
 
@@ -186,14 +189,14 @@ export const IntegrationSettings = () => {
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, { color: string; icon: React.ReactNode }> = {
-      SENT:      { color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <CheckCircle2 className="h-3 w-3" /> },
+      SENT: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: <CheckCircle2 className="h-3 w-3" /> },
       DELIVERED: { color: 'bg-green-50 text-green-700 border-green-200', icon: <CheckCircle2 className="h-3 w-3" /> },
-      OPENED:    { color: 'bg-purple-50 text-purple-700 border-purple-200', icon: <CheckCircle2 className="h-3 w-3" /> },
-      CLICKED:   { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: <CheckCircle2 className="h-3 w-3" /> },
-      REPLIED:   { color: 'bg-teal-50 text-teal-700 border-teal-200',    icon: <CheckCircle2 className="h-3 w-3" /> },
-      REPLY:     { color: 'bg-teal-50 text-teal-700 border-teal-200',    icon: <CheckCircle2 className="h-3 w-3" /> },
-      FAILED:    { color: 'bg-red-50 text-red-700 border-red-200',       icon: <XCircle className="h-3 w-3" /> },
-      PENDING:   { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3 w-3" /> },
+      OPENED: { color: 'bg-purple-50 text-purple-700 border-purple-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+      CLICKED: { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+      REPLIED: { color: 'bg-teal-50 text-teal-700 border-teal-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+      REPLY: { color: 'bg-teal-50 text-teal-700 border-teal-200', icon: <CheckCircle2 className="h-3 w-3" /> },
+      FAILED: { color: 'bg-red-50 text-red-700 border-red-200', icon: <XCircle className="h-3 w-3" /> },
+      PENDING: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3 w-3" /> },
     };
     const cfg = map[status] || { color: 'bg-slate-50 text-slate-600 border-slate-200', icon: <AlertCircle className="h-3 w-3" /> };
     return (
@@ -205,8 +208,8 @@ export const IntegrationSettings = () => {
 
   const getChannelBadge = (channel: string) => {
     const map: Record<string, string> = {
-      EMAIL:    'bg-blue-100 text-blue-700',
-      SMS:      'bg-purple-100 text-purple-700',
+      EMAIL: 'bg-blue-100 text-blue-700',
+      SMS: 'bg-purple-100 text-purple-700',
       WHATSAPP: 'bg-green-100 text-green-700',
     };
     return (
@@ -239,27 +242,24 @@ export const IntegrationSettings = () => {
         <nav className="-mb-px flex overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
           <button
             onClick={() => setActiveTab('EMAIL')}
-            className={`whitespace-nowrap pb-4 px-3 sm:px-1 mr-4 sm:mr-8 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${
-              activeTab === 'EMAIL' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={`whitespace-nowrap pb-4 px-3 sm:px-1 mr-4 sm:mr-8 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${activeTab === 'EMAIL' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
           >
             <Mail className="h-4 w-4" />
             Email
           </button>
           <button
             onClick={() => setActiveTab('SMS')}
-            className={`whitespace-nowrap pb-4 px-3 sm:px-1 mr-4 sm:mr-8 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${
-              activeTab === 'SMS' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={`whitespace-nowrap pb-4 px-3 sm:px-1 mr-4 sm:mr-8 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${activeTab === 'SMS' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
           >
             <MessageSquare className="h-4 w-4" />
             SMS
           </button>
           <button
             onClick={() => setActiveTab('WHATSAPP')}
-            className={`whitespace-nowrap pb-4 px-3 sm:px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${
-              activeTab === 'WHATSAPP' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={`whitespace-nowrap pb-4 px-3 sm:px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors shrink-0 ${activeTab === 'WHATSAPP' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
           >
             <Phone className="h-4 w-4" />
             WhatsApp
@@ -272,7 +272,86 @@ export const IntegrationSettings = () => {
         <div className="lg:col-span-2">
           {activeTab === 'EMAIL' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4 sm:mb-6">Email Settings</h2>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                  Email Settings
+                </h2>
+
+                <div className="flex items-center gap-3">
+                  {/* Status */}
+                  <span
+                    className={`text-sm font-semibold transition-colors duration-200 ${settings.EMAIL.isActive
+                        ? 'text-emerald-600'
+                        : 'text-slate-500'
+                      }`}
+                  >
+                    {settings.EMAIL.isActive ? 'Active' : 'Disabled'}
+                  </span>
+
+                  {/* Toggle */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.EMAIL.isActive}
+                    aria-label="Toggle Email Integration"
+                    onClick={() =>
+                      handleChange(
+                        'EMAIL',
+                        'isActive',
+                        !settings.EMAIL.isActive
+                      )
+                    }
+                    className={`
+        relative inline-flex
+        h-5 w-14 shrink-0
+        items-center
+        rounded-full
+        border border-transparent
+        cursor-pointer
+        transition-all duration-300 ease-in-out
+        focus:outline-none
+        focus:ring-2
+        focus:ring-emerald-400/30
+        focus:ring-offset-1
+        ${settings.EMAIL.isActive
+                        ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30'
+                        : 'bg-slate-300 hover:bg-slate-400'
+                      }
+      `}
+                  >
+                    <span
+                      className={`
+          pointer-events-none
+          absolute
+          left-0.5
+          h-4 w-4
+          rounded-full
+          bg-white
+          shadow-[0_1px_4px_rgba(0,0,0,0.25)]
+          transition-transform
+          duration-300
+          ease-in-out
+          ${settings.EMAIL.isActive
+                          ? 'translate-x-[36px]'
+                          : 'translate-x-0'
+                        }
+        `}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {!settings.EMAIL.isActive && (
+                <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700">Email Integration is Disabled</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      The system will not send or receive any emails while this integration is disabled. You will not see IMAP or SMTP errors in the console. Toggle it on to resume email communications.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* ─── Usage Stats Panel ─── */}
               {(() => {
@@ -337,11 +416,10 @@ export const IntegrationSettings = () => {
                             key={lt}
                             type="button"
                             onClick={() => handleChange('EMAIL', 'limitType', lt)}
-                            className={`flex-1 py-2 text-xs sm:text-sm font-semibold transition-colors ${
-                              (settings.EMAIL.limitType || 'DAILY') === lt
-                                ? 'bg-primary text-white'
-                                : 'text-slate-500 hover:bg-slate-50'
-                            }`}
+                            className={`flex-1 py-2 text-xs sm:text-sm font-semibold transition-colors ${(settings.EMAIL.limitType || 'DAILY') === lt
+                              ? 'bg-primary text-white'
+                              : 'text-slate-500 hover:bg-slate-50'
+                              }`}
                           >
                             {lt === 'HOURLY' ? '⏱️ Hourly' : lt === 'DAILY' ? '📅 Daily' : '📆 Monthly'}
                           </button>
@@ -354,8 +432,8 @@ export const IntegrationSettings = () => {
                         {(settings.EMAIL.limitType || 'DAILY') === 'HOURLY'
                           ? 'Emails Per Hour'
                           : (settings.EMAIL.limitType || 'DAILY') === 'DAILY'
-                          ? 'Emails Per Day'
-                          : 'Emails Per Month'}
+                            ? 'Emails Per Day'
+                            : 'Emails Per Month'}
                       </label>
                       <input
                         type="number"
@@ -371,8 +449,8 @@ export const IntegrationSettings = () => {
                     {(settings.EMAIL.limitType || 'DAILY') === 'HOURLY'
                       ? 'Hourly limit resets at the start of every hour. When the limit is reached, all outgoing emails are blocked until the next hour.'
                       : (settings.EMAIL.limitType || 'DAILY') === 'DAILY'
-                      ? 'Daily limit resets every midnight. When the limit is reached, all outgoing emails are blocked until the next day.'
-                      : 'Monthly limit allows flexible usage within the month (e.g. 3000/month can be sent as 100 today, 50 tomorrow, etc.). Resets on the 1st of every month.'}
+                        ? 'Daily limit resets every midnight. When the limit is reached, all outgoing emails are blocked until the next day.'
+                        : 'Monthly limit allows flexible usage within the month (e.g. 3000/month can be sent as 100 today, 50 tomorrow, etc.). Resets on the 1st of every month.'}
                   </p>
                   <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -469,7 +547,7 @@ export const IntegrationSettings = () => {
           {activeTab === 'WHATSAPP' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
               <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4 sm:mb-6">WhatsApp Web Link</h2>
-              
+
               <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 min-h-[300px]">
                 {waLoading && !waStatus.qrCode && !waStatus.connected ? (
                   <div className="flex flex-col items-center gap-2 text-slate-500">
@@ -485,7 +563,7 @@ export const IntegrationSettings = () => {
                     <div>
                       <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">WhatsApp Connected</h3>
                       <p className="text-sm text-slate-500 mt-2 leading-relaxed">Your system is now ready to send automated WhatsApp messages directly from your linked account.</p>
-                      
+
                       {waStatus.account && (
                         <div className="mt-6 w-full p-4 bg-gradient-to-br from-emerald-50 to-white border border-emerald-200/60 rounded-xl shadow-[0_2px_10px_-4px_rgba(16,185,129,0.2)] text-left relative overflow-hidden group">
                           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-150"></div>
@@ -502,7 +580,7 @@ export const IntegrationSettings = () => {
                         </div>
                       )}
                     </div>
-                    <button 
+                    <button
                       onClick={async () => {
                         setWaLoading(true);
                         await whatsappService.logout();
@@ -529,7 +607,7 @@ export const IntegrationSettings = () => {
                 ) : (
                   <div className="flex flex-col items-center gap-3 text-slate-500 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-                    <span className="text-sm font-medium">Starting WhatsApp engine...<br/>Please wait a few moments.</span>
+                    <span className="text-sm font-medium">Starting WhatsApp engine...<br />Please wait a few moments.</span>
                   </div>
                 )}
               </div>
@@ -609,9 +687,22 @@ export const IntegrationSettings = () => {
 
         {/* Filters Row — stacked on mobile */}
         <div className="flex flex-col gap-3 px-4 sm:px-6 py-4 bg-slate-50/30 border-b border-slate-100">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            {/* Search filter */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Search</label>
+              <input
+                type="text"
+                placeholder="Search by email, name or phone..."
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+            </div>
+            
             {/* Channel filter */}
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Channel</label>
               <select
                 value={filterChannel}
@@ -631,7 +722,7 @@ export const IntegrationSettings = () => {
             </div>
 
             {/* Status filter */}
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
               <select
                 value={filterStatus}
@@ -649,7 +740,7 @@ export const IntegrationSettings = () => {
             </div>
 
             {/* Date From */}
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
               <input
                 type="date"
@@ -660,7 +751,7 @@ export const IntegrationSettings = () => {
             </div>
 
             {/* Date To */}
-            <div>
+            <div className="w-full sm:w-auto">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
               <input
                 type="date"
@@ -742,11 +833,11 @@ export const IntegrationSettings = () => {
                     </td>
                     <td className="px-4 py-3">
                       {log.details ? (
-                        <button 
+                        <button
                           onClick={() => {
                             let d = log.details;
                             if (typeof d === 'string') {
-                              try { d = JSON.parse(d); } catch {}
+                              try { d = JSON.parse(d); } catch { }
                             }
                             setSelectedLog({ ...log, parsedDetails: d });
                           }}
@@ -891,7 +982,7 @@ export const IntegrationSettings = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
@@ -903,7 +994,7 @@ export const IntegrationSettings = () => {
                   <div>{getStatusBadge(selectedLog.eventType)}</div>
                 </div>
               </div>
-              
+
               <div>
                 <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Subject</span>
                 <div className="text-sm font-medium text-slate-800 px-4 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
@@ -924,7 +1015,7 @@ export const IntegrationSettings = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
               <button onClick={() => setSelectedLog(null)} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                 Close

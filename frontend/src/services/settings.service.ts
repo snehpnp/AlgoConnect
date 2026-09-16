@@ -52,6 +52,7 @@ export interface MessageLogsParams {
   status?: string;
   dateFrom?: string;
   dateTo?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
