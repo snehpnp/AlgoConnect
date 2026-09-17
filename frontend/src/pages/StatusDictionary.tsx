@@ -36,7 +36,7 @@ export default function StatusDictionary() {
   const categories = Array.from(new Set(filteredStatuses.map(s => s.category)));
 
   return (
-    <div className="mx-auto max-w-6xl flex flex-col gap-8 pb-12 px-4 sm:px-6">
+    <div className="mx-auto max-w-8xl flex flex-col gap-8 pb-12 px-4 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>

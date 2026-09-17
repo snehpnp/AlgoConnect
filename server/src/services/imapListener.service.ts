@@ -73,19 +73,25 @@ export const pollImapForReplies = async () => {
             let failureReason = 'Unknown Bounce';
             const textLower = bodyText.toLowerCase();
             
-            // Extract exact SMTP error code (like 550 5.7.1 ... or 554 ...) to provide exact reason
-            const errorMatch = bodyText.match(/(550\s+[\d\.]*\s*[^\r\n]+|554\s+[\d\.]*\s*[^\r\n]+|Diagnostic-Code:\s*smtp;[^\r\n]+)/i);
-            const exactDetail = errorMatch ? ` | Detail: ${errorMatch[0].replace(/Diagnostic-Code:\s*smtp;\s*/i, '').substring(0, 100)}` : '';
+            // Extract exact SMTP error code (like 550, 5.1.1, etc.) to provide exact reason
+            const errorMatch = bodyText.match(/((?:55\d|45\d|5\.\d\.\d|4\.\d\.\d)\s+[^\r\n]+|Diagnostic-Code:\s*smtp;[^\r\n]+)/i);
+            const exactDetail = errorMatch ? ` | Detail: ${errorMatch[0].replace(/Diagnostic-Code:\s*smtp;\s*/i, '').substring(0, 150)}` : '';
 
-            if (textLower.includes('address not found') || textLower.includes('user unknown') || textLower.includes('no such user') || textLower.includes('invalid address')) {
-              failureReason = 'Hard Bounce - Address Not Found' + exactDetail;
-            } else if (textLower.includes('mailbox full') || textLower.includes('quota exceeded') || textLower.includes('over quota')) {
-              failureReason = 'Soft Bounce - Mailbox Full' + exactDetail;
-            } else if (textLower.includes('blocked') || textLower.includes('spam') || textLower.includes('rejected') || textLower.includes('blacklisted') || textLower.includes('policy')) {
-              failureReason = 'Blocked - Spam or Policy Rejection' + exactDetail;
-            } else {
-              failureReason = failureReason + exactDetail;
+            if (textLower.match(/address not found|user unknown|no such user|invalid address|not exist|bad address|recipient rejected/)) {
+              failureReason = 'Hard Bounce - Address Not Found';
+            } else if (textLower.match(/mailbox full|quota exceeded|over quota/)) {
+              failureReason = 'Soft Bounce - Mailbox Full';
+            } else if (textLower.match(/blocked|spam|rejected|blacklisted|policy|dmarc|spf/)) {
+              failureReason = 'Blocked - Spam or Policy Rejection';
+            } else if (textLower.match(/domain not found|dns/)) {
+              failureReason = 'Hard Bounce - Domain/DNS Error';
+            } else if (textLower.match(/relay access denied|relaying denied/)) {
+              failureReason = 'Hard Bounce - Relay Denied';
+            } else if (textLower.match(/timeout|try again later|temporarily deferred/)) {
+              failureReason = 'Soft Bounce - Timeout/Temporary';
             }
+
+            failureReason = failureReason + exactDetail;
 
             await prisma.engagementEvent.create({
               data: {

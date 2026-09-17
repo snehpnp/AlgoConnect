@@ -85,13 +85,25 @@ export const checkIMAPReplies = async () => {
 
             let failureReason = 'Unknown Bounce';
             const textLower = textContent.toLowerCase();
-            if (textLower.includes('address not found') || textLower.includes('user unknown') || textLower.includes('no such user') || textLower.includes('invalid address')) {
+            
+            const errorMatch = textContent.match(/((?:55\d|45\d|5\.\d\.\d|4\.\d\.\d)\s+[^\r\n]+|Diagnostic-Code:\s*smtp;[^\r\n]+)/i);
+            const exactDetail = errorMatch ? ` | Detail: ${errorMatch[0].replace(/Diagnostic-Code:\s*smtp;\s*/i, '').substring(0, 150)}` : '';
+
+            if (textLower.match(/address not found|user unknown|no such user|invalid address|not exist|bad address|recipient rejected/)) {
               failureReason = 'Hard Bounce - Address Not Found';
-            } else if (textLower.includes('mailbox full') || textLower.includes('quota exceeded') || textLower.includes('over quota')) {
+            } else if (textLower.match(/mailbox full|quota exceeded|over quota/)) {
               failureReason = 'Soft Bounce - Mailbox Full';
-            } else if (textLower.includes('blocked') || textLower.includes('spam') || textLower.includes('rejected') || textLower.includes('blacklisted') || textLower.includes('policy')) {
+            } else if (textLower.match(/blocked|spam|rejected|blacklisted|policy|dmarc|spf/)) {
               failureReason = 'Blocked - Spam or Policy Rejection';
+            } else if (textLower.match(/domain not found|dns/)) {
+              failureReason = 'Hard Bounce - Domain/DNS Error';
+            } else if (textLower.match(/relay access denied|relaying denied/)) {
+              failureReason = 'Hard Bounce - Relay Denied';
+            } else if (textLower.match(/timeout|try again later|temporarily deferred/)) {
+              failureReason = 'Soft Bounce - Timeout/Temporary';
             }
+
+            failureReason = failureReason + exactDetail;
 
             const failedEmails = matchedEmails.map(e => e.toLowerCase()).filter(e =>
               !e.includes('mailer-daemon') && !e.includes('postmaster')
