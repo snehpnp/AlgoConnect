@@ -70,16 +70,33 @@ export const pollImapForReplies = async () => {
             where: { providerMessageId: providerMessageId }
           });
           if (messageSend && messageSend.status !== 'BOUNCED') {
+            let failureReason = 'Unknown Bounce';
+            const textLower = bodyText.toLowerCase();
+            
+            // Extract exact SMTP error code (like 550 5.7.1 ... or 554 ...) to provide exact reason
+            const errorMatch = bodyText.match(/(550\s+[\d\.]*\s*[^\r\n]+|554\s+[\d\.]*\s*[^\r\n]+|Diagnostic-Code:\s*smtp;[^\r\n]+)/i);
+            const exactDetail = errorMatch ? ` | Detail: ${errorMatch[0].replace(/Diagnostic-Code:\s*smtp;\s*/i, '').substring(0, 100)}` : '';
+
+            if (textLower.includes('address not found') || textLower.includes('user unknown') || textLower.includes('no such user') || textLower.includes('invalid address')) {
+              failureReason = 'Hard Bounce - Address Not Found' + exactDetail;
+            } else if (textLower.includes('mailbox full') || textLower.includes('quota exceeded') || textLower.includes('over quota')) {
+              failureReason = 'Soft Bounce - Mailbox Full' + exactDetail;
+            } else if (textLower.includes('blocked') || textLower.includes('spam') || textLower.includes('rejected') || textLower.includes('blacklisted') || textLower.includes('policy')) {
+              failureReason = 'Blocked - Spam or Policy Rejection' + exactDetail;
+            } else {
+              failureReason = failureReason + exactDetail;
+            }
+
             await prisma.engagementEvent.create({
               data: {
                 messageSendId: messageSend.id,
                 eventType: 'BOUNCED',
-                metadataJson: { error: 'Delivery Status Notification via IMAP' }
+                metadataJson: { error: failureReason }
               }
             });
             await prisma.messageSend.update({
               where: { id: messageSend.id },
-              data: { status: 'BOUNCED', bouncedAt: new Date() }
+              data: { status: 'BOUNCED', bouncedAt: new Date(), failureReason: failureReason }
             });
             console.log(`[IMAP Listener] Processed bounce for message ${providerMessageId}`);
           }

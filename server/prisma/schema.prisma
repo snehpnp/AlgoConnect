@@ -267,6 +267,7 @@ model MessageSend {
   repliedAt         DateTime?
   failedAt          DateTime?
   bouncedAt         DateTime?
+  failureReason     String?   @db.Text
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

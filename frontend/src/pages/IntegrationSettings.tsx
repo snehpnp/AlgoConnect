@@ -817,7 +817,16 @@ export const IntegrationSettings = () => {
                       <span className="text-[10px] text-slate-400">{new Date(log.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                     </td>
                     <td className="px-4 py-3">{getChannelBadge(log.channel)}</td>
-                    <td className="px-4 py-3">{getStatusBadge(log.eventType)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-start gap-1">
+                        {getStatusBadge(log.eventType)}
+                        {(log.eventType === 'FAILED' || log.eventType === 'BOUNCED') && (log.failureReason || log.details?.error) && (
+                          <span className="text-[10px] text-rose-500 font-medium max-w-[150px] leading-tight mt-1">
+                            {log.failureReason || log.details?.error}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       {log.lead ? (
                         <div>

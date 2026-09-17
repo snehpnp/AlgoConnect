@@ -306,6 +306,7 @@ export const getMessageLogs = async (req: Request, res: Response) => {
       campaign: log.messageSend?.campaign,
       details: log.metadataJson,
       channel: log.messageSend?.channel,
+      failureReason: log.messageSend?.failureReason,
     }));
 
     res.json({

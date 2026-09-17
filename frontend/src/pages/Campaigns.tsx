@@ -892,17 +892,23 @@ export const Campaigns: React.FC = () => {
                                       <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
                                     </td>
                                     <td className="py-4 px-6">
-                                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                                        lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
-                                          lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
-                                            lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
-                                              lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
-                                                lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                                                  lead.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                                                    'bg-slate-100 text-slate-700'
-                                        }`}>
-                                        {lead.status}
-                                      </span>
+                                      <div className="flex flex-col items-start gap-1">
+                                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                                          lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
+                                            lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
+                                              lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
+                                                lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
+                                                  lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
+                                                    'bg-amber-100 text-amber-700'
+                                          }`}>
+                                          {lead.status}
+                                        </span>
+                                        {(lead.status === 'FAILED' || lead.status === 'BOUNCED') && lead.failureReason && (
+                                          <span className="text-[10px] text-rose-500 font-medium max-w-[150px] leading-tight mt-1">
+                                            {lead.failureReason}
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
                                     <td className="py-4 px-6 text-sm font-medium text-slate-500">
                                       {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}

@@ -73,7 +73,8 @@
     "start": "node dist/server.js",
     "dev": "nodemon --ignore whatsapp-auth/ src/server.ts",
     "build": "tsc",
-    "db:sync": "node scripts/sync-db.js"
+    "db:sync": "node scripts/sync-db.js",
+    "reset-bounced": "ts-node scripts/reset-bounced.ts"
   },
   "keywords": [],
   "author": "",

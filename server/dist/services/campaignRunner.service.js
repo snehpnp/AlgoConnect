@@ -220,7 +220,7 @@ const startCampaignRunner = () => {
                                 messageSendId: existingSend?.id
                             });
                             if (sendResult && sendResult.limitReached) {
-                                console.log(`[CampaignRunner] Limit reached for ${channel}. Aborting campaign batch.`);
+                               
                                 limitReached = true;
                                 break; // Break the channel loop, outer loop will also break due to limitReached
                             }
