@@ -41,7 +41,8 @@ export interface MessageLog {
   id: number;
   channel: string;
   eventType: string;
-  details?: string | null;
+  details?: any | null;
+  failureReason?: string | null;
   createdAt: string;
   lead?: { id: number; name: string; email?: string | null; phone?: string | null } | null;
   campaign?: { id: number; name: string } | null;
