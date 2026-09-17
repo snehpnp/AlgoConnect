@@ -13,7 +13,7 @@ export const checkIMAPReplies = async () => {
     });
 
     if (!imapSetting || !imapSetting.isActive || !imapSetting.host || !imapSetting.apiKey || !imapSetting.apiSecret) {
-      console.([], '[IMAP] IMAP (EMAIL) is not configured or is inactive.');
+      console.log('[' + new Date().toISOString() + '] -', '[IMAP] IMAP (EMAIL) is not configured or is inactive.');
       return;
     }
 
@@ -49,7 +49,7 @@ export const checkIMAPReplies = async () => {
     const messages = await connection.search(searchCriteria, fetchOptions);
     if (messages.length > 0) {
 
-      console.([], `[IMAP] Found ${messages.length} unseen messages.`);
+      console.log('[' + new Date().toISOString() + '] -', `[IMAP] Found ${messages.length} unseen messages.`);
 
       for (const item of messages) {
         const all = item.parts.find((part: any) => part.which === '');
@@ -66,7 +66,7 @@ export const checkIMAPReplies = async () => {
           const senderEmail = mail.from.value[0].address;
           if (!senderEmail) continue;
 
-          console.([], `[IMAP] Processing email from: ${senderEmail}`);
+          console.log('[' + new Date().toISOString() + '] -', `[IMAP] Processing email from: ${senderEmail}`);
 
           // --- CHECK FOR BOUNCE ---
           const senderLower = senderEmail.toLowerCase();
@@ -78,7 +78,7 @@ export const checkIMAPReplies = async () => {
             subjectLower.includes('undelivered mail');
 
           if (isBounce) {
-            console.([], `[IMAP] Detected bounce email.`);
+            console.log('[' + new Date().toISOString() + '] -', `[IMAP] Detected bounce email.`);
             const textContent = mail.text || '';
             const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
             const matchedEmails = textContent.match(emailRegex) || [];
@@ -100,7 +100,7 @@ export const checkIMAPReplies = async () => {
             if (failedEmails.length > 0) {
               // Usually the first non-system email is the bounced recipient
               const bouncedEmail = failedEmails[0];
-              console.([], `[IMAP] Found bounced recipient: ${bouncedEmail}`);
+              console.log('[' + new Date().toISOString() + '] -', `[IMAP] Found bounced recipient: ${bouncedEmail}`);
 
               const lead = await prisma.lead.findFirst({
                 where: {
@@ -142,7 +142,7 @@ export const checkIMAPReplies = async () => {
                     where: { id: lead.id },
                     data: { engagementStatus: 'Bounced' }
                   });
-                  console.([], `[IMAP] Successfully logged BOUNCE for Lead ID: ${lead.id}`);
+                  console.log('[' + new Date().toISOString() + '] -', `[IMAP] Successfully logged BOUNCE for Lead ID: ${lead.id}`);
                 }
               }
             }
@@ -161,7 +161,7 @@ export const checkIMAPReplies = async () => {
           });
 
           if (lead) {
-            console.([], `[IMAP] Matched email to Lead ID: ${lead.id}`);
+            console.log('[' + new Date().toISOString() + '] -', `[IMAP] Matched email to Lead ID: ${lead.id}`);
 
             // Find the most recent MessageSend for this lead
             const lastSend = await prisma.messageSend.findFirst({
@@ -170,7 +170,7 @@ export const checkIMAPReplies = async () => {
             });
 
             if (lastSend) {
-              console.([], `[IMAP] Logging reply for MessageSend ID: ${lastSend.id}`);
+              console.log('[' + new Date().toISOString() + '] -', `[IMAP] Logging reply for MessageSend ID: ${lastSend.id}`);
 
               const uniqueMsgId = mail.messageId || `imap-${id}`;
               
@@ -179,7 +179,7 @@ export const checkIMAPReplies = async () => {
               });
 
               if (existingReply) {
-                console.([], `[IMAP] Reply already exists in DB (UID: ${id}). Skipping.`);
+                console.log('[' + new Date().toISOString() + '] -', `[IMAP] Reply already exists in DB (UID: ${id}). Skipping.`);
                 continue;
               }
 
@@ -247,20 +247,20 @@ export const checkIMAPReplies = async () => {
                 data: { engagementStatus: 'Replied' }
               });
 
-              console.([], `[IMAP] Successfully updated CRM for Lead ID: ${lead.id}`);
+              console.log('[' + new Date().toISOString() + '] -', `[IMAP] Successfully updated CRM for Lead ID: ${lead.id}`);
             } else {
-              console.([], `[IMAP] Lead found but no previous MessageSend found.`);
+              console.log('[' + new Date().toISOString() + '] -', `[IMAP] Lead found but no previous MessageSend found.`);
             }
           }
         } catch (err) {
-          console.([], `[IMAP] Error processing message UID ${id}:`, err);
+          console.log('[' + new Date().toISOString() + '] -', `[IMAP] Error processing message UID ${id}:`, err);
         }
       }
 
-      console.([], '[IMAP] IMAP reply check completed.');
+      console.log('[' + new Date().toISOString() + '] -', '[IMAP] IMAP reply check completed.');
     }
     connection.end();
   } catch (error) {
-    console.([], '[IMAP] Error connecting or checking IMAP:', error);
+    console.log('[' + new Date().toISOString() + '] -', '[IMAP] Error connecting or checking IMAP:', error);
   }
 };

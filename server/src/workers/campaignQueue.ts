@@ -17,7 +17,7 @@ export const campaignWorker = new Worker(
     const { messageSendId, leadId, channel, content, subject, templateId, recipient } = job.data;
 
     try {
-      console.([], `[BullMQ Worker] Processing messageSendId: ${messageSendId} for lead: ${leadId}`);
+      console.log('[' + new Date().toISOString() + '] -', `[BullMQ Worker] Processing messageSendId: ${messageSendId} for lead: ${leadId}`);
 
       // Actual sending logic
       const result = await messagingGateway.sendMessage({
@@ -44,10 +44,10 @@ export const campaignWorker = new Worker(
         },
       });
 
-      console.([], `[BullMQ Worker] Success: messageSendId: ${messageSendId}`);
+      console.log('[' + new Date().toISOString() + '] -', `[BullMQ Worker] Success: messageSendId: ${messageSendId}`);
       return result;
     } catch (error: any) {
-      console.([], `[BullMQ Worker] Failed to send messageSendId: ${messageSendId}`, error);
+      console.log('[' + new Date().toISOString() + '] -', `[BullMQ Worker] Failed to send messageSendId: ${messageSendId}`, error);
 
       // Mark as FAILED in DB
       await prisma.messageSend.update({
@@ -76,5 +76,5 @@ campaignWorker.on('completed', (job) => {
 });
 
 campaignWorker.on('failed', (job, err) => {
-  console.([], `Job with id ${job?.id} has failed with ${err.message}`);
+  console.log('[' + new Date().toISOString() + '] -', `Job with id ${job?.id} has failed with ${err.message}`);
 });

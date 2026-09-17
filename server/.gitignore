@@ -16,3 +16,7 @@ algoconnect.dump
 .wwebjs_cache
 .wwebjs_auth
 whatsapp-auth
+
+./dist
+/dist
+dist
