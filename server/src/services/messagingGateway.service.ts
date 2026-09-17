@@ -5,6 +5,7 @@ import { SocketService } from './socket.service';
 export interface SendMessageOptions {
   leadId: number;
   campaignId?: number;
+  campaignRunId?: number;
   templateId?: number;
   channel: 'EMAIL' | 'WHATSAPP' | 'SMS';
   recipient: string;
@@ -41,6 +42,7 @@ export const messagingGateway = {
         const msg = await prisma.messageSend.create({
           data: {
             ...(options.campaignId ? { campaignId: options.campaignId } : {}),
+            ...(options.campaignRunId ? { campaignRunId: options.campaignRunId } : {}),
             leadId: options.leadId,
             channel: options.channel,
             subject: options.subject || null,

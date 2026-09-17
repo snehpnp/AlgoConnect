@@ -41,7 +41,11 @@ export const startCampaignRunner = () => {
           leads: true,
           emailTemplate: true,
           whatsappTemplate: true,
-          smsTemplate: true
+          smsTemplate: true,
+          runs: {
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
         }
       });
 
@@ -88,7 +92,7 @@ export const startCampaignRunner = () => {
             // Check if already sent in this campaign
             const existingSend = await prisma.messageSend.findFirst({
               where: {
-                campaignId: campaign.id,
+                campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
                 leadId: lead.id,
                 channel: channel,
               },
@@ -108,7 +112,7 @@ export const startCampaignRunner = () => {
               // Log that it was skipped due to consent
               const msg = await prisma.messageSend.create({
                 data: {
-                  campaignId: campaign.id,
+                  campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
                   leadId: lead.id,
                   channel: channel,
                   subject: 'Skipped - Opt Out',
@@ -155,7 +159,7 @@ export const startCampaignRunner = () => {
                 } else {
                   const msg = await prisma.messageSend.create({
                     data: {
-                      campaignId: campaign.id,
+                      campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
                       leadId: lead.id,
                       channel: channel,
                       subject: 'Bounced - Invalid or Empty Email',
@@ -186,7 +190,7 @@ export const startCampaignRunner = () => {
               // Missing template or contact info
               const msg = await prisma.messageSend.create({
                 data: {
-                  campaignId: campaign.id,
+                  campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
                   leadId: lead.id,
                   channel: channel,
                   subject: 'Skipped - Missing Info',
@@ -229,7 +233,7 @@ export const startCampaignRunner = () => {
             // Dispatch
             try {
               const sendResult = await messagingGateway.sendMessage({
-                campaignId: campaign.id,
+                campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
                 leadId: lead.id,
                 templateId: template.id,
                 channel: channel as any,
@@ -262,7 +266,7 @@ export const startCampaignRunner = () => {
         // Check for completion
         const pendingCount = await prisma.messageSend.count({
           where: {
-            campaignId: campaign.id,
+            campaignId: campaign.id, campaignRunId: campaign.runs?.[0]?.id || undefined,
             status: { in: ['PENDING', 'QUEUED'] }
           }
         });
