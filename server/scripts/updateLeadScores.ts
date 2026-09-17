@@ -157,7 +157,7 @@ async function main() {
     }
   }
 
-  console.log(`Finished updating lead scores. Updated ${updatedCount} out of ${leads.length} leads.`);
+ 
 }
 
 main()

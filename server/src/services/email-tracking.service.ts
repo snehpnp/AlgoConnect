@@ -41,7 +41,7 @@ export class EmailTrackingService {
           where: { messageSendId: messageSend.id, eventType }
         });
         if (existing) {
-          console.log(`[Webhook] Idempotency: Event ${eventType} already recorded for message ${messageSend.id}`);
+         
           return existing; // Already processed
         }
       }

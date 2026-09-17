@@ -16,5 +16,5 @@ redisConnection.on('error', (err) => {
 });
 
 redisConnection.on('ready', () => {
-  console.log('[Redis] Connected successfully to', `${REDIS_HOST}:${REDIS_PORT}`);
+  
 });

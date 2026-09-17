@@ -9,7 +9,7 @@ export const pollImapForReplies = async () => {
     });
 
     if (!setting || !setting.host || !setting.apiKey || !setting.apiSecret) {
-      console.log('[IMAP Listener] Email service not configured.');
+      console.([], '[IMAP Listener] Email service not configured.');
       return;
     }
 
@@ -98,7 +98,7 @@ export const pollImapForReplies = async () => {
               where: { id: messageSend.id },
               data: { status: 'BOUNCED', bouncedAt: new Date(), failureReason: failureReason }
             });
-            console.log(`[IMAP Listener] Processed bounce for message ${providerMessageId}`);
+            console.([], `[IMAP Listener] Processed bounce for message ${providerMessageId}`);
           }
         }
       } else {
@@ -148,7 +148,7 @@ export const pollImapForReplies = async () => {
               data: { status: 'REPLIED', repliedAt: new Date() }
             });
             
-            console.log(`[IMAP Listener] Processed reply for message ${providerMessageId}`);
+            console.([], `[IMAP Listener] Processed reply for message ${providerMessageId}`);
           }
         }
       }
@@ -160,6 +160,6 @@ export const pollImapForReplies = async () => {
 
     connection.end();
   } catch (error) {
-    console.error('[IMAP Listener] Error:', error);
+    console.([], '[IMAP Listener] Error:', error);
   }
 };

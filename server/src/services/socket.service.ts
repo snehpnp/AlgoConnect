@@ -17,18 +17,17 @@ export class SocketService {
     });
 
     this.io.on('connection', (socket) => {
-      // console.log(`[Socket] User connected: ${socket.id}`);
-
+      
       // When a user authenticates/connects from frontend, they emit "register"
       socket.on('register', (userId: number) => {
         if (userId) {
           socket.join(userId.toString());
-          // console.log(`[Socket] Registered User ${userId} into room ${userId.toString()}`);
+          
         }
       });
 
       socket.on('disconnect', () => {
-        // console.log(`[Socket] User disconnected: ${socket.id}`);
+        
       });
     });
   }

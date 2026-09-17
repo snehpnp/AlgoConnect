@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting Lead Status Migration...');
+  
   const leads = await prisma.lead.findMany();
-  console.log(`Found ${leads.length} leads to process.`);
+ 
 
   const higherSalesStages = ['Client Won', 'CONVERTED', 'Client Lost', 'Negotiation', 'Qualified'];
   const higherEngagement = ['Replied', 'Demo Requested', 'Clicked', 'Opened'];
@@ -54,7 +54,7 @@ async function main() {
     updatedCount++;
   }
 
-  console.log(`Successfully migrated ${updatedCount} leads.`);
+ 
 }
 
 main()

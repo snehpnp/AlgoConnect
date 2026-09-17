@@ -50,12 +50,12 @@ class WhatsAppService {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
 
       } catch (err) {
-        console.error('[WhatsApp] Failed to generate QR code:', getErrorMessage(err));
+        console.([], '[WhatsApp] Failed to generate QR code:', getErrorMessage(err));
       }
     });
 
     this.client.on('ready', async () => {
-      console.log('[WhatsApp] Client is ready and connected!');
+      console.([], '[WhatsApp] Client is ready and connected!');
       this.isConnected = true;
       this.qrCodeDataUrl = null;
       try {
@@ -65,24 +65,24 @@ class WhatsAppService {
           number: info?.wid?.user || '',
           pushname: info?.pushname || '',
         };
-        console.log(`[WhatsApp] Account: ${this.accountInfo.name} (+${this.accountInfo.number})`);
+        console.([], `[WhatsApp] Account: ${this.accountInfo.name} (+${this.accountInfo.number})`);
       } catch (e) {
         this.accountInfo = null;
       }
     });
 
     this.client.on('authenticated', () => {
-      console.log('[WhatsApp] Authenticated successfully');
+      console.([], '[WhatsApp] Authenticated successfully');
     });
 
     this.client.on('auth_failure', (msg) => {
-      console.error('[WhatsApp] Authentication failure:', msg);
+      console.([], '[WhatsApp] Authentication failure:', msg);
       this.isConnected = false;
       this.qrCodeDataUrl = null;
     });
 
     this.client.on('disconnected', (reason) => {
-      console.log('[WhatsApp] Client disconnected:', reason);
+      console.([], '[WhatsApp] Client disconnected:', reason);
       this.isConnected = false;
       this.qrCodeDataUrl = null;
       this.accountInfo = null;
@@ -97,9 +97,9 @@ class WhatsAppService {
 
   // Non-blocking initialize — server won't crash if WhatsApp fails
   public initialize() {
-    console.log('[WhatsApp] Starting client initialization...');
+    console.([], '[WhatsApp] Starting client initialization...');
     this.client.initialize().catch((err) => {
-      console.error('[WhatsApp] Initialization error (non-fatal):', getErrorMessage(err));
+      console.([], '[WhatsApp] Initialization error (non-fatal):', getErrorMessage(err));
     });
   }
 
@@ -118,7 +118,7 @@ class WhatsAppService {
       this.qrCodeDataUrl = null;
       this.client.initialize().catch(() => { });
     } catch (error) {
-      console.error('[WhatsApp] Logout failed:', getErrorMessage(error));
+      console.([], '[WhatsApp] Logout failed:', getErrorMessage(error));
       throw error;
     }
   }
@@ -151,19 +151,19 @@ class WhatsAppService {
         errMsg.includes('Failed to find row in chat table') ||
         errMsg.includes('No LID for user')
       ) {
-        console.log(`[WhatsApp] LID issue for ${chatId}, trying getChat + retry...`);
+        console.([], `[WhatsApp] LID issue for ${chatId}, trying getChat + retry...`);
 
         try {
           await this.client.getChatById(chatId);
           await new Promise((r) => setTimeout(r, 2000)); // 2 sec wait
           return await this.client.sendMessage(chatId, contentToSend, options);
         } catch (retryError) {
-          console.error(`[WhatsApp] Retry also failed for ${phoneNumber}:`, getErrorMessage(retryError));
+          console.([], `[WhatsApp] Retry also failed for ${phoneNumber}:`, getErrorMessage(retryError));
           throw new Error(getErrorMessage(retryError));
         }
       }
 
-      console.error(`[WhatsApp] Failed to send to ${phoneNumber}:`, getErrorMessage(error));
+      console.([], `[WhatsApp] Failed to send to ${phoneNumber}:`, getErrorMessage(error));
       throw new Error(getErrorMessage(error));
     }
   }
@@ -199,7 +199,7 @@ class WhatsAppService {
         if (media) return media;
         // media undefined but no throw — treat as retryable
       } catch (err: any) {
-        console.error(`[WhatsApp] downloadMedia attempt ${attempt} failed:`, getErrorMessage(err));
+        console.([], `[WhatsApp] downloadMedia attempt ${attempt} failed:`, getErrorMessage(err));
         if (attempt === retries) return null; // don't throw, just give up quietly
       }
       await new Promise((r) => setTimeout(r, delayMs * attempt)); // backoff
@@ -219,7 +219,7 @@ class WhatsAppService {
 
       if (message.hasMedia) {
         if (message.isViewOnce) {
-          console.log('[WhatsApp] View-once media — cannot be downloaded, skipping');
+          console.([], '[WhatsApp] View-once media — cannot be downloaded, skipping');
         } else {
           try {
             const media = await this.downloadMediaWithRetry(message);
@@ -239,10 +239,10 @@ class WhatsAppService {
               mediaUrl = `/uploads/whatsapp/${filename}`;
               mediaType = media.mimetype;
             } else {
-              console.log('[WhatsApp] Media download unavailable, continuing as text-only');
+              console.([], '[WhatsApp] Media download unavailable, continuing as text-only');
             }
           } catch (mediaErr) {
-            console.log('[WhatsApp] Failed to download media:', getErrorMessage(mediaErr));
+            console.([], '[WhatsApp] Failed to download media:', getErrorMessage(mediaErr));
             // Fall through — still save the reply as text-only so the lead isn't lost
           }
         }
@@ -263,20 +263,20 @@ class WhatsAppService {
           if (resolved && resolved.length >= 10 && resolved.length <= 13) {
             digitsOnly = resolved;
           }
-          console.log(`[WhatsApp] getContact resolved: ${resolved}, pushname: ${contact?.pushname}`);
+          console.([], `[WhatsApp] getContact resolved: ${resolved}, pushname: ${contact?.pushname}`);
         } catch (e) {
-          console.error('[WhatsApp] getContact failed:', getErrorMessage(e));
+          console.([], '[WhatsApp] getContact failed:', getErrorMessage(e));
         }
       }
 
       if (!digitsOnly || digitsOnly.length < 10) {
-        console.log(`[WhatsApp] Could not get valid phone from message. from=${fromId}`);
+        console.([], `[WhatsApp] Could not get valid phone from message. from=${fromId}`);
         return;
       }
 
       // Last 10 digits for matching
       const last10 = digitsOnly.slice(-10);
-      console.log(`[WhatsApp] Incoming reply: "${text}" | phone digits: ${digitsOnly} | last10: ${last10}`);
+      console.([], `[WhatsApp] Incoming reply: "${text}" | phone digits: ${digitsOnly} | last10: ${last10}`);
 
       // Dedup check using message ID
       const providerMsgId = message.id?.id || `wa-in-${Date.now()}-${Math.random()}`;
@@ -284,7 +284,7 @@ class WhatsAppService {
         where: { providerMessageId: providerMsgId },
       });
       if (existing) {
-        console.log(`[WhatsApp] Already saved message ${providerMsgId}, skipping.`);
+        console.([], `[WhatsApp] Already saved message ${providerMsgId}, skipping.`);
         return;
       }
 
@@ -303,11 +303,11 @@ class WhatsAppService {
       });
 
       if (!matchedLead) {
-        console.log(`[WhatsApp] No lead matched last10=${last10}. Leads checked: ${allLeads.length}`);
+        console.([], `[WhatsApp] No lead matched last10=${last10}. Leads checked: ${allLeads.length}`);
         return;
       }
 
-      console.log(`[WhatsApp] ✅ Matched lead: "${matchedLead.name}" (id=${matchedLead.id})`);
+      console.([], `[WhatsApp] ✅ Matched lead: "${matchedLead.name}" (id=${matchedLead.id})`);
 
       // Find the most recent message sent to this lead via WHATSAPP
       let lastMessage = await prisma.messageSend.findFirst({
@@ -370,9 +370,9 @@ class WhatsAppService {
         SocketService.sendToUser(u.id, 'new_notification', notif);
       }
 
-      console.log(`[WhatsApp] ✅ Reply saved for lead "${matchedLead.name}" (id=${matchedLead.id})`);
+      console.([], `[WhatsApp] ✅ Reply saved for lead "${matchedLead.name}" (id=${matchedLead.id})`);
     } catch (error) {
-      console.error('[WhatsApp] Error handling incoming message:', getErrorMessage(error));
+      console.([], '[WhatsApp] Error handling incoming message:', getErrorMessage(error));
     }
   }
 }

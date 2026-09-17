@@ -17,7 +17,7 @@ export const campaignWorker = new Worker(
     const { messageSendId, leadId, channel, content, subject, templateId, recipient } = job.data;
 
     try {
-      console.log(`[BullMQ Worker] Processing messageSendId: ${messageSendId} for lead: ${leadId}`);
+      console.([], `[BullMQ Worker] Processing messageSendId: ${messageSendId} for lead: ${leadId}`);
 
       // Actual sending logic
       const result = await messagingGateway.sendMessage({
@@ -44,10 +44,10 @@ export const campaignWorker = new Worker(
         },
       });
 
-      console.log(`[BullMQ Worker] Success: messageSendId: ${messageSendId}`);
+      console.([], `[BullMQ Worker] Success: messageSendId: ${messageSendId}`);
       return result;
     } catch (error: any) {
-      console.error(`[BullMQ Worker] Failed to send messageSendId: ${messageSendId}`, error);
+      console.([], `[BullMQ Worker] Failed to send messageSendId: ${messageSendId}`, error);
 
       // Mark as FAILED in DB
       await prisma.messageSend.update({
@@ -72,9 +72,9 @@ export const campaignWorker = new Worker(
 );
 
 campaignWorker.on('completed', (job) => {
-  // console.log(`Job with id ${job.id} has been completed`);
+ 
 });
 
 campaignWorker.on('failed', (job, err) => {
-  console.error(`Job with id ${job?.id} has failed with ${err.message}`);
+  console.([], `Job with id ${job?.id} has failed with ${err.message}`);
 });

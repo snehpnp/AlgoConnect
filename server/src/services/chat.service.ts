@@ -24,7 +24,7 @@ export class ChatService {
     try {
       // Step 1: Generate SQL from natural language
       const sqlQuery = await this.generateSQL(userMessage);
-      console.log(`[ChatService] Generated SQL: ${sqlQuery}`);
+      
 
       if (sqlQuery === 'INVALID') {
         return "I can only answer questions related to your AlgoConnect database (Leads, Campaigns, etc.). How can I help you with that?";

@@ -277,7 +277,7 @@ export const startCampaignRunner = () => {
             where: { campaignId: campaign.id, status: 'PENDING' },
             data: { status: 'COMPLETED' }
           });
-          console.log(`[CampaignRunner] Campaign ${campaign.id} completed.`);
+         
         }
       }
 

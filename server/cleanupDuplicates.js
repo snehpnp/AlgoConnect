@@ -2,7 +2,6 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function cleanDuplicates() {
-  console.log('Starting cleanup of duplicate SENT events...');
   
   // Find all SENT events
   const sentEvents = await prisma.engagementEvent.findMany({
@@ -40,7 +39,7 @@ async function cleanDuplicates() {
     }
   }
 
-  console.log(`Cleanup complete! Deleted ${deletedCount} duplicate SENT logs.`);
+
 }
 
 cleanDuplicates()

@@ -656,7 +656,7 @@ export const sendManualMessage = asyncHandler(async (req: Request, res: Response
     recipient = lead.phone || lead.scrapedPhone || lead.phone2 || '';
     if (!recipient) throw new Error(`Lead has no phone number for ${channel}`);
     htmlSent = content;
-    console.log(`[Mock] Sending ${channel} to ${recipient}: ${content}`);
+   
   }
 
   const msg = await prisma.messageSend.create({
