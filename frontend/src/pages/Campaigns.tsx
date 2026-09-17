@@ -38,6 +38,8 @@ export const Campaigns: React.FC = () => {
   const [connectedSearch, setConnectedSearch] = useState('');
   const [connectedStatusFilter, setConnectedStatusFilter] = useState('ALL');
   const [connectedSegmentFilter, setConnectedSegmentFilter] = useState('ALL');
+  const [connectedPage, setConnectedPage] = useState(1);
+  const CONNECTED_PAGE_SIZE = 50;
 
   const connectedStatusCounts = connectedLeads.reduce((acc: Record<string, number>, lead) => {
     const st = (lead.status || 'PENDING').toUpperCase();
@@ -124,27 +126,6 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  // const openManageLeads = async (campaign: Campaign) => {
-  //   setOpenMenuId(null);
-  //   setIsLeadsModalOpen(true);
-  //   setModalSearch('');
-  //   setModalSalesStage('');
-
-  //   // Fetch full campaign details to get already connected leads
-  //   try {
-  //     setLeadsLoading(true);
-  //     const campRes = await campaignService.getCampaignById(campaign.id);
-  //     setCurrentCampaign(campRes.data);
-  //     const existingLeadIds = campRes.data.leads?.map((l: any) => l.id) || [];
-  //     setSelectedLeadIds(new Set(existingLeadIds));
-  //   } catch (error) {
-  //     toast.error('Failed to load campaign details');
-  //     setSelectedLeadIds(new Set());
-  //   }
-
-  //   await fetchModalLeads();
-  // };
-
   // Debounced search for Modal
   useEffect(() => {
     if (!isLeadsModalOpen) return;
@@ -208,6 +189,7 @@ export const Campaigns: React.FC = () => {
     setConnectedSearch('');
     setConnectedStatusFilter('ALL');
     setConnectedSegmentFilter('ALL');
+    setConnectedPage(1);
     setSelectedRunId(undefined);
     setCampaignRuns([]);
 
@@ -240,6 +222,7 @@ export const Campaigns: React.FC = () => {
     if (!currentCampaign) return;
     setConnectedLeadsLoading(true);
     setSelectedRunId(runId);
+    setConnectedPage(1);
     try {
       const res = await campaignService.getCampaignConnectedLeads(currentCampaign.id as number, runId);
       setConnectedLeads(res.data || []);
@@ -268,6 +251,66 @@ export const Campaigns: React.FC = () => {
       setIsResending(false);
     }
   };
+
+  // Derived: unique segments across connected leads
+  const uniqueConnectedSegments = Array.from(new Set(
+    connectedLeads.flatMap(l => l.segments && l.segments.length > 0 ? l.segments : (l.segmentDisplay ? l.segmentDisplay.split(', ') : ['Manual Selection']))
+  ));
+
+  // Derived: filtered list (search + status + segment)
+  const filteredConnectedLeads = connectedLeads.filter((lead) => {
+    const query = connectedSearch.toLowerCase().trim();
+    const segList: string[] = lead.segments && lead.segments.length > 0
+      ? lead.segments
+      : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
+
+    const matchesSearch = !query ||
+      lead.name.toLowerCase().includes(query) ||
+      (lead.email && lead.email.toLowerCase().includes(query)) ||
+      (lead.phone && lead.phone.includes(query)) ||
+      segList.some(s => s.toLowerCase().includes(query));
+
+    const matchesStatus = connectedStatusFilter === 'ALL' || lead.status === connectedStatusFilter;
+    const matchesSegment = connectedSegmentFilter === 'ALL' || segList.includes(connectedSegmentFilter);
+
+    return matchesSearch && matchesStatus && matchesSegment;
+  });
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setConnectedPage(1);
+  }, [connectedSearch, connectedStatusFilter, connectedSegmentFilter]);
+
+  const connectedTotalPages = Math.max(1, Math.ceil(filteredConnectedLeads.length / CONNECTED_PAGE_SIZE));
+  const paginatedConnectedLeads = filteredConnectedLeads.slice(
+    (connectedPage - 1) * CONNECTED_PAGE_SIZE,
+    connectedPage * CONNECTED_PAGE_SIZE
+  );
+
+  const STATUS_STYLES: Record<string, string> = {
+    SENT: 'bg-blue-100 text-blue-700',
+    DELIVERED: 'bg-indigo-100 text-indigo-700',
+    OPENED: 'bg-purple-100 text-purple-700',
+    CLICKED: 'bg-teal-100 text-teal-700',
+    REPLIED: 'bg-emerald-100 text-emerald-700',
+    BOUNCED: 'bg-orange-100 text-orange-800',
+    FAILED: 'bg-rose-100 text-rose-700',
+    PENDING: 'bg-amber-100 text-amber-700',
+    QUEUED: 'bg-indigo-100 text-indigo-700',
+  };
+
+  const STAT_CHIPS: { key: string; label: string; dot: string }[] = [
+    { key: 'ALL', label: 'All', dot: 'bg-slate-400' },
+    { key: 'QUEUED', label: 'Queued', dot: 'bg-indigo-400' },
+    { key: 'PENDING', label: 'Pending', dot: 'bg-amber-400' },
+    { key: 'SENT', label: 'Sent', dot: 'bg-blue-400' },
+    { key: 'DELIVERED', label: 'Delivered', dot: 'bg-cyan-400' },
+    { key: 'OPENED', label: 'Opened', dot: 'bg-purple-400' },
+    { key: 'CLICKED', label: 'Clicked', dot: 'bg-teal-400' },
+    { key: 'REPLIED', label: 'Replied', dot: 'bg-emerald-400' },
+    { key: 'BOUNCED', label: 'Bounced', dot: 'bg-orange-400' },
+    { key: 'FAILED', label: 'Failed', dot: 'bg-rose-400' },
+  ];
 
   return (
     <div className="space-y-4 sm:space-y-8 animate-fade-in relative pb-24 sm:pb-10 px-3 sm:px-6 pt-2">
@@ -390,9 +433,6 @@ export const Campaigns: React.FC = () => {
                             {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                           </button>
                         )}
-                        {/* <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                          <Users className="h-4 w-4" /> Add Leads
-                        </button> */}
                         <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                           <Edit2 className="h-4 w-4" /> Edit
                         </button>
@@ -511,9 +551,6 @@ export const Campaigns: React.FC = () => {
                               {camp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                             </button>
                           )}
-                          {/* <button onClick={() => openManageLeads(camp)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            <Users className="h-4 w-4" /> Add Leads
-                          </button> */}
                           <button onClick={() => navigate(`/campaigns/${camp.id}/edit`)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                             <Edit2 className="h-4 w-4" /> Edit
                           </button>
@@ -545,7 +582,6 @@ export const Campaigns: React.FC = () => {
               </button>
             </div>
 
-            {/* Modal Filters */}
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
@@ -679,38 +715,45 @@ export const Campaigns: React.FC = () => {
         </div>
       )}
 
-      {/* Connected Leads Modal */}
+      {/* Connected Leads Modal (redesigned) */}
       {isConnectedLeadsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col animate-scale-up">
-            <div className="p-6 border-b border-slate-100">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">Connected Leads</h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    <p className="text-sm text-slate-500">{currentCampaign?.name}</p>
-                    {campaignRuns && campaignRuns.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl max-h-[88vh] flex flex-col animate-scale-up overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 pt-5 pb-4 border-b border-slate-100">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-slate-800 truncate">Connected Leads</h2>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <p className="text-sm text-slate-500 truncate">{currentCampaign?.name}</p>
+                    {campaignRuns.length > 0 && (
                       <select
                         value={selectedRunId || ''}
                         onChange={(e) => loadRunData(Number(e.target.value))}
-                        className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500 font-semibold text-indigo-700 cursor-pointer"
                         disabled={connectedLeadsLoading}
+                        className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-indigo-500 font-semibold text-indigo-700 cursor-pointer shrink-0"
                       >
-                        {[...campaignRuns].sort((a, b) => b.runNumber - a.runNumber || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(run => (
-                          <option key={run.id} value={run.id}>Run {run.runNumber} ({new Date(run.createdAt).toLocaleDateString()})</option>
-                        ))}
+                        {[...campaignRuns]
+                          .sort((a, b) => b.runNumber - a.runNumber)
+                          .map(run => (
+                            <option key={run.id} value={run.id}>
+                              Run {run.runNumber} · {new Date(run.createdAt).toLocaleDateString()}
+                            </option>
+                          ))}
                       </select>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+
+                <div className="flex items-center gap-2 shrink-0">
                   {!(connectedStatusCounts['PENDING'] > 0 || connectedStatusCounts['QUEUED'] > 0) && (
                     <button
                       onClick={handleResend}
                       disabled={isResending || connectedLeadsLoading}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-bold shadow-sm transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
                     >
-                      {isResending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {isResending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                       Resend to Non-repliers
                     </button>
                   )}
@@ -720,34 +763,24 @@ export const Campaigns: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status Count Pills / Quick Filter */}
+              {/* Compact stat strip — replaces old pill wall + status dropdown */}
               {!connectedLeadsLoading && connectedLeads.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mt-4">
-                  {[
-                    { key: 'ALL', label: 'ALL', count: connectedLeads.length, bg: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200' },
-                    { key: 'QUEUED', label: 'QUEUED', count: connectedStatusCounts['QUEUED'] || 0, bg: 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-200' },
-                    { key: 'PENDING', label: 'PENDING', count: connectedStatusCounts['PENDING'] || 0, bg: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' },
-                    { key: 'SENT', label: 'SENT', count: connectedStatusCounts['SENT'] || 0, bg: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' },
-                    { key: 'DELIVERED', label: 'DELIVERED', count: connectedStatusCounts['DELIVERED'] || 0, bg: 'bg-cyan-100 text-cyan-800 border-cyan-300 hover:bg-cyan-200' },
-                    { key: 'OPENED', label: 'OPENED', count: connectedStatusCounts['OPENED'] || 0, bg: 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' },
-                    { key: 'CLICKED', label: 'CLICKED', count: connectedStatusCounts['CLICKED'] || 0, bg: 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200' },
-                    { key: 'REPLIED', label: 'REPLIED', count: connectedStatusCounts['REPLIED'] || 0, bg: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200' },
-                    { key: 'BOUNCED', label: 'BOUNCED', count: connectedStatusCounts['BOUNCED'] || 0, bg: 'bg-orange-100 text-orange-900 border-orange-300 hover:bg-orange-200' },
-                    { key: 'FAILED', label: 'FAILED', count: connectedStatusCounts['FAILED'] || 0, bg: 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200' },
-                  ].map((badge) => {
-                    const isSelected = connectedStatusFilter === badge.key;
+                <div className="flex gap-1.5 mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+                  {STAT_CHIPS.map((s) => {
+                    const count = s.key === 'ALL' ? connectedLeads.length : (connectedStatusCounts[s.key] || 0);
+                    const active = connectedStatusFilter === s.key;
                     return (
                       <button
-                        key={badge.key}
-                        onClick={() => setConnectedStatusFilter(badge.key)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${badge.bg} ${isSelected ? 'ring-2 ring-primary ring-offset-1 shadow-sm scale-105' : ''
+                        key={s.key}
+                        onClick={() => setConnectedStatusFilter(s.key)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors shrink-0 ${active
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                           }`}
-                        title={`Filter by ${badge.label}`}
                       >
-                        <span>{badge.label}</span>
-                        <span className="px-1.5 py-0.5 rounded-full text-[11px] font-extrabold bg-white/90 shadow-xs border border-slate-200/50">
-                          {badge.count}
-                        </span>
+                        <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white' : s.dot}`} />
+                        {s.label}
+                        <span className={`text-[10px] font-extrabold ${active ? 'text-white/80' : 'text-slate-400'}`}>{count}</span>
                       </button>
                     );
                   })}
@@ -755,193 +788,155 @@ export const Campaigns: React.FC = () => {
               )}
             </div>
 
-            <div className="p-6 overflow-y-auto">
-              {connectedLeadsLoading ? (
-                <div className="py-12 flex justify-center text-slate-500">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : connectedLeads.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
-              ) : (
-                (() => {
-                  const uniqueSegments = Array.from(new Set(
-                    connectedLeads.flatMap(l => l.segments && l.segments.length > 0 ? l.segments : (l.segmentDisplay ? l.segmentDisplay.split(', ') : ['Manual Selection']))
-                  ));
-
-                  const filteredConnectedLeads = connectedLeads.filter((lead) => {
-                    const query = connectedSearch.toLowerCase().trim();
-                    const segList: string[] = lead.segments && lead.segments.length > 0
-                      ? lead.segments
-                      : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
-
-                    const matchesSearch = !query ||
-                      lead.name.toLowerCase().includes(query) ||
-                      (lead.email && lead.email.toLowerCase().includes(query)) ||
-                      (lead.phone && lead.phone.includes(query)) ||
-                      segList.some(s => s.toLowerCase().includes(query));
-
-                    const matchesStatus = connectedStatusFilter === 'ALL' || lead.status === connectedStatusFilter;
-                    const matchesSegment = connectedSegmentFilter === 'ALL' || segList.includes(connectedSegmentFilter);
-
-                    return matchesSearch && matchesStatus && matchesSegment;
-                  });
-
-                  return (
-                    <div className="space-y-4">
-                      {/* Search & Filter Toolbar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div className="relative flex-1 w-full">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                          <input
-                            type="text"
-                            value={connectedSearch}
-                            onChange={(e) => setConnectedSearch(e.target.value)}
-                            placeholder="Search lead by name, email, phone..."
-                            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary focus:border-primary"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                          {/* Segment Filter */}
-                          <select
-                            value={connectedSegmentFilter}
-                            onChange={(e) => setConnectedSegmentFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
-                          >
-                            <option value="ALL">All Segments ({uniqueSegments.length})</option>
-                            {uniqueSegments.map((segName) => (
-                              <option key={segName} value={segName}>{segName}</option>
-                            ))}
-                          </select>
-
-                          {/* Status Filter */}
-                          <select
-                            value={connectedStatusFilter}
-                            onChange={(e) => setConnectedStatusFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-700 focus:ring-2 focus:ring-primary focus:border-primary flex-1 sm:flex-initial"
-                          >
-                            <option value="ALL">All Statuses ({connectedLeads.length})</option>
-                            <option value="PENDING">PENDING ({connectedStatusCounts['PENDING'] || 0})</option>
-                            <option value="SENT">SENT ({connectedStatusCounts['SENT'] || 0})</option>
-                            <option value="DELIVERED">DELIVERED ({connectedStatusCounts['DELIVERED'] || 0})</option>
-                            <option value="OPENED">OPENED ({connectedStatusCounts['OPENED'] || 0})</option>
-                            <option value="CLICKED">CLICKED ({connectedStatusCounts['CLICKED'] || 0})</option>
-                            <option value="REPLIED">REPLIED ({connectedStatusCounts['REPLIED'] || 0})</option>
-                            <option value="BOUNCED">BOUNCED ({connectedStatusCounts['BOUNCED'] || 0})</option>
-                            <option value="FAILED">FAILED ({connectedStatusCounts['FAILED'] || 0})</option>
-                          </select>
-
-                          {(connectedSearch || connectedStatusFilter !== 'ALL' || connectedSegmentFilter !== 'ALL') && (
-                            <button
-                              onClick={() => {
-                                setConnectedSearch('');
-                                setConnectedStatusFilter('ALL');
-                                setConnectedSegmentFilter('ALL');
-                              }}
-                              className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors"
-                            >
-                              Clear Filters
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Results count banner */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-                        <span>Showing <strong>{filteredConnectedLeads.length}</strong> of <strong>{connectedLeads.length}</strong> connected leads</span>
-                      </div>
-
-                      {/* Table */}
-                      {filteredConnectedLeads.length === 0 ? (
-                        <div className="py-12 text-center text-slate-500 font-medium bg-slate-50 rounded-xl border border-slate-200">
-                          No matching leads found for applied search/filter criteria.
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-                          <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center w-16">No.</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Target Segment</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
-                                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {filteredConnectedLeads.map((lead, index) => {
-                                const segList: string[] = lead.segments && lead.segments.length > 0
-                                  ? lead.segments
-                                  : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
-                                return (
-                                  <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="py-4 px-4 text-xs font-bold text-slate-400 text-center">{index + 1}</td>
-                                    <td className="py-4 px-6 font-semibold text-slate-800">{lead.name}</td>
-                                    <td className="py-4 px-6 text-sm">
-                                      <div className="flex flex-wrap gap-1">
-                                        {segList.map((segName: string, idx: number) => (
-                                          <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
-                                            {segName}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </td>
-                                    <td className="py-4 px-6 text-sm text-slate-600">
-                                      <div className="font-medium">{lead.email || 'No email'}</div>
-                                      <div className="text-xs text-slate-400 mt-0.5">{lead.phone || 'No phone'}</div>
-                                    </td>
-                                    <td className="py-4 px-6">
-                                      <div className="flex flex-col items-start gap-1">
-                                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold tracking-wide ${lead.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                                          lead.status === 'DELIVERED' ? 'bg-indigo-100 text-indigo-700' :
-                                            lead.status === 'OPENED' ? 'bg-purple-100 text-purple-700' :
-                                              lead.status === 'REPLIED' ? 'bg-emerald-100 text-emerald-700' :
-                                                lead.status === 'BOUNCED' ? 'bg-orange-100 text-orange-800' :
-                                                  lead.status === 'FAILED' ? 'bg-rose-100 text-rose-700' :
-                                                    'bg-amber-100 text-amber-700'
-                                          }`}>
-                                          {lead.status}
-                                        </span>
-                                        {(lead.status === 'FAILED' || lead.status === 'BOUNCED') && lead.failureReason && (
-                                          <span className="text-[10px] text-rose-500 font-medium max-w-[150px] leading-tight mt-1">
-                                            {lead.failureReason}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="py-4 px-6 text-sm font-medium text-slate-500">
-                                      {lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-                                    </td>
-                                    <td className="py-4 px-6 text-right">
-                                      {lead.status === 'REPLIED' && lead.latestReply && (
-                                        <button
-                                          onClick={() => {
-                                            setCurrentReply(lead.latestReply);
-                                            setReplyModalOpen(true);
-                                          }}
-                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
-                                        >
-                                          <Mail className="w-4 h-4" />
-                                          View Reply
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()
+            {/* Search + segment filter (status handled above) */}
+            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={connectedSearch}
+                  onChange={(e) => setConnectedSearch(e.target.value)}
+                  placeholder="Search by name, email, phone..."
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                />
+              </div>
+              <select
+                value={connectedSegmentFilter}
+                onChange={(e) => setConnectedSegmentFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-medium text-slate-700 outline-none focus:border-primary"
+              >
+                <option value="ALL">All Segments ({uniqueConnectedSegments.length})</option>
+                {uniqueConnectedSegments.map((seg) => <option key={seg} value={seg}>{seg}</option>)}
+              </select>
+              {(connectedSearch || connectedStatusFilter !== 'ALL' || connectedSegmentFilter !== 'ALL') && (
+                <button
+                  onClick={() => { setConnectedSearch(''); setConnectedStatusFilter('ALL'); setConnectedSegmentFilter('ALL'); }}
+                  className="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition-colors shrink-0"
+                >
+                  Clear
+                </button>
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-100 flex justify-end">
-              <button onClick={() => setIsConnectedLeadsModalOpen(false)} className="btn-secondary">Close</button>
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto">
+              {connectedLeadsLoading ? (
+                <div className="py-16 flex justify-center text-slate-500"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div>
+              ) : connectedLeads.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 font-medium">No leads connected to this campaign.</div>
+              ) : filteredConnectedLeads.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 font-medium bg-slate-50 mx-6 mt-4 rounded-xl border border-slate-200">
+                  No matching leads found for applied search/filter criteria.
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide w-10 text-center">#</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide">Name</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide">Segment</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide">Contact</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide">Status</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide">Updated</th>
+                      <th className="py-2.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wide text-right">Reply</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedConnectedLeads.map((lead, index) => {
+                      const segList: string[] = lead.segments && lead.segments.length > 0
+                        ? lead.segments
+                        : (lead.segmentDisplay ? lead.segmentDisplay.split(', ') : ['Manual Selection']);
+                      const rowNumber = (connectedPage - 1) * CONNECTED_PAGE_SIZE + index + 1;
+                      return (
+                        <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group">
+                          <td className="py-2.5 px-4 text-xs font-semibold text-slate-400 text-center">{rowNumber}</td>
+                          <td className="py-2.5 px-4 font-semibold text-slate-800 max-w-[220px] truncate" title={lead.name}>
+                            {lead.name}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                              {segList.map((segName: string, idx: number) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                  {segName}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-600">
+                            <div className="truncate max-w-[180px]" title={lead.email || ''}>{lead.email || '—'}</div>
+                            <div className="text-xs text-slate-400">{lead.phone || '—'}</div>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${STATUS_STYLES[lead.status] || 'bg-slate-100 text-slate-600'}`}>
+                                {lead.status}
+                              </span>
+                              {(lead.status === 'FAILED' || lead.status === 'BOUNCED') && lead.failureReason && (
+                                <span className="text-[10px] text-rose-500 font-medium max-w-[150px] leading-tight">
+                                  {lead.failureReason}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-xs font-medium text-slate-500 whitespace-nowrap">
+                            {lead.lastInteractionAt
+                              ? new Date(lead.lastInteractionAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                              : 'N/A'}
+                          </td>
+                          <td className="py-2.5 px-4 text-right">
+                            {lead.status === 'REPLIED' && lead.latestReply && (
+                              <button
+                                onClick={() => {
+                                  setCurrentReply(lead.latestReply);
+                                  setReplyModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                View Reply
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer: count + pagination */}
+            <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
+              <span>
+                Showing{' '}
+                <strong className="text-slate-700">
+                  {filteredConnectedLeads.length === 0 ? 0 : (connectedPage - 1) * CONNECTED_PAGE_SIZE + 1}
+                  –{Math.min(connectedPage * CONNECTED_PAGE_SIZE, filteredConnectedLeads.length)}
+                </strong>{' '}
+                of <strong className="text-slate-700">{filteredConnectedLeads.length}</strong>
+                {filteredConnectedLeads.length !== connectedLeads.length && (
+                  <span className="text-slate-400"> (filtered from {connectedLeads.length})</span>
+                )}
+              </span>
+              {connectedTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setConnectedPage(p => Math.max(1, p - 1))}
+                    disabled={connectedPage === 1}
+                    className="px-2.5 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Prev
+                  </button>
+                  <span className="px-2 font-semibold text-slate-600">{connectedPage} / {connectedTotalPages}</span>
+                  <button
+                    onClick={() => setConnectedPage(p => Math.min(connectedTotalPages, p + 1))}
+                    disabled={connectedPage === connectedTotalPages}
+                    className="px-2.5 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

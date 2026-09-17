@@ -236,7 +236,7 @@ export const CampaignEditor = () => {
       </div>
 
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="max-w-8xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <form onSubmit={handleSaveCampaign} className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>

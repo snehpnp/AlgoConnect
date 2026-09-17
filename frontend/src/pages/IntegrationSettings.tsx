@@ -231,7 +231,7 @@ export const IntegrationSettings = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 sm:space-y-8 pb-12 px-4 sm:px-6">
+    <div className="w-full max-w-8xl mx-auto space-y-5 sm:space-y-8 pb-12 px-4 sm:px-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Integration Settings</h1>
         <p className="text-slate-500 text-xs sm:text-sm mt-1">Manage credentials for Email, SMS, and WhatsApp communication channels.</p>
@@ -281,8 +281,8 @@ export const IntegrationSettings = () => {
                   {/* Status */}
                   <span
                     className={`text-sm font-semibold transition-colors duration-200 ${settings.EMAIL.isActive
-                        ? 'text-emerald-600'
-                        : 'text-slate-500'
+                      ? 'text-emerald-600'
+                      : 'text-slate-500'
                       }`}
                   >
                     {settings.EMAIL.isActive ? 'Active' : 'Disabled'}
@@ -700,7 +700,7 @@ export const IntegrationSettings = () => {
                 className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-primary focus:border-primary outline-none"
               />
             </div>
-            
+
             {/* Channel filter */}
             <div className="w-full sm:w-auto">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Channel</label>
