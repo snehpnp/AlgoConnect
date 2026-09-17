@@ -10,6 +10,10 @@ export interface DashboardStats {
   activeLeads: number;
   engagedLeads: number;
   activeCampaigns: number;
+  totalEmailCampaigns: number;
+  completedCampaigns: number;
+  totalSegments: number;
+  totalSmsTemplates: number;
 }
 
 export interface MonthlyAnalytics {
@@ -47,6 +51,15 @@ export interface DashboardResponse {
   message: string;
   data: {
     stats: DashboardStats;
+    coverageStats?: {
+      withEmail: number; withoutEmail: number;
+      withEmail2: number; withoutEmail2: number;
+      withPhone: number; withoutPhone: number;
+      withWebsite: number; withoutWebsite: number;
+      withAlgo: number; withoutAlgo: number;
+      withOtherListings: number; withoutOtherListings: number;
+    };
+    exchangeStats?: { name: string; count: number }[];
     leadTypes: { type: string, count: number, wonCount: number, winRate: number }[];
     leadsByStatus: { status: string, count: number }[];
     analytics: MonthlyAnalytics[];
@@ -77,6 +90,11 @@ export interface DashboardResponse {
       bounced: number;
       failed: number;
     };
+    bouncedLeads?: number;
+    invalidLeads?: number;
+    importedLeads?: number;
+    stateStats?: { name: string; count: number }[];
+    overdueFollowUpsCount?: number;
   };
 }
 

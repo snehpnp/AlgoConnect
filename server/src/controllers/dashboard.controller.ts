@@ -42,8 +42,85 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
     where: { nextFollowUpAt: { lt: startOfDay } }
   });
 
-  // 5. Active Campaigns
+  // Additional Filter Counts
+  const bouncedLeads = await prisma.lead.count({
+    where: { OR: [{ engagementStatus: 'Bounced' }, { messageSends: { some: { status: 'BOUNCED' } } }] }
+  });
+  
+  const invalidLeads = await prisma.lead.count({
+    where: { verificationStatus: { in: ['Likely Inactive', 'Duplicate'] } }
+  });
+
+  const importedLeads = await prisma.lead.count({
+    where: { verificationStatus: 'Imported' }
+  });
+
+  const stateStatsRaw = await prisma.lead.groupBy({
+    by: ['state'],
+    _count: { state: true },
+    where: { state: { not: null, notIn: [''] } }
+  });
+  const stateStats = stateStatsRaw.map(s => ({ name: s.state, count: s._count.state })).sort((a, b) => b.count - a.count);
+
+
+  // 5. Active Campaigns & Additional Stats
   const activeCampaigns = await prisma.campaign.count({ where: { status: 'ACTIVE' } });
+  const totalEmailCampaigns = await prisma.campaign.count({ where: { type: 'EMAIL' } });
+  const completedCampaigns = await prisma.campaign.count({ where: { status: 'COMPLETED' } });
+  const totalSegments = await prisma.segment.count();
+  const totalSmsTemplates = await prisma.messageTemplate.count({ where: { type: 'SMS' } });
+
+  // 5.1 Coverage Stats
+  const withEmail = await prisma.lead.count({
+    where: { 
+      OR: [
+        { email: { not: null, notIn: [''] } },
+        { scrapedEmail: { not: null, notIn: [''] } }
+      ] 
+    }
+  });
+  
+  const withEmail2 = await prisma.lead.count({
+    where: { email2: { not: null, notIn: [''] } }
+  });
+  
+  const withPhone = await prisma.lead.count({
+    where: { 
+      OR: [
+        { phone: { not: null, notIn: [''] } }, 
+        { scrapedPhone: { not: null, notIn: [''] } }, 
+        { phone2: { not: null, notIn: [''] } }
+      ] 
+    }
+  });
+  
+  const withWebsite = await prisma.lead.count({
+    where: { website: { not: null, notIn: [''] } }
+  });
+
+  const withAlgo = await prisma.lead.count({
+    where: { sellsAlgoTrading: { contains: 'Yes', mode: 'insensitive' } }
+  });
+
+  const withOtherListings = await prisma.lead.count({
+    where: { otherListings: { not: null, notIn: [''] } }
+  });
+
+  const exchangeStatsRaw = await prisma.lead.groupBy({
+    by: ['exchangeName'],
+    _count: { exchangeName: true },
+    where: { exchangeName: { not: null, notIn: [''] } }
+  });
+  const exchangeStats = exchangeStatsRaw.map(e => ({ name: e.exchangeName, count: e._count.exchangeName })).sort((a, b) => b.count - a.count);
+
+  const coverageStats = {
+    withEmail, withoutEmail: totalLeads - withEmail,
+    withEmail2, withoutEmail2: totalLeads - withEmail2,
+    withPhone, withoutPhone: totalLeads - withPhone,
+    withWebsite, withoutWebsite: totalLeads - withWebsite,
+    withAlgo, withoutAlgo: totalLeads - withAlgo,
+    withOtherListings, withoutOtherListings: totalLeads - withOtherListings,
+  };
 
   // 6. Source Attribution (Win Rate)
   const leadsByTypeRaw = await prisma.lead.groupBy({
@@ -216,8 +293,14 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
         unverifiedLeads,
         activeLeads,
         engagedLeads,
-        activeCampaigns
+        activeCampaigns,
+        totalEmailCampaigns,
+        completedCampaigns,
+        totalSegments,
+        totalSmsTemplates
       },
+      coverageStats,
+      exchangeStats,
       leadTypes,
       topCampaigns,
       averageTimeToClose,
@@ -228,6 +311,10 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
       leaderboard,
       todaysFollowUps,
       overdueFollowUpsCount,
+      bouncedLeads,
+      invalidLeads,
+      importedLeads,
+      stateStats,
       emailEngagement
     },
     message: 'Dashboard stats retrieved successfully'
