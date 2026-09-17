@@ -72,6 +72,17 @@ const checkIMAPReplies = async () => {
                         const textContent = mail.text || '';
                         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
                         const matchedEmails = textContent.match(emailRegex) || [];
+                        let failureReason = 'Unknown Bounce';
+                        const textLower = textContent.toLowerCase();
+                        if (textLower.includes('address not found') || textLower.includes('user unknown') || textLower.includes('no such user') || textLower.includes('invalid address')) {
+                            failureReason = 'Hard Bounce - Address Not Found';
+                        }
+                        else if (textLower.includes('mailbox full') || textLower.includes('quota exceeded') || textLower.includes('over quota')) {
+                            failureReason = 'Soft Bounce - Mailbox Full';
+                        }
+                        else if (textLower.includes('blocked') || textLower.includes('spam') || textLower.includes('rejected') || textLower.includes('blacklisted') || textLower.includes('policy')) {
+                            failureReason = 'Blocked - Spam or Policy Rejection';
+                        }
                         const failedEmails = matchedEmails.map(e => e.toLowerCase()).filter(e => !e.includes('mailer-daemon') && !e.includes('postmaster'));
                         if (failedEmails.length > 0) {
                             // Usually the first non-system email is the bounced recipient
@@ -95,7 +106,8 @@ const checkIMAPReplies = async () => {
                                         where: { id: lastSend.id },
                                         data: {
                                             status: 'BOUNCED',
-                                            bouncedAt: new Date()
+                                            bouncedAt: new Date(),
+                                            failureReason: failureReason
                                         }
                                     });
                                     await prisma.engagementEvent.create({
@@ -104,7 +116,7 @@ const checkIMAPReplies = async () => {
                                             eventType: 'BOUNCED',
                                             metadataJson: {
                                                 subject: mail.subject,
-                                                error: 'Address not found / Delivery Failed'
+                                                error: failureReason
                                             }
                                         }
                                     });

@@ -103,7 +103,8 @@ const startCampaignRunner = () => {
                                     channel: channel,
                                     subject: 'Skipped - Opt Out',
                                     status: 'FAILED',
-                                    providerMessageId: `skip-optout-${Date.now()}`
+                                    providerMessageId: `skip-optout-${Date.now()}`,
+                                    failureReason: 'Skipped - Opt Out'
                                 }
                             });
                             await prismaClient_1.default.engagementEvent.create({
@@ -126,7 +127,10 @@ const startCampaignRunner = () => {
                                 if (existingSend) {
                                     await prismaClient_1.default.messageSend.update({
                                         where: { id: existingSend.id },
-                                        data: { status: 'BOUNCED' }
+                                        data: {
+                                            status: 'BOUNCED',
+                                            failureReason: 'Hard Bounce - Invalid or Empty Email'
+                                        }
                                     });
                                     await prismaClient_1.default.engagementEvent.create({
                                         data: {
@@ -144,7 +148,8 @@ const startCampaignRunner = () => {
                                             channel: channel,
                                             subject: 'Bounced - Invalid or Empty Email',
                                             status: 'BOUNCED',
-                                            providerMessageId: `bounce-invalid-${Date.now()}`
+                                            providerMessageId: `bounce-invalid-${Date.now()}`,
+                                            failureReason: 'Hard Bounce - Invalid or Empty Email'
                                         }
                                     });
                                     await prismaClient_1.default.engagementEvent.create({
@@ -175,7 +180,8 @@ const startCampaignRunner = () => {
                                     channel: channel,
                                     subject: 'Skipped - Missing Info',
                                     status: 'FAILED',
-                                    providerMessageId: `skip-missing-${Date.now()}`
+                                    providerMessageId: `skip-missing-${Date.now()}`,
+                                    failureReason: 'Skipped - Missing Info'
                                 }
                             });
                             await prismaClient_1.default.engagementEvent.create({
@@ -220,7 +226,6 @@ const startCampaignRunner = () => {
                                 messageSendId: existingSend?.id
                             });
                             if (sendResult && sendResult.limitReached) {
-                               
                                 limitReached = true;
                                 break; // Break the channel loop, outer loop will also break due to limitReached
                             }
@@ -229,9 +234,9 @@ const startCampaignRunner = () => {
                             console.error(`[CampaignRunner] Unexpected error sending ${channel}:`, error);
                         }
                         processedCount++;
-                        // Pacing: add a 1.5s delay between consecutive email dispatches to prevent SMTP rate-limit / spam flags
+                        // Pacing: add a 30s delay between consecutive email dispatches to prevent SMTP rate-limit / spam flags
                         if (channel === 'EMAIL') {
-                            await new Promise(r => setTimeout(r, 1500));
+                            await new Promise(r => setTimeout(r, 30000));
                         }
                     }
                 }

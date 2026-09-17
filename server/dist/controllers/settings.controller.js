@@ -296,6 +296,7 @@ const getMessageLogs = async (req, res) => {
             campaign: log.messageSend?.campaign,
             details: log.metadataJson,
             channel: log.messageSend?.channel,
+            failureReason: log.messageSend?.failureReason,
         }));
         res.json({
             data: logs,

@@ -288,7 +288,8 @@ exports.getCampaignConnectedLeads = (0, asyncHandler_1.asyncHandler)(async (req,
             segments: matchingSegmentNames.length > 0 ? matchingSegmentNames : (campaign.segments?.map(s => s.name) || []),
             segmentDisplay: matchingSegmentNames.length > 0 ? matchingSegmentNames.join(', ') : (campaign.segments && campaign.segments.length > 0 ? campaign.segments.map(s => s.name).join(', ') : 'Manual Selection'),
             latestReply: latestReply || null,
-            lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null
+            lastInteractionAt: latestReply?.receivedAt || lastEvent?.createdAt || lastMessageSend?.createdAt || null,
+            failureReason: lastMessageSend?.failureReason || null
         };
     });
     // Priority Sort: 1) Valid @gmail.com, 2) Other valid email, 3) Invalid/empty email (at the end)
